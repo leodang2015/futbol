@@ -12,7 +12,7 @@
     "lint": "vite build frontend --config frontend/vite.config.js"
   },
   "dependencies": {
-    "@google/genai": "^0.1.1",
+    "@google/genai": "^0.1.0",
     "@quasar/extras": "^1.16.12",
     "@quasar/vite-plugin": "^1.6.0",
     "axios": "^1.7.9",
