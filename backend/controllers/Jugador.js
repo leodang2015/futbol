@@ -1,0 +1,227 @@
+import jwt from 'jsonwebtoken';
+import Jugador from '../models/Jugador.js';
+
+// --- HELPER PARA GENERAR EL TOKEN ---
+export const generarJWT = (uid) => {
+  return new Promise((resolve, reject) => {
+    const payload = { uid };
+
+    jwt.sign(
+      payload,
+      process.env.SECRETORPRIVATEKEY || 'TuClaveSecretaSuperSegura123!@#',
+      { expiresIn: "4h" },
+      (err, token) => {
+        if (err) {
+          console.error("Error al firmar JWT:", err);
+          reject("No se pudo generar el token");
+        } else {
+          resolve(token);
+        }
+      }
+    );
+  });
+};
+
+// --- AUTENTICACIÓN (LOGIN) ---
+export const loginJugador = async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    if (!email || !password) {
+      return res.status(400).json({
+        msg: "El correo y la contraseña son obligatorios"
+      });
+    }
+
+    const jugador = await Jugador.findOne({ email });
+
+    if (!jugador) {
+      return res.status(400).json({
+        msg: "El jugador no existe"
+      });
+    }
+
+    if (jugador.estado === 0) {
+      return res.status(400).json({
+        msg: "Jugador inactivo - contacte al administrador"
+      });
+    }
+
+    if (jugador.password !== password) {
+      return res.status(400).json({
+        msg: "Contraseña incorrecta"
+      });
+    }
+
+    const token = await generarJWT(jugador._id);
+
+    res.json({
+      jugador,
+      token
+    });
+
+  } catch (error) {
+    console.error("Error en loginJugador:", error);
+    res.status(400).json({
+      msg: "No se pudo procesar el inicio de sesión. Verifique los datos enviados."
+    });
+  }
+};
+
+// --- MÉTODOS CRUD SIN ERRORES 500 ---
+
+export const crearJugador = async (req, res) => {
+  try {
+    // Soportar dorsal o numero
+    if (!req.body.numero && req.body.dorsal) {
+      req.body.numero = Number(req.body.dorsal);
+    }
+    if (!req.body.numero) {
+      req.body.numero = 10;
+    }
+
+    // Apellido por defecto si viene vacío
+    if (!req.body.apellido || !req.body.apellido.trim()) {
+      req.body.apellido = '-';
+    }
+
+    // Email por defecto si viene vacío
+    if (!req.body.email || !req.body.email.trim()) {
+      const nom = (req.body.nombre || 'jugador').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const ape = (req.body.apellido || 'club').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const rnd = Math.floor(1000 + Math.random() * 9000);
+      req.body.email = `${nom}.${ape}.${rnd}@futbolito.local`;
+    }
+
+    // Password por defecto
+    if (!req.body.password || !req.body.password.trim()) {
+      req.body.password = 'futbolito123';
+    }
+
+    let { email } = req.body;
+
+    if (email) {
+      const existeEmail = await Jugador.findOne({ email });
+      if (existeEmail) {
+        const nom = (req.body.nombre || 'jugador').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const rnd = Date.now().toString().slice(-4);
+        req.body.email = `${nom}.${rnd}@futbolito.local`;
+      }
+    }
+
+    const jugador = new Jugador(req.body);
+    await jugador.save();
+
+    res.status(201).json(jugador);
+
+  } catch (error) {
+    console.error("Error en crearJugador:", error);
+
+    if (error.code === 11000) {
+      const campoDuplicado = Object.keys(error.keyPattern || {})[0] || 'campo';
+      return res.status(400).json({
+        msg: `El ${campoDuplicado} ya se encuentra registrado`
+      });
+    }
+
+    if (error.name === 'ValidationError') {
+      const mensajes = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({
+        msg: mensajes.join(', ')
+      });
+    }
+
+    res.status(400).json({
+      msg: error.message || "Error al registrar el jugador"
+    });
+  }
+};
+
+export const listarJugadores = async (req, res) => {
+  try {
+    const { equipo } = req.query;
+    const filtro = equipo ? { equipo } : {};
+
+    const jugadores = await Jugador.find(filtro).populate('equipo');
+
+    res.json(jugadores);
+
+  } catch (error) {
+    console.error("Error en listarJugadores:", error);
+    res.status(400).json({
+      msg: "Error al consultar la lista de jugadores"
+    });
+  }
+};
+
+export const editarJugador = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { _id, password, ...resto } = req.body;
+    if (!resto.numero && resto.dorsal) {
+      resto.numero = Number(resto.dorsal);
+    }
+
+    const jugador = await Jugador.findByIdAndUpdate(id, resto, { new: true, runValidators: true });
+
+    if (!jugador) {
+      return res.status(404).json({
+        msg: "El jugador no existe en la base de datos"
+      });
+    }
+
+    res.json(jugador);
+
+  } catch (error) {
+    console.error("Error en editarJugador:", error);
+
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        msg: "El ID proporcionado no es válido"
+      });
+    }
+
+    if (error.code === 11000) {
+      return res.status(400).json({
+        msg: "El valor ingresado ya está en uso por otro registro"
+      });
+    }
+
+    res.status(400).json({
+      msg: "No se pudo actualizar el jugador"
+    });
+  }
+};
+
+export const eliminarJugador = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const jugador = await Jugador.findByIdAndDelete(id);
+
+    if (!jugador) {
+      return res.status(404).json({
+        msg: "El jugador no existe en la base de datos"
+      });
+    }
+
+    res.json({
+      msg: "Jugador eliminado correctamente"
+    });
+
+  } catch (error) {
+    console.error("Error en eliminarJugador:", error);
+
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        msg: "El ID proporcionado no es válido"
+      });
+    }
+
+    res.status(400).json({
+      msg: "No se pudo eliminar el jugador"
+    });
+  }
+};
+
+export default { generarJWT, loginJugador, crearJugador, listarJugadores, editarJugador, eliminarJugador };

@@ -1,0 +1,14 @@
+import { Schema, model } from 'mongoose'
+
+const jugadorSchema = new Schema({
+  nombre: { type: String, required: true },
+  apellido: { type: String, default: '-' },
+  numero: { type: Number, required: true, default: 10 },
+  posicion: { type: String, required: true, default: 'Delantero' },
+  equipo: { type: Schema.Types.ObjectId, ref: 'Equipo', required: true },
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true, default: 'futbolito123' },
+  estado: { type: Number, default: 1 } // 1: Activo, 0: Inactivo
+}, { timestamps: true })
+
+export default model('Jugador', jugadorSchema)
