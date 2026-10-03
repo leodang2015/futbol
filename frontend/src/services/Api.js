@@ -1,7 +1,6 @@
 import axios from 'axios'
 
-// Cliente HTTP con Axios (Express + MongoDB, puerto 4000)
-// En desarrollo, Vite redirige /api -> localhost:4000
+// Conexión a la API usando la URL de Render (en Vercel) o proxy local en desarrollo
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
   headers: {
@@ -27,12 +26,11 @@ async function request(config) {
     } else {
       message = 'Error de conexión con el servidor'
     }
-    
     throw new Error(message)
   }
 }
 
-// Rutas esperadas en el backend
+// Métodos exportados para consumir el backend
 export default {
   getTorneo: () => request({ url: '/torneos', method: 'GET' }),
   getEquipos: () => request({ url: '/equipos', method: 'GET' }),
