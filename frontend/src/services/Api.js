@@ -2,7 +2,7 @@ import axios from 'axios'
 
 // Conexión a la API usando la URL de Render (en Vercel) o proxy local en desarrollo
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: import.meta.env.VITE_API_URL || '',
   headers: {
     'Content-Type': 'application/json'
   }
