@@ -237,4 +237,3 @@ export const crearPartido = async (req, res) => {
 };
 
 export default { listarPartidos, cargarResultado, obtenerTablaPosiciones, crearPartido };
-
