@@ -195,6 +195,28 @@ export const crearPartido = async (req, res) => {
       });
     }
 
+    // Regla Oficial: Solo se permite jugar con máximo 11 jugadores en la cancha (los demás en banca)
+    const jugadoresLocal = await Jugador.find({ equipo: local });
+    const jugadoresVisitante = await Jugador.find({ equipo: visitante });
+    const esBanca = (pos) => {
+      const p = String(pos || '').toLowerCase();
+      return p.includes('banc') || p.includes('supl');
+    };
+    const enCanchaLocal = jugadoresLocal.filter(j => !esBanca(j.posicion)).length;
+    const enCanchaVisitante = jugadoresVisitante.filter(j => !esBanca(j.posicion)).length;
+
+    if (enCanchaLocal > 11) {
+      return res.status(400).json({
+        msg: `Advertencia reglamentaria: El club "${equipoLocal.nombre}" tiene ${enCanchaLocal} jugadores en cancha. Solo se permite jugar con un máximo de 11 jugadores en la cancha (asigna el rol "En Banca" a los suplentes).`
+      });
+    }
+
+    if (enCanchaVisitante > 11) {
+      return res.status(400).json({
+        msg: `Advertencia reglamentaria: El club "${equipoVisitante.nombre}" tiene ${enCanchaVisitante} jugadores en cancha. Solo se permite jugar con un máximo de 11 jugadores en la cancha (asigna el rol "En Banca" a los suplentes).`
+      });
+    }
+
     // Normalizar jornada / fecha
     const j = Number(jornada ?? fecha ?? 1);
 
