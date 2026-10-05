@@ -4,21 +4,11 @@
       <!-- Columna Izquierda: Lista de Clubes -->
       <div class="col-12 col-md-4">
         <q-card flat bordered class="bg-white rounded-borders overflow-hidden">
-          <q-card-section class="row items-center justify-between q-py-md bg-slate-50 border-b">
+          <q-card-section class="q-py-md bg-slate-50 border-b">
             <div>
-              <div class="text-subtitle1 text-weight-bold text-dark">Clubes Inscriptos</div>
+              <div class="text-subtitle1 text-weight-bold text-dark">Clubes del Torneo</div>
               <div class="text-caption text-grey-6">{{ store.equipos.length }} equipos registrados</div>
             </div>
-            <q-btn
-              unelevated
-              dense
-              color="primary"
-              :icon="matAdd"
-              label="Inscribir Club"
-              no-caps
-              class="q-px-sm"
-              @click="modalEquipo = true"
-            />
           </q-card-section>
 
           <q-list separator class="club-list">
@@ -36,7 +26,17 @@
               </q-item-section>
 
               <q-item-section>
-                <q-item-label class="text-weight-bold text-dark">{{ e.nombre }}</q-item-label>
+                <div class="row items-center justify-between no-wrap">
+                  <q-item-label class="text-weight-bold text-dark ellipsis">{{ e.nombre }}</q-item-label>
+                  <q-badge
+                    :color="store.equipoHabilitadoParaJugar(e.id) ? 'positive' : 'grey-7'"
+                    text-color="white"
+                    size="xs"
+                    class="q-ml-xs text-weight-bold"
+                  >
+                    {{ store.cantidadJugadoresEquipo(e.id) }}/11 jug.
+                  </q-badge>
+                </div>
                 <q-item-label caption class="text-grey-6">
                   {{ e.barriada || e.barrio || 'Sede Barrial' }} · DT: {{ e.capitan || e.tecnico || 'Sin asignar' }}
                 </q-item-label>
@@ -51,7 +51,7 @@
               <q-item-section class="text-grey-6">
                 <q-icon :name="matGroups" size="36px" color="grey-4" class="q-mx-auto q-mb-xs" />
                 <div class="text-body2 text-weight-medium">Sin equipos registrados</div>
-                <div class="text-caption q-mt-xs">Pulsa "+ Inscribir Club" para agregar el primero.</div>
+                <div class="text-caption q-mt-xs">Los clubes son creados automáticamente por cada entrenador al registrarse.</div>
               </q-item-section>
             </q-item>
           </q-list>
@@ -76,9 +76,41 @@
                       <q-icon :name="matBadge" size="14px" /> DT/Capitán: {{ equipo.capitan || equipo.tecnico }}
                     </span>
                   </div>
+
+                  <!-- Estado Reglamentario: Mínimo 11 personas para partidos -->
+                  <div class="q-mt-sm">
+                    <span
+                      v-if="plantel.length >= 11"
+                      class="bg-emerald-800 text-emerald-100 text-caption text-weight-bold q-px-sm q-py-xs rounded-borders inline-flex items-center"
+                    >
+                      <q-icon name="check_circle" size="14px" class="q-mr-xs text-positive" />
+                      Habilitado para disputar partidos oficiales ({{ plantel.length }} jugadores)
+                    </span>
+                    <span
+                      v-else
+                      class="bg-amber-9 text-white text-caption text-weight-bold q-px-sm q-py-xs rounded-borders inline-flex items-center"
+                    >
+                      <q-icon name="warning" size="14px" class="q-mr-xs text-white" />
+                      Nómina en formación: {{ plantel.length }}/11 jugadores (Mínimo 11 para disputar partidos)
+                    </span>
+                  </div>
                 </div>
 
                 <div class="row items-center q-gutter-sm">
+                  <q-btn
+                    v-if="plantel.length < 11"
+                    unelevated
+                    no-caps
+                    color="amber-4"
+                    text-color="dark"
+                    :icon="matPersonAdd"
+                    :label="`Completar a 11 (${plantel.length}/11)`"
+                    class="text-weight-bold shadow-1"
+                    :loading="completandoPlantel"
+                    @click="completarPlantelClub(equipo.id)"
+                  >
+                    <q-tooltip>Incorporar automáticamente los jugadores restantes para habilitar partidos oficiales</q-tooltip>
+                  </q-btn>
                   <q-btn
                     outline
                     no-caps
@@ -105,7 +137,7 @@
             <!-- Tabla de Plantel -->
             <div class="q-pa-md">
               <div class="row items-center justify-between q-mb-sm">
-                <div class="text-subtitle2 text-weight-bold text-dark">Plantel y Jugadores Inscriptos</div>
+                <div class="text-subtitle2 text-weight-bold text-dark">Plantel Oficial del Club</div>
                 <div class="text-caption text-grey-6 font-mono">{{ plantel.length }} jugadores en nómina</div>
               </div>
 
@@ -174,8 +206,8 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useTorneoStore } from '../stores/torneoStore.js'
-import { useRoleStore, ROLES } from '../stores/roleStore.js'
+import { useQuasar } from 'quasar'
+import { useTorneo, ROLES } from '../torneo.js'
 import EquipoDialog from '../components/EquipoDialog.vue'
 import JugadorDialog from '../components/JugadorDialog.vue'
 import {
@@ -190,18 +222,45 @@ import {
   matSports
 } from '@quasar/extras/material-icons'
 
-const store = useTorneoStore()
-const roleStore = useRoleStore()
+const $q = useQuasar()
+const store = useTorneo()
+const roleStore = store
 const router = useRouter()
+
+const seleccionId = ref(null)
+const modalEquipo = ref(false)
+const modalJugador = ref(false)
+const completandoPlantel = ref(false)
+
+async function completarPlantelClub(equipoId) {
+  completandoPlantel.value = true
+  try {
+    const res = await store.completarPlantelEquipo(equipoId)
+    $q.notify({
+      type: 'positive',
+      icon: 'check_circle',
+      message: res.msg || 'Plantel completado a 11 jugadores reglamentarios.',
+      position: 'top',
+      timeout: 3500
+    })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      icon: 'error',
+      message: err.message || 'Error al completar el plantel',
+      position: 'top',
+      timeout: 3500
+    })
+  } finally {
+    completandoPlantel.value = false
+  }
+}
 
 function irAPizarraDT(equipoId) {
   roleStore.setEquipoEntrenador(equipoId)
   roleStore.cambiarRol(ROLES.ENTRENADOR)
   router.push('/entrenador')
 }
-const seleccionId = ref(null)
-const modalEquipo = ref(false)
-const modalJugador = ref(false)
 
 const equipo = computed(() => {
   if (seleccionId.value) {

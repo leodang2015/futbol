@@ -48,11 +48,37 @@
                     <span class="dot" :style="{ background: colorEquipo(scope.opt.value) }" />
                   </q-item-section>
                   <q-item-section>
-                    <q-item-label>{{ scope.opt.label }}</q-item-label>
+                    <q-item-label class="text-weight-bold">{{ scope.opt.label }}</q-item-label>
+                    <q-item-label caption>
+                      <span :class="scope.opt.habilitado ? 'text-positive text-weight-bold' : 'text-negative text-weight-bold'">
+                        {{ scope.opt.badgeText }}
+                      </span>
+                    </q-item-label>
                   </q-item-section>
                 </q-item>
               </template>
             </q-select>
+            <!-- Estado de nómina local -->
+            <div v-if="form.local" class="q-mt-xs">
+              <span v-if="store.equipoHabilitadoParaJugar(form.local)" class="text-positive text-caption text-weight-bold font-11">
+                ✅ Habilitado ({{ store.cantidadJugadoresEquipo(form.local) }} jug.)
+              </span>
+              <div v-else class="column items-start q-gutter-xs">
+                <span class="text-negative text-caption text-weight-bold font-11">
+                  ⚠️ Incompleto ({{ store.cantidadJugadoresEquipo(form.local) }}/11 jug.)
+                </span>
+                <q-btn
+                  flat
+                  dense
+                  no-caps
+                  size="xs"
+                  color="primary"
+                  label="+ Completar a 11"
+                  :loading="completando"
+                  @click="completarPlantel(form.local)"
+                />
+              </div>
+            </div>
           </div>
 
           <!-- Marcador VS -->
@@ -78,11 +104,45 @@
                     <span class="dot" :style="{ background: colorEquipo(scope.opt.value) }" />
                   </q-item-section>
                   <q-item-section>
-                    <q-item-label>{{ scope.opt.label }}</q-item-label>
+                    <q-item-label class="text-weight-bold">{{ scope.opt.label }}</q-item-label>
+                    <q-item-label caption>
+                      <span :class="scope.opt.habilitado ? 'text-positive text-weight-bold' : 'text-negative text-weight-bold'">
+                        {{ scope.opt.badgeText }}
+                      </span>
+                    </q-item-label>
                   </q-item-section>
                 </q-item>
               </template>
             </q-select>
+            <!-- Estado de nómina visitante -->
+            <div v-if="form.visitante" class="q-mt-xs">
+              <span v-if="store.equipoHabilitadoParaJugar(form.visitante)" class="text-positive text-caption text-weight-bold font-11">
+                ✅ Habilitado ({{ store.cantidadJugadoresEquipo(form.visitante) }} jug.)
+              </span>
+              <div v-else class="column items-start q-gutter-xs">
+                <span class="text-negative text-caption text-weight-bold font-11">
+                  ⚠️ Incompleto ({{ store.cantidadJugadoresEquipo(form.visitante) }}/11 jug.)
+                </span>
+                <q-btn
+                  flat
+                  dense
+                  no-caps
+                  size="xs"
+                  color="primary"
+                  label="+ Completar a 11"
+                  :loading="completando"
+                  @click="completarPlantel(form.visitante)"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alerta Reglamentaria: Mínimo 11 personas -->
+        <div v-if="alertaReglamentaria" class="bg-amber-1 border border-amber-3 q-pa-sm rounded-borders text-amber-10 row items-center no-wrap">
+          <q-icon name="warning" size="20px" class="q-mr-sm" color="amber-9" />
+          <div class="text-caption text-weight-medium">
+            {{ alertaReglamentaria }}
           </div>
         </div>
 
@@ -124,8 +184,13 @@
           label="Guardar Partido"
           :icon="matCheck"
           :loading="guardando"
+          :disable="!puedeGuardar"
           @click="guardar"
-        />
+        >
+          <q-tooltip v-if="!puedeGuardar">
+            Ambos clubes deben contar con al menos 11 jugadores registrados para habilitar el partido.
+          </q-tooltip>
+        </q-btn>
       </q-card-actions>
     </q-card>
   </q-dialog>
@@ -133,19 +198,34 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { useTorneoStore } from '../stores/torneoStore.js'
+import { useTorneo } from '../torneo.js'
 import { matSportsScore, matClose, matRemove, matAdd, matCheck } from '@quasar/extras/material-icons'
 
 const props = defineProps({ modelValue: Boolean })
 const emit = defineEmits(['update:modelValue'])
-const store = useTorneoStore()
+const store = useTorneo()
 
 const vacio = () => ({ fecha: 1, local: null, visitante: null, golesLocal: 0, golesVisitante: 0 })
 const form = ref(vacio())
 const error = ref('')
 const guardando = ref(false)
+const completando = ref(false)
 
-const opciones = computed(() => store.equipos.map(e => ({ label: e.nombre, value: e.id || e._id })))
+const opciones = computed(() =>
+  store.equipos.map(e => {
+    const id = e.id || e._id
+    const cant = store.cantidadJugadoresEquipo(id)
+    const habilitado = cant >= 11
+    return {
+      label: e.nombre,
+      value: id,
+      cant,
+      habilitado,
+      badgeText: habilitado ? `${cant} jug. ✅` : `${cant}/11 jug. ⚠️`,
+      badgeColor: habilitado ? 'positive' : 'negative'
+    }
+  })
+)
 
 function nombreEquipo(id) {
   return store.equipoPorId(id)?.nombre
@@ -153,6 +233,42 @@ function nombreEquipo(id) {
 
 function colorEquipo(id) {
   return store.equipoPorId(id)?.color || store.equipoPorId(id)?.escudocolor || '#059669'
+}
+
+const alertaReglamentaria = computed(() => {
+  if (form.value.local && !store.equipoHabilitadoParaJugar(form.value.local)) {
+    const cant = store.cantidadJugadoresEquipo(form.value.local)
+    const nom = nombreEquipo(form.value.local)
+    return `"${nom}" tiene ${cant}/11 jugadores. Se exige un mínimo reglamentario de 11 personas para disputar partidos oficiales.`
+  }
+  if (form.value.visitante && !store.equipoHabilitadoParaJugar(form.value.visitante)) {
+    const cant = store.cantidadJugadoresEquipo(form.value.visitante)
+    const nom = nombreEquipo(form.value.visitante)
+    return `"${nom}" tiene ${cant}/11 jugadores. Se exige un mínimo reglamentario de 11 personas para disputar partidos oficiales.`
+  }
+  return ''
+})
+
+const puedeGuardar = computed(() => {
+  return Boolean(
+    form.value.local &&
+    form.value.visitante &&
+    form.value.local !== form.value.visitante &&
+    store.equipoHabilitadoParaJugar(form.value.local) &&
+    store.equipoHabilitadoParaJugar(form.value.visitante)
+  )
+})
+
+async function completarPlantel(equipoId) {
+  completando.value = true
+  error.value = ''
+  try {
+    await store.completarPlantelEquipo(equipoId)
+  } catch (err) {
+    error.value = err.message || 'Error al completar plantel'
+  } finally {
+    completando.value = false
+  }
 }
 
 async function guardar() {
@@ -163,6 +279,18 @@ async function guardar() {
   }
   if (form.value.local === form.value.visitante) {
     error.value = 'El equipo local y visitante no pueden ser el mismo.'
+    return
+  }
+
+  const cantLocal = store.cantidadJugadoresEquipo(form.value.local)
+  if (cantLocal < 11) {
+    error.value = `El club local "${nombreEquipo(form.value.local)}" solo tiene ${cantLocal} jugadores. Se exige un mínimo reglamentario de 11 personas para registrarse a partidos.`
+    return
+  }
+
+  const cantVisitante = store.cantidadJugadoresEquipo(form.value.visitante)
+  if (cantVisitante < 11) {
+    error.value = `El club visitante "${nombreEquipo(form.value.visitante)}" solo tiene ${cantVisitante} jugadores. Se exige un mínimo reglamentario de 11 personas para registrarse a partidos.`
     return
   }
 

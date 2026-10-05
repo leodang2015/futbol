@@ -47,7 +47,7 @@
             unelevated
             no-caps
             :icon="matPersonAdd"
-            label="Inscribir Jugador"
+            label="Agregar Jugador"
             @click="mostrarDialogoJugador = true"
             class="text-weight-bold"
           />
@@ -60,14 +60,14 @@
       <q-icon :name="matGroups" size="56px" color="grey-4" class="q-mb-md" />
       <div class="text-h6 text-weight-bold text-slate-800">No hay clubes registrados todavía</div>
       <div class="text-caption text-grey-6 q-mb-md">
-        Inscribe un club primero para que el entrenador pueda asignar las posiciones de sus futbolistas.
+        Cada entrenador funda su propio club al registrarse en la plataforma.
       </div>
       <q-btn
         color="primary"
         unelevated
         no-caps
-        label="Ir a Inscribir Club"
-        :to="'/inscripcion'"
+        label="Ver Clubes del Torneo"
+        :to="'/equipos'"
       />
     </q-card>
 
@@ -322,8 +322,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { useTorneoStore } from '../stores/torneoStore.js'
-import { useRoleStore } from '../stores/roleStore.js'
+import { useTorneo } from '../torneo.js'
 import JugadorDialog from '../components/JugadorDialog.vue'
 import {
   matSports,
@@ -334,8 +333,8 @@ import {
   matGroups
 } from '@quasar/extras/material-icons'
 
-const store = useTorneoStore()
-const roleStore = useRoleStore()
+const store = useTorneo()
+const roleStore = store
 
 const esquemaTactico = ref('4-3-3')
 const mostrarDialogoJugador = ref(false)
