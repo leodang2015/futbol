@@ -654,7 +654,8 @@ const opcionesPosiciones = [
   { label: '🧤 Portero', value: 'Arquero', desc: 'Bajo los tres palos' },
   { label: '🛡️ Defensa', value: 'Defensor', desc: 'Recuperación y marca' },
   { label: '⚙️ Mediocampo', value: 'Mediocampista', desc: 'Creación y juego' },
-  { label: '⚡ Delantero', value: 'Delantero', desc: 'Goles y ataque' }
+  { label: '⚡ Delantero', value: 'Delantero', desc: 'Goles y ataque' },
+  { label: '🪑 En Banca', value: 'En Banca', desc: 'Suplente a la espera' }
 ]
 
 const opcionesEquipos = computed(() =>

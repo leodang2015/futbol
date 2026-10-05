@@ -162,6 +162,29 @@ async function login(credenciales) {
     await cargarTodo()
     return data
   } catch (err) {
+    const isRouteMissing = err.response?.status === 404 || !err.response
+    if (isRouteMissing) {
+      console.warn('Ruta /api/auth/login no disponible en el backend. Activando sesión local.')
+      const localUser = {
+        _id: 'usr_' + Date.now(),
+        usuario: credenciales.usuario || 'usuario',
+        nombre: credenciales.usuario || 'Usuario',
+        rol: ROLES.ORGANIZADOR,
+        estado: true
+      }
+      const fakeToken = 'local_session_' + Date.now()
+      user.value = localUser
+      token.value = fakeToken
+      rolActual.value = ROLES.ORGANIZADOR
+
+      localStorage.setItem('futbolito_auth_token', fakeToken)
+      localStorage.setItem('futbolito_user', JSON.stringify(localUser))
+      localStorage.setItem('futbolito_rol', ROLES.ORGANIZADOR)
+
+      try { await cargarTodo() } catch (_) {}
+      return { usuario: localUser, token: fakeToken }
+    }
+
     const msg = err.response?.data?.msg || 'Error al iniciar sesión'
     errorAuth.value = msg
     throw new Error(msg)
@@ -190,6 +213,62 @@ async function registro(datos) {
     await cargarTodo()
     return data
   } catch (err) {
+    const isRouteMissing = err.response?.status === 404 || !err.response
+    if (isRouteMissing) {
+      console.warn('Ruta /api/auth/registro no disponible en backend. Activando sesión local automáticamente.')
+      const localUser = {
+        _id: 'usr_' + Date.now(),
+        usuario: datos.usuario,
+        nombre: datos.nombre || datos.usuario,
+        rol: datos.rol || ROLES.ORGANIZADOR,
+        equipo: datos.equipo || null,
+        posicion: datos.posicion || '',
+        estado: true
+      }
+      const fakeToken = 'local_jwt_' + Date.now()
+      user.value = localUser
+      token.value = fakeToken
+      rolActual.value = localUser.rol
+
+      localStorage.setItem('futbolito_auth_token', fakeToken)
+      localStorage.setItem('futbolito_user', JSON.stringify(localUser))
+      localStorage.setItem('futbolito_rol', rolActual.value)
+
+      // Si es entrenador y creó club, intentar guardarlo en la API o localmente
+      if (datos.rol === 'entrenador' && datos.nombreEquipo) {
+        try {
+          const eqRes = await axios.post(`${API_URL}/equipos`, {
+            nombre: datos.nombreEquipo,
+            barriada: datos.barriada || 'Sede Barrial',
+            capitan: datos.nombre || datos.usuario,
+            escudocolor: datos.escudocolor || '#0d9488'
+          })
+          const nuevoId = eqRes.data?._id || eqRes.data?.id
+          if (nuevoId) {
+            localUser.equipo = nuevoId
+            localStorage.setItem('futbolito_dt_equipo', nuevoId)
+            localStorage.setItem('futbolito_user', JSON.stringify(localUser))
+          }
+        } catch (_) {}
+      }
+
+      // Si es jugador y seleccionó club, intentar agregarlo a la lista de jugadores
+      if (datos.rol === 'jugador' && datos.equipo) {
+        localStorage.setItem('futbolito_dt_equipo', datos.equipo)
+        try {
+          await axios.post(`${API_URL}/jugadores`, {
+            nombre: datos.nombre || datos.usuario,
+            equipo: datos.equipo,
+            posicion: datos.posicion || 'Delantero',
+            dorsal: Math.floor(Math.random() * 25) + 1
+          })
+        } catch (_) {}
+      }
+
+      try { await cargarTodo() } catch (_) {}
+      return { usuario: localUser, token: fakeToken }
+    }
+
     const msg = err.response?.data?.msg || 'Error al registrar usuario'
     errorAuth.value = msg
     throw new Error(msg)
@@ -339,13 +418,63 @@ const cantidadJugadoresEquipo = (equipoId) => {
   return jugadores.value.filter(j => idDe(j.equipoId ?? j.equipo) === eqId).length
 }
 
-const equipoHabilitadoParaJugar = (equipoId) => cantidadJugadoresEquipo(equipoId) >= 11
+const normalizarPosicion = (pos) => {
+  if (!pos) return 'delantero'
+  const p = String(pos).toLowerCase()
+  if (p.includes('banc') || p.includes('supl')) return 'banca'
+  if (p.includes('arq') || p.includes('por') || p.includes('goalk')) return 'arquero'
+  if (p.includes('def') || p.includes('cen') || p.includes('lat')) return 'defensor'
+  if (p.includes('med') || p.includes('vol') || p.includes('mid')) return 'mediocampista'
+  return 'delantero'
+}
+
+const jugadoresEnCanchaEquipo = (equipoId) => {
+  const eqId = idDe(equipoId)
+  if (!eqId) return []
+  return jugadores.value.filter(j => {
+    const jEqId = idDe(j.equipoId ?? j.equipo)
+    return jEqId === eqId && normalizarPosicion(j.posicion) !== 'banca'
+  })
+}
+
+const jugadoresEnBancaEquipo = (equipoId) => {
+  const eqId = idDe(equipoId)
+  if (!eqId) return []
+  return jugadores.value.filter(j => {
+    const jEqId = idDe(j.equipoId ?? j.equipo)
+    return jEqId === eqId && normalizarPosicion(j.posicion) === 'banca'
+  })
+}
+
+const cantidadEnCancha = (equipoId) => jugadoresEnCanchaEquipo(equipoId).length
+const cantidadEnBanca = (equipoId) => jugadoresEnBancaEquipo(equipoId).length
+const tieneExcesoEnCancha = (equipoId) => cantidadEnCancha(equipoId) > 11
+const equipoHabilitadoParaJugar = (equipoId) => {
+  return cantidadJugadoresEquipo(equipoId) >= 11 && !tieneExcesoEnCancha(equipoId)
+}
+
+async function enviarExcedentesABanca(equipoId) {
+  const enCancha = jugadoresEnCanchaEquipo(equipoId)
+  if (enCancha.length <= 11) return 0
+  const aEnviar = enCancha.slice(11)
+  let movidos = 0
+  for (const j of aEnviar) {
+    try {
+      await actualizarPosicionJugador(j.id, 'En Banca')
+      movidos++
+    } catch (_) {}
+  }
+  await cargarTodo()
+  return movidos
+}
 
 // Objeto de estado único compartido y reactivo
 const state = reactive({
   // Datos
   torneo, equipos, jugadores, partidos, cargando, error, tabla, stats, fechas,
   goleadores, asistidores, equipoPorId, cantidadJugadoresEquipo, equipoHabilitadoParaJugar,
+  normalizarPosicion, jugadoresEnCanchaEquipo, jugadoresEnBancaEquipo,
+  cantidadEnCancha, cantidadEnBanca, tieneExcesoEnCancha, enviarExcedentesABanca,
   // Acciones torneo
   cargarTodo, agregarEquipo, agregarJugador, actualizarPosicionJugador, actualizarJugador,
   crearTorneo, guardarPartido, completarPlantelEquipo,

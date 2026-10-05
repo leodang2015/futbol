@@ -137,8 +137,29 @@
             <!-- Tabla de Plantel -->
             <div class="q-pa-md">
               <div class="row items-center justify-between q-mb-sm">
-                <div class="text-subtitle2 text-weight-bold text-dark">Plantel Oficial del Club</div>
-                <div class="text-caption text-grey-6 font-mono">{{ plantel.length }} jugadores en nómina</div>
+                <div>
+                  <div class="text-subtitle2 text-weight-bold text-dark">Plantel Oficial del Club</div>
+                  <div class="text-caption text-grey-7 font-mono">
+                    {{ plantel.length }} en nómina ·
+                    <span :class="store.cantidadEnCancha(equipoSeleccionado?.id) > 11 ? 'text-negative text-weight-bolder' : 'text-emerald-8 text-weight-bold'">
+                      {{ store.cantidadEnCancha(equipoSeleccionado?.id) }}/11 en cancha
+                    </span>
+                    <span v-if="store.cantidadEnCancha(equipoSeleccionado?.id) > 11" class="text-negative text-weight-bolder q-ml-xs">
+                      ⚠️ (Excedido en +{{ store.cantidadEnCancha(equipoSeleccionado?.id) - 11 }})
+                    </span>
+                    · {{ store.cantidadEnBanca(equipoSeleccionado?.id) }} en banca
+                  </div>
+                </div>
+                <q-btn
+                  v-if="store.cantidadEnCancha(equipoSeleccionado?.id) > 11"
+                  unelevated
+                  dense
+                  size="sm"
+                  color="negative"
+                  no-caps
+                  label="Enviar excedentes a banca"
+                  @click="store.enviarExcedentesABanca(equipoSeleccionado?.id)"
+                />
               </div>
 
               <div class="table-responsive">
@@ -147,7 +168,7 @@
                     <tr>
                       <th class="th-dorsal text-center">Dorsal</th>
                       <th class="th-name text-left">Jugador</th>
-                      <th class="th-pos text-center">Posición</th>
+                      <th class="th-pos text-center">Posición / Rol</th>
                       <th class="th-goles text-center">Goles</th>
                       <th class="th-cards text-center">Tarjetas</th>
                     </tr>
@@ -161,7 +182,12 @@
                         {{ [j.nombre, j.apellido].filter(Boolean).join(' ') }}
                       </td>
                       <td class="text-center">
-                        <span class="pos-badge">{{ j.posicion || 'Jugador' }}</span>
+                        <span
+                          class="pos-badge"
+                          :class="store.normalizarPosicion(j.posicion) === 'banca' ? 'pos-badge-banca' : 'pos-badge-cancha'"
+                        >
+                          {{ store.normalizarPosicion(j.posicion) === 'banca' ? '🪑 En Banca' : (j.posicion || 'Delantero') }}
+                        </span>
                       </td>
                       <td class="text-center font-mono text-weight-bold">
                         {{ j.goles ?? 0 }}
@@ -336,12 +362,22 @@ const headerGradient = computed(() => {
   background-color: #f8fafc;
 }
 .pos-badge {
-  background-color: #f1f5f9;
-  color: #475569;
-  padding: 2px 8px;
+  padding: 3px 8px;
   border-radius: 4px;
   font-size: 0.74rem;
   font-weight: 600;
+  display: inline-block;
+}
+.pos-badge-banca {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px dashed #94a3b8;
+}
+.pos-badge-cancha {
+  background-color: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  font-weight: 700;
 }
 .card-pill {
   display: inline-flex;

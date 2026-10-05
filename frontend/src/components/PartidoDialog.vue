@@ -61,8 +61,22 @@
             <!-- Estado de nómina local -->
             <div v-if="form.local" class="q-mt-xs">
               <span v-if="store.equipoHabilitadoParaJugar(form.local)" class="text-positive text-caption text-weight-bold font-11">
-                ✅ Habilitado ({{ store.cantidadJugadoresEquipo(form.local) }} jug.)
+                ✅ Habilitado ({{ store.cantidadEnCancha(form.local) }} en cancha · {{ store.cantidadEnBanca(form.local) }} en banca)
               </span>
+              <div v-else-if="store.tieneExcesoEnCancha(form.local)" class="column items-start q-gutter-xs">
+                <span class="text-negative text-caption text-weight-bold font-11">
+                  ⚠️ {{ store.cantidadEnCancha(form.local) }}/11 en cancha (Excedido en +{{ store.cantidadEnCancha(form.local) - 11 }})
+                </span>
+                <q-btn
+                  flat
+                  dense
+                  no-caps
+                  size="xs"
+                  color="negative"
+                  label="🪑 Enviar excedentes a banca"
+                  @click="store.enviarExcedentesABanca(form.local)"
+                />
+              </div>
               <div v-else class="column items-start q-gutter-xs">
                 <span class="text-negative text-caption text-weight-bold font-11">
                   ⚠️ Incompleto ({{ store.cantidadJugadoresEquipo(form.local) }}/11 jug.)
@@ -117,8 +131,22 @@
             <!-- Estado de nómina visitante -->
             <div v-if="form.visitante" class="q-mt-xs">
               <span v-if="store.equipoHabilitadoParaJugar(form.visitante)" class="text-positive text-caption text-weight-bold font-11">
-                ✅ Habilitado ({{ store.cantidadJugadoresEquipo(form.visitante) }} jug.)
+                ✅ Habilitado ({{ store.cantidadEnCancha(form.visitante) }} en cancha · {{ store.cantidadEnBanca(form.visitante) }} en banca)
               </span>
+              <div v-else-if="store.tieneExcesoEnCancha(form.visitante)" class="column items-start q-gutter-xs">
+                <span class="text-negative text-caption text-weight-bold font-11">
+                  ⚠️ {{ store.cantidadEnCancha(form.visitante) }}/11 en cancha (Excedido en +{{ store.cantidadEnCancha(form.visitante) - 11 }})
+                </span>
+                <q-btn
+                  flat
+                  dense
+                  no-caps
+                  size="xs"
+                  color="negative"
+                  label="🪑 Enviar excedentes a banca"
+                  @click="store.enviarExcedentesABanca(form.visitante)"
+                />
+              </div>
               <div v-else class="column items-start q-gutter-xs">
                 <span class="text-negative text-caption text-weight-bold font-11">
                   ⚠️ Incompleto ({{ store.cantidadJugadoresEquipo(form.visitante) }}/11 jug.)
@@ -215,13 +243,21 @@ const opciones = computed(() =>
   store.equipos.map(e => {
     const id = e.id || e._id
     const cant = store.cantidadJugadoresEquipo(id)
-    const habilitado = cant >= 11
+    const enCancha = store.cantidadEnCancha(id)
+    const tieneExceso = store.tieneExcesoEnCancha(id)
+    const habilitado = cant >= 11 && !tieneExceso
+    let badgeText = `${cant} jug. ✅`
+    if (cant < 11) badgeText = `${cant}/11 jug. ⚠️`
+    else if (tieneExceso) badgeText = `⚠️ ${enCancha}/11 en cancha`
+
     return {
       label: e.nombre,
       value: id,
       cant,
+      enCancha,
+      tieneExceso,
       habilitado,
-      badgeText: habilitado ? `${cant} jug. ✅` : `${cant}/11 jug. ⚠️`,
+      badgeText,
       badgeColor: habilitado ? 'positive' : 'negative'
     }
   })
@@ -236,15 +272,27 @@ function colorEquipo(id) {
 }
 
 const alertaReglamentaria = computed(() => {
-  if (form.value.local && !store.equipoHabilitadoParaJugar(form.value.local)) {
+  if (form.value.local) {
     const cant = store.cantidadJugadoresEquipo(form.value.local)
     const nom = nombreEquipo(form.value.local)
-    return `"${nom}" tiene ${cant}/11 jugadores. Se exige un mínimo reglamentario de 11 personas para disputar partidos oficiales.`
+    if (cant < 11) {
+      return `"${nom}" tiene ${cant}/11 jugadores. Se exige un mínimo reglamentario de 11 personas para disputar partidos.`
+    }
+    if (store.tieneExcesoEnCancha(form.value.local)) {
+      const enCancha = store.cantidadEnCancha(form.value.local)
+      return `⚠️ ADVERTENCIA: "${nom}" tiene ${enCancha} jugadores en cancha. Solo se permite jugar con un máximo de 11 futbolistas en la cancha. Debe asignar el rol 'En Banca' a los suplentes.`
+    }
   }
-  if (form.value.visitante && !store.equipoHabilitadoParaJugar(form.value.visitante)) {
+  if (form.value.visitante) {
     const cant = store.cantidadJugadoresEquipo(form.value.visitante)
     const nom = nombreEquipo(form.value.visitante)
-    return `"${nom}" tiene ${cant}/11 jugadores. Se exige un mínimo reglamentario de 11 personas para disputar partidos oficiales.`
+    if (cant < 11) {
+      return `"${nom}" tiene ${cant}/11 jugadores. Se exige un mínimo reglamentario de 11 personas para disputar partidos.`
+    }
+    if (store.tieneExcesoEnCancha(form.value.visitante)) {
+      const enCancha = store.cantidadEnCancha(form.value.visitante)
+      return `⚠️ ADVERTENCIA: "${nom}" tiene ${enCancha} jugadores en cancha. Solo se permite jugar con un máximo de 11 futbolistas en la cancha. Debe asignar el rol 'En Banca' a los suplentes.`
+    }
   }
   return ''
 })

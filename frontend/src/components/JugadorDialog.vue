@@ -61,7 +61,7 @@
             <div class="text-caption text-weight-medium text-grey-8 q-mb-xs">Posición</div>
             <q-select
               v-model="form.posicion"
-              :options="['Arquero', 'Defensor', 'Mediocampista', 'Delantero']"
+              :options="['Arquero', 'Defensor', 'Mediocampista', 'Delantero', 'En Banca']"
               outlined
               dense
             />
