@@ -3,7 +3,7 @@ import Equipo from '../models/Equipo.js'
 import Jugador from '../models/Jugador.js'
 import jwt from 'jsonwebtoken'
 
-const JWT_SECRET = process.env.SECRETORPRIVATEKEY || 'TuClaveSecretaSuperSegura123!@#'
+const JWT_SECRET = process.env.SECRETORPRIVATEKEY 
 
 // Mapeo de códigos oficiales exigidos
 export const CODIGOS_ROL = {
