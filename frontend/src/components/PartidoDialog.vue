@@ -245,12 +245,10 @@ const opciones = computed(() =>
     const cant = store.cantidadJugadoresEquipo(id)
     const enCancha = store.cantidadEnCancha(id)
     const tieneExceso = store.tieneExcesoEnCancha(id)
-    const tieneCap = store.tieneCapitan(id)
-    const habilitado = cant >= 11 && !tieneExceso && tieneCap
-    let badgeText = `${cant} jug. © ✅`
+    const habilitado = cant >= 11 && !tieneExceso
+    let badgeText = `${cant} jug. ✅`
     if (cant < 11) badgeText = `${cant}/11 jug. ⚠️`
     else if (tieneExceso) badgeText = `⚠️ ${enCancha}/11 en cancha`
-    else if (!tieneCap) badgeText = `⚠️ Falta Capitán`
 
     return {
       label: e.nombre,
@@ -258,7 +256,6 @@ const opciones = computed(() =>
       cant,
       enCancha,
       tieneExceso,
-      tieneCap,
       habilitado,
       badgeText,
       badgeColor: habilitado ? 'positive' : 'negative'
@@ -285,9 +282,6 @@ const alertaReglamentaria = computed(() => {
       const enCancha = store.cantidadEnCancha(form.value.local)
       return `⚠️ ADVERTENCIA: "${nom}" tiene ${enCancha} jugadores en cancha. Solo se permite jugar con un máximo de 11 futbolistas en la cancha. Debe asignar el rol 'En Banca' a los suplentes.`
     }
-    if (!store.tieneCapitan(form.value.local)) {
-      return `⚠️ REGLA OFICIAL: "${nom}" no tiene un Capitán asignado. Solo se podrá jugar cuando el entrenador escoja al capitán del equipo.`
-    }
   }
   if (form.value.visitante) {
     const cant = store.cantidadJugadoresEquipo(form.value.visitante)
@@ -298,9 +292,6 @@ const alertaReglamentaria = computed(() => {
     if (store.tieneExcesoEnCancha(form.value.visitante)) {
       const enCancha = store.cantidadEnCancha(form.value.visitante)
       return `⚠️ ADVERTENCIA: "${nom}" tiene ${enCancha} jugadores en cancha. Solo se permite jugar con un máximo de 11 futbolistas en la cancha. Debe asignar el rol 'En Banca' a los suplentes.`
-    }
-    if (!store.tieneCapitan(form.value.visitante)) {
-      return `⚠️ REGLA OFICIAL: "${nom}" no tiene un Capitán asignado. Solo se podrá jugar cuando el entrenador escoja al capitán del equipo.`
     }
   }
   return ''
@@ -348,16 +339,6 @@ async function guardar() {
   const cantVisitante = store.cantidadJugadoresEquipo(form.value.visitante)
   if (cantVisitante < 11) {
     error.value = `El club visitante "${nombreEquipo(form.value.visitante)}" solo tiene ${cantVisitante} jugadores. Se exige un mínimo reglamentario de 11 personas para registrarse a partidos.`
-    return
-  }
-
-  if (!store.tieneCapitan(form.value.local)) {
-    error.value = `Solo se podrá jugar cuando el entrenador escoja al capitán del equipo. El club local "${nombreEquipo(form.value.local)}" no tiene capitán designado.`
-    return
-  }
-
-  if (!store.tieneCapitan(form.value.visitante)) {
-    error.value = `Solo se podrá jugar cuando el entrenador escoja al capitán del equipo. El club visitante "${nombreEquipo(form.value.visitante)}" no tiene capitán designado.`
     return
   }
 

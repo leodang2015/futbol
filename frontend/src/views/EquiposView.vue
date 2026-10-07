@@ -22,30 +22,12 @@
               @click="seleccionId = e.id"
             >
               <q-item-section avatar>
-                <img
-                  v-if="e.escudoUrl"
-                  :src="e.escudoUrl"
-                  alt="Escudo"
-                  class="club-list-crest shadow-sm"
-                />
-                <span v-else-if="e.escudoFigura" class="font-18 q-mr-xs">{{ e.escudoFigura }}</span>
-                <span v-else class="club-avatar-dot shadow-sm" :style="{ background: e.color || e.escudocolor || '#059669' }" />
+                <span class="club-avatar-dot shadow-sm" :style="{ background: e.color || e.escudocolor || '#059669' }" />
               </q-item-section>
 
               <q-item-section>
                 <div class="row items-center justify-between no-wrap">
-                  <div class="row items-center no-wrap ellipsis">
-                    <q-item-label class="text-weight-bold text-dark ellipsis">{{ e.nombre }}</q-item-label>
-                    <q-badge
-                      v-if="store.esJugador && (e.id === store.miEquipoId || e._id === store.miEquipoId)"
-                      color="indigo-7"
-                      text-color="white"
-                      size="xs"
-                      class="q-ml-xs text-weight-bold"
-                    >
-                      Tu Club
-                    </q-badge>
-                  </div>
+                  <q-item-label class="text-weight-bold text-dark ellipsis">{{ e.nombre }}</q-item-label>
                   <q-badge
                     :color="store.equipoHabilitadoParaJugar(e.id) ? 'positive' : 'grey-7'"
                     text-color="white"
@@ -83,61 +65,38 @@
             <!-- Banner Cabecera del Club -->
             <div class="club-header-banner q-pa-lg text-white" :style="{ background: headerGradient }">
               <div class="row items-center justify-between">
-                <div class="row items-center q-gutter-md">
-                  <div
-                    class="escudo-view-box flex flex-center rounded-borders shadow-2"
-                    :style="{ background: equipo.escudocolor || '#059669' }"
-                  >
-                    <img v-if="equipo.escudoUrl" :src="equipo.escudoUrl" class="escudo-view-img" />
-                    <span v-else class="text-h4">{{ equipo.escudoFigura || '🛡️' }}</span>
+                <div>
+                  <div class="text-caption text-uppercase text-weight-bold opacity-80">Ficha de Club</div>
+                  <h2 class="text-h5 text-weight-bolder q-my-xs text-white">{{ equipo.nombre }}</h2>
+                  <div class="row items-center q-gutter-sm text-caption opacity-90">
+                    <span v-if="equipo.barriada || equipo.barrio">
+                      <q-icon :name="matPlace" size="14px" /> {{ equipo.barriada || equipo.barrio }}
+                    </span>
+                    <span v-if="equipo.capitan || equipo.tecnico">
+                      <q-icon :name="matBadge" size="14px" /> DT/Capitán: {{ equipo.capitan || equipo.tecnico }}
+                    </span>
                   </div>
-                  <div>
-                    <div class="text-caption text-uppercase text-weight-bold opacity-80">Ficha de Club</div>
-                    <h2 class="text-h5 text-weight-bolder q-my-none text-white">{{ equipo.nombre }}</h2>
-                    <div class="row items-center q-gutter-sm text-caption opacity-90 q-mt-xs">
-                      <span v-if="equipo.barriada || equipo.barrio">
-                        <q-icon :name="matPlace" size="14px" /> {{ equipo.barriada || equipo.barrio }}
-                      </span>
-                      <span>
-                        <q-icon :name="matBadge" size="14px" /> Ⓒ Capitán: <strong>{{ equipo.capitan || 'Sin asignar' }}</strong>
-                      </span>
-                    </div>
 
-                    <!-- Estado Reglamentario: Mínimo 11 personas y Capitán Oficial -->
-                    <div class="q-mt-xs row items-center q-gutter-xs">
-                      <span
-                        v-if="plantel.length >= 11"
-                        class="bg-emerald-800 text-emerald-100 text-caption text-weight-bold q-px-sm q-py-xs rounded-borders inline-flex items-center"
-                      >
-                        <q-icon name="check_circle" size="14px" class="q-mr-xs text-positive" />
-                        Nómina con {{ plantel.length }} jugadores
-                      </span>
-                      <span
-                        v-else
-                        class="bg-amber-9 text-white text-caption text-weight-bold q-px-sm q-py-xs rounded-borders inline-flex items-center"
-                      >
-                        <q-icon name="warning" size="14px" class="q-mr-xs text-white" />
-                        {{ plantel.length }}/11 jugadores (Mínimo 11)
-                      </span>
-
-                      <!-- Badge de Capitán -->
-                      <span
-                        v-if="store.tieneCapitan(equipo.id)"
-                        class="bg-amber-8 text-white text-caption text-weight-bold q-px-sm q-py-xs rounded-borders inline-flex items-center font-11"
-                      >
-                        Ⓒ Capitán Oficial: {{ equipo.capitan }}
-                      </span>
-                      <span
-                        v-else
-                        class="bg-rose-9 text-white text-caption text-weight-bold q-px-sm q-py-xs rounded-borders inline-flex items-center font-11"
-                      >
-                        ⚠️ Sin Capitán Designado
-                      </span>
-                    </div>
+                  <!-- Estado Reglamentario: Mínimo 11 personas para partidos -->
+                  <div class="q-mt-sm">
+                    <span
+                      v-if="plantel.length >= 11"
+                      class="bg-emerald-800 text-emerald-100 text-caption text-weight-bold q-px-sm q-py-xs rounded-borders inline-flex items-center"
+                    >
+                      <q-icon name="check_circle" size="14px" class="q-mr-xs text-positive" />
+                      Habilitado para disputar partidos oficiales ({{ plantel.length }} jugadores)
+                    </span>
+                    <span
+                      v-else
+                      class="bg-amber-9 text-white text-caption text-weight-bold q-px-sm q-py-xs rounded-borders inline-flex items-center"
+                    >
+                      <q-icon name="warning" size="14px" class="q-mr-xs text-white" />
+                      Nómina en formación: {{ plantel.length }}/11 jugadores (Mínimo 11 para disputar partidos)
+                    </span>
                   </div>
                 </div>
 
-                <div v-if="!store.esJugador" class="row items-center q-gutter-sm">
+                <div class="row items-center q-gutter-sm">
                   <q-btn
                     v-if="plantel.length < 11"
                     unelevated
@@ -171,11 +130,6 @@
                     class="text-weight-bold"
                     @click="modalJugador = true"
                   />
-                </div>
-                <div v-else class="row items-center q-gutter-sm">
-                  <q-badge color="indigo-8" text-color="white" class="text-weight-bold q-px-sm q-py-xs">
-                    👁️ Modo Futbolista · Nómina Oficial
-                  </q-badge>
                 </div>
               </div>
             </div>
@@ -225,18 +179,7 @@
                         #{{ j.dorsal ?? j.numero ?? '—' }}
                       </td>
                       <td class="text-weight-bold text-dark">
-                        <div class="row items-center no-wrap q-gutter-xs">
-                          <span>{{ [j.nombre, j.apellido].filter(Boolean).join(' ') }}</span>
-                          <q-badge
-                            v-if="j.esCapitan || equipo?.capitan === j.nombre"
-                            color="amber-9"
-                            text-color="white"
-                            class="text-weight-bolder font-10 q-px-xs"
-                            title="Capitán Oficial del Club"
-                          >
-                            Ⓒ CAPITÁN
-                          </q-badge>
-                        </div>
+                        {{ [j.nombre, j.apellido].filter(Boolean).join(' ') }}
                       </td>
                       <td class="text-center">
                         <span
@@ -310,7 +253,7 @@ const store = useTorneo()
 const roleStore = store
 const router = useRouter()
 
-const seleccionId = ref(store.miEquipoId || null)
+const seleccionId = ref(null)
 const modalEquipo = ref(false)
 const modalJugador = ref(false)
 const completandoPlantel = ref(false)
@@ -341,6 +284,7 @@ async function completarPlantelClub(equipoId) {
 
 function irAPizarraDT(equipoId) {
   roleStore.setEquipoEntrenador(equipoId)
+  roleStore.cambiarRol(ROLES.ENTRENADOR)
   router.push('/entrenador')
 }
 

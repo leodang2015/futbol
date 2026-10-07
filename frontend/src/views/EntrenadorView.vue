@@ -20,70 +20,29 @@
 
         <!-- Selector de Club para el Entrenador -->
         <div class="row items-center q-gutter-sm">
-          <!-- Escudo del Club Seleccionado -->
-          <div class="row items-center no-wrap bg-slate-50 q-px-sm q-py-xs rounded-borders border cursor-pointer" @click="abrirEditorEscudo" title="Clic para personalizar el escudo">
-            <img
-              v-if="equipoActual?.escudoUrl"
-              :src="equipoActual.escudoUrl"
-              alt="Escudo"
-              class="club-crest-image q-mr-xs"
-            />
-            <span v-else class="text-subtitle1 q-mr-xs">{{ equipoActual?.escudoFigura || '🛡️' }}</span>
-            <span class="text-caption text-weight-bolder text-slate-900 q-mr-xs">{{ equipoActual?.nombre }}</span>
-            <q-btn
-              v-if="!store.esJugador"
-              flat
-              round
-              dense
-              size="xs"
-              color="positive"
-              :icon="matShield"
-              title="Personalizar Escudo del Club"
-            />
-          </div>
-
-          <!-- Indicador del Capitán del Equipo -->
-          <q-badge
-            :color="tieneCapitanAsignado ? 'amber-9' : 'negative'"
-            text-color="white"
-            class="text-weight-bolder q-px-sm q-py-xs font-11"
+          <div class="text-caption text-weight-medium text-grey-7">Tu Club:</div>
+          <q-select
+            v-model="equipoSeleccionadoId"
+            :options="opcionesEquipos"
+            emit-value
+            map-options
+            outlined
+            dense
+            style="min-width: 220px"
+            bg-color="grey-1"
           >
-            {{ tieneCapitanAsignado ? `Ⓒ Capitán: ${capitanActual?.nombre || equipoActual?.capitan}` : '⚠️ Sin Capitán (Obligatorio para jugar)' }}
-            <q-tooltip>
-              {{ tieneCapitanAsignado ? 'Equipo habilitado por reglamento para disputar partidos oficiales' : 'Por reglamento, solo se puede jugar cuando el entrenador escoja al capitán' }}
-            </q-tooltip>
-          </q-badge>
-
-          <div v-if="!store.esJugador" class="row items-center q-gutter-xs">
-            <div class="text-caption text-weight-medium text-grey-7">Cambiar Club:</div>
-            <q-select
-              v-model="equipoSeleccionadoId"
-              :options="opcionesEquipos"
-              emit-value
-              map-options
-              outlined
-              dense
-              style="min-width: 170px"
-              bg-color="grey-1"
-            >
-              <template #selected-item="scope">
-                <div v-if="scope.opt" class="row items-center no-wrap">
-                  <span
-                    class="club-dot q-mr-xs"
-                    :style="{ backgroundColor: scope.opt.color || '#059669' }"
-                  />
-                  <span class="text-weight-bold text-slate-800 ellipsis">{{ scope.opt.label }}</span>
-                </div>
-              </template>
-            </q-select>
-          </div>
-
-          <q-badge v-else color="indigo-7" text-color="white" class="text-weight-bold q-px-sm q-py-xs">
-            Modo Jugador: Viendo tu club
-          </q-badge>
+            <template #selected-item="scope">
+              <div v-if="scope.opt" class="row items-center no-wrap">
+                <span
+                  class="club-dot q-mr-xs"
+                  :style="{ backgroundColor: scope.opt.color || '#059669' }"
+                />
+                <span class="text-weight-bold text-slate-800 ellipsis">{{ scope.opt.label }}</span>
+              </div>
+            </template>
+          </q-select>
 
           <q-btn
-            v-if="!store.esJugador"
             color="primary"
             unelevated
             no-caps
@@ -95,20 +54,6 @@
         </div>
       </q-card-section>
     </q-card>
-
-    <!-- Selector de Modo: Pizarra Táctica / Reporte de Goleadores -->
-    <q-tabs
-      v-model="tabVista"
-      dense
-      no-caps
-      class="bg-white rounded-borders shadow-1 q-mb-md"
-      active-color="positive"
-      indicator-color="positive"
-      align="left"
-    >
-      <q-tab name="pizarra" :icon="matStadium" label="Pizarra Táctica & Alineación (11 en Cancha)" class="text-weight-bold" />
-      <q-tab name="goleadores" :icon="matSportsSoccer" label="Reportar Goleadores del Partido (Notificar al Admin)" class="text-weight-bold text-amber-10" />
-    </q-tabs>
 
     <!-- Si no hay equipos -->
     <q-card v-if="!store.equipos.length" flat bordered class="bg-white rounded-borders q-pa-xl text-center">
@@ -127,30 +72,6 @@
     </q-card>
 
     <div v-else>
-      <!-- ANUNCIO DE ADVERTENCIA REGLAMENTARIA: Falta designar Capitán -->
-      <q-banner
-        v-if="!tieneCapitanAsignado && jugadoresDelEquipo.length > 0"
-        dense
-        rounded
-        class="bg-amber-1 text-amber-10 q-mb-md q-pa-md border border-amber-4 shadow-2 animate-pulse-gentle"
-      >
-        <template #avatar>
-          <q-icon :name="matMilitaryTech" size="36px" color="amber-9" />
-        </template>
-        <div class="row items-center justify-between no-wrap q-gutter-md">
-          <div>
-            <div class="text-subtitle1 text-weight-bolder row items-center q-gutter-xs">
-              <span>⚠️ REGLAMENTO OFICIAL: ¡FALTA ESCOGER AL CAPITÁN DEL EQUIPO!</span>
-            </div>
-            <div class="text-body2 text-slate-800 q-mt-xs">
-              Por normativa oficial de la competición, <strong>solo se podrá jugar cuando el entrenador escoja al capitán del equipo (Ⓒ)</strong>.
-              Tu club no podrá disputar partidos ni registrar marcadores hasta que nombres al Capitán oficial.
-              Haz clic en el ícono de medalla 🎖️ o en <strong>"Nombrar Capitán (Ⓒ)"</strong> en cualquiera de tus futbolistas.
-            </div>
-          </div>
-        </div>
-      </q-banner>
-
       <!-- ANUNCIO DE ADVERTENCIA REGLAMENTARIA: Más de 11 jugadores en cancha -->
       <q-banner
         v-if="hayExcesoEnCancha"
@@ -229,7 +150,7 @@
         </div>
       </q-banner>
 
-      <div v-if="tabVista === 'pizarra'" class="row q-col-gutter-lg">
+      <div class="row q-col-gutter-lg">
         <!-- Columna Izquierda: Cancha Táctica Visual -->
         <div class="col-12 col-lg-7">
           <q-card flat bordered class="bg-white rounded-borders overflow-hidden">
@@ -284,13 +205,8 @@
                       class="pitch-player-card cursor-pointer"
                       @click="seleccionarParaEditar(j)"
                     >
-                      <div class="player-number bg-amber-6 text-white" :class="{ 'ring-captain': esElCapitan(j) }">
-                        {{ j.numero || j.dorsal || 9 }}
-                      </div>
-                      <div class="player-name ellipsis">
-                        {{ j.nombre }} {{ j.apellido ? j.apellido[0] + '.' : '' }}
-                        <span v-if="esElCapitan(j)" class="text-amber-4 text-weight-bolder"> Ⓒ</span>
-                      </div>
+                      <div class="player-number bg-amber-6 text-white">{{ j.numero || j.dorsal || 9 }}</div>
+                      <div class="player-name ellipsis">{{ j.nombre }} {{ j.apellido ? j.apellido[0] + '.' : '' }}</div>
                     </div>
                     <div v-if="!delanteros.length" class="empty-zone-hint">
                       Sin delanteros asignados
@@ -308,13 +224,8 @@
                       class="pitch-player-card cursor-pointer"
                       @click="seleccionarParaEditar(j)"
                     >
-                      <div class="player-number bg-sky-6 text-white" :class="{ 'ring-captain': esElCapitan(j) }">
-                        {{ j.numero || j.dorsal || 8 }}
-                      </div>
-                      <div class="player-name ellipsis">
-                        {{ j.nombre }} {{ j.apellido ? j.apellido[0] + '.' : '' }}
-                        <span v-if="esElCapitan(j)" class="text-amber-4 text-weight-bolder"> Ⓒ</span>
-                      </div>
+                      <div class="player-number bg-sky-6 text-white">{{ j.numero || j.dorsal || 8 }}</div>
+                      <div class="player-name ellipsis">{{ j.nombre }} {{ j.apellido ? j.apellido[0] + '.' : '' }}</div>
                     </div>
                     <div v-if="!mediocampistas.length" class="empty-zone-hint">
                       Sin mediocampistas asignados
@@ -332,13 +243,8 @@
                       class="pitch-player-card cursor-pointer"
                       @click="seleccionarParaEditar(j)"
                     >
-                      <div class="player-number bg-indigo-6 text-white" :class="{ 'ring-captain': esElCapitan(j) }">
-                        {{ j.numero || j.dorsal || 4 }}
-                      </div>
-                      <div class="player-name ellipsis">
-                        {{ j.nombre }} {{ j.apellido ? j.apellido[0] + '.' : '' }}
-                        <span v-if="esElCapitan(j)" class="text-amber-4 text-weight-bolder"> Ⓒ</span>
-                      </div>
+                      <div class="player-number bg-indigo-6 text-white">{{ j.numero || j.dorsal || 4 }}</div>
+                      <div class="player-name ellipsis">{{ j.nombre }} {{ j.apellido ? j.apellido[0] + '.' : '' }}</div>
                     </div>
                     <div v-if="!defensores.length" class="empty-zone-hint">
                       Sin defensores asignados
@@ -355,13 +261,8 @@
                       class="pitch-player-card cursor-pointer"
                       @click="seleccionarParaEditar(j)"
                     >
-                      <div class="player-number bg-emerald-7 text-white" :class="esElCapitan(j) ? 'ring-captain' : 'ring-gold'">
-                        {{ j.numero || j.dorsal || 1 }}
-                      </div>
-                      <div class="player-name ellipsis">
-                        {{ j.nombre }} {{ j.apellido ? j.apellido[0] + '.' : '' }} (ARQ)
-                        <span v-if="esElCapitan(j)" class="text-amber-4 text-weight-bolder"> Ⓒ</span>
-                      </div>
+                      <div class="player-number bg-emerald-7 text-white ring-gold">{{ j.numero || j.dorsal || 1 }}</div>
+                      <div class="player-name ellipsis">{{ j.nombre }} {{ j.apellido ? j.apellido[0] + '.' : '' }} (ARQ)</div>
                     </div>
                     <div v-if="!arqueros.length" class="empty-zone-hint">
                       Sin arquero asignado
@@ -509,12 +410,9 @@
 
                   <!-- Nombre y Datos -->
                   <q-item-section>
-                    <div class="row items-center q-gutter-xs">
-                      <span class="text-weight-bold text-slate-800">{{ j.nombre }} {{ j.apellido || '' }}</span>
-                      <q-badge v-if="esElCapitan(j)" color="amber-9" text-color="white" class="text-weight-bolder font-10 q-px-xs">
-                        Ⓒ CAPITÁN OFICIAL
-                      </q-badge>
-                    </div>
+                    <q-item-label class="text-weight-bold text-slate-800">
+                      {{ j.nombre }} {{ j.apellido || '' }}
+                    </q-item-label>
                     <q-item-label caption class="text-grey-6 row items-center q-gutter-xs">
                       <span>Estado:</span>
                       <q-badge
@@ -525,21 +423,8 @@
                     </q-item-label>
                   </q-item-section>
 
-                  <!-- Botón rápido Toggle Banca / Cancha y Capitán -->
+                  <!-- Botón rápido Toggle Banca / Cancha -->
                   <q-item-section side class="row items-center no-wrap q-gutter-xs">
-                    <!-- Botón para Nombrar Capitán -->
-                    <q-btn
-                      v-if="!esElCapitan(j) && !store.esJugador"
-                      dense
-                      flat
-                      round
-                      size="sm"
-                      color="amber-8"
-                      :icon="matMilitaryTech"
-                      title="Nombrar Capitán del Equipo (Ⓒ)"
-                      @click="nombrarCapitan(j)"
-                    />
-
                     <q-btn
                       v-if="normalizarPos(j.posicion) === 'banca'"
                       dense
@@ -598,356 +483,7 @@
           </q-card>
         </div>
       </div>
-
-      <!-- TAB 2: REPORTAR GOLEADORES DEL PARTIDO (Notificar al Administrador) -->
-      <div v-else-if="tabVista === 'goleadores'" class="q-gutter-y-md">
-        <q-card flat bordered class="bg-white rounded-borders q-pa-lg">
-          <div class="row items-center justify-between q-mb-md">
-            <div class="row items-center q-gutter-sm">
-              <q-avatar size="44px" color="amber-1" text-color="amber-9">
-                <q-icon :name="matSportsSoccer" size="26px" />
-              </q-avatar>
-              <div>
-                <div class="text-h6 text-weight-bold text-slate-900">
-                  Planilla Oficial de Goleadores · DT {{ equipoActual?.nombre }}
-                </div>
-                <div class="text-caption text-grey-6">
-                  Registra quiénes anotaron los goles de tu equipo en un partido oficial. Al terminar la selección, se enviará una notificación oficial con la planilla al Administrador.
-                </div>
-              </div>
-            </div>
-            <q-badge color="positive" text-color="white" class="text-weight-bold q-px-sm q-py-xs">
-              Notificación Directa al Organizador
-            </q-badge>
-          </div>
-
-          <div v-if="!partidosDelClub.length" class="text-center q-pa-xl text-grey-6 bg-slate-50 rounded-borders border">
-            <q-icon :name="matCalendarMonth" size="48px" color="grey-4" class="q-mb-sm" />
-            <div class="text-subtitle1 text-weight-bold">No hay partidos registrados para tu club todavía</div>
-            <div class="text-caption text-grey-6 q-mt-xs">
-              Cuando se programen partidos o se carguen fechas en el torneo, podrás seleccionar el partido aquí para registrar los goles.
-            </div>
-          </div>
-
-          <div v-else class="q-gutter-y-md">
-            <!-- Selección del Partido -->
-            <div class="bg-slate-50 q-pa-md rounded-borders border">
-              <div class="text-subtitle2 text-weight-bold text-slate-800 q-mb-xs">1. Selecciona el Partido Oficial a Reportar:</div>
-              <q-select
-                v-model="partidoReporteId"
-                :options="opcionesPartidosReporte"
-                emit-value
-                map-options
-                outlined
-                dense
-                bg-color="white"
-                placeholder="Elige el partido a reportar"
-              >
-                <template #option="scope">
-                  <q-item v-bind="scope.itemProps">
-                    <q-item-section>
-                      <q-item-label class="text-weight-bold">{{ scope.opt.label }}</q-item-label>
-                      <q-item-label caption class="text-grey-6 font-mono">
-                        Jornada {{ scope.opt.jornada }} · Estado: {{ scope.opt.estado }}
-                      </q-item-label>
-                    </q-item-section>
-                  </q-item>
-                </template>
-              </q-select>
-            </div>
-
-            <!-- Datos del Encuentro y Marcador -->
-            <div v-if="partidoSeleccionado" class="bg-slate-50 q-pa-md rounded-borders border q-gutter-y-md">
-              <div class="text-subtitle2 text-weight-bold text-slate-800">2. Marcador Oficial del Encuentro:</div>
-              <div class="row q-col-gutter-md items-center justify-center">
-                <div class="col-12 col-sm-5 text-center">
-                  <div class="text-caption text-weight-bold text-positive q-mb-xs">
-                    {{ esLocal ? equipoActual?.nombre : rivalDelPartido?.nombre }} (Local)
-                  </div>
-                  <q-input
-                    v-model.number="marcadorLocal"
-                    type="number"
-                    min="0"
-                    outlined
-                    dense
-                    bg-color="white"
-                    class="text-center font-mono text-h6 text-weight-bold"
-                  />
-                </div>
-                <div class="col-12 col-sm-2 text-center text-weight-bolder text-grey-5 text-h5">
-                  VS
-                </div>
-                <div class="col-12 col-sm-5 text-center">
-                  <div class="text-caption text-weight-bold text-indigo-8 q-mb-xs">
-                    {{ esLocal ? rivalDelPartido?.nombre : equipoActual?.nombre }} (Visitante)
-                  </div>
-                  <q-input
-                    v-model.number="marcadorVisitante"
-                    type="number"
-                    min="0"
-                    outlined
-                    dense
-                    bg-color="white"
-                    class="text-center font-mono text-h6 text-weight-bold"
-                  />
-                </div>
-              </div>
-
-              <!-- Goleadores de tu equipo -->
-              <div class="q-pt-sm border-t">
-                <div class="row items-center justify-between q-mb-sm">
-                  <div>
-                    <div class="text-subtitle2 text-weight-bold text-slate-800">
-                      3. Autores de los Goles de {{ equipoActual?.nombre }}:
-                    </div>
-                    <div class="text-caption text-grey-6">
-                      Indica qué futbolistas de tu plantel hicieron los goles.
-                    </div>
-                  </div>
-                  <q-btn
-                    unelevated
-                    dense
-                    no-caps
-                    color="primary"
-                    :icon="matAdd"
-                    label="+ Añadir Goleador"
-                    class="q-px-sm text-weight-bold text-caption"
-                    @click="agregarFilaGoleador"
-                  />
-                </div>
-
-                <div v-if="!filasGoleadores.length" class="text-center q-pa-md bg-white rounded-borders border text-grey-6 text-caption">
-                  Aún no has agregado autores de goles. Haz clic en "+ Añadir Goleador" para seleccionar jugadores.
-                </div>
-
-                <div v-else class="q-gutter-y-xs">
-                  <div
-                    v-for="(fila, idx) in filasGoleadores"
-                    :key="idx"
-                    class="row items-center q-col-gutter-sm bg-white q-pa-xs rounded-borders border"
-                  >
-                    <div class="col-12 col-sm-6">
-                      <q-select
-                        v-model="fila.jugadorId"
-                        :options="opcionesJugadoresClub"
-                        emit-value
-                        map-options
-                        outlined
-                        dense
-                        placeholder="Selecciona jugador"
-                        style="font-size: 12px"
-                      />
-                    </div>
-                    <div class="col-6 col-sm-3">
-                      <q-input
-                        v-model.number="fila.goles"
-                        type="number"
-                        min="1"
-                        outlined
-                        dense
-                        label="Goles"
-                        style="font-size: 12px"
-                      />
-                    </div>
-                    <div class="col-5 col-sm-2">
-                      <q-input
-                        v-model="fila.minuto"
-                        outlined
-                        dense
-                        label="Minuto (opc.)"
-                        placeholder="Ej: 24'"
-                        style="font-size: 12px"
-                      />
-                    </div>
-                    <div class="col-1 text-right">
-                      <q-btn
-                        flat
-                        round
-                        dense
-                        size="xs"
-                        color="negative"
-                        :icon="matDelete"
-                        @click="quitarFilaGoleador(idx)"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Botón Enviar Planilla -->
-              <div class="row items-center justify-between q-pt-md border-t">
-                <div class="text-caption text-grey-7">
-                  ℹ️ Al confirmar, los goles se registrarán en la tabla y se enviará la alerta oficial al Administrador.
-                </div>
-                <q-btn
-                  unelevated
-                  no-caps
-                  color="amber-9"
-                  text-color="white"
-                  :icon="matSend"
-                  label="Enviar Planilla y Notificar al Administrador"
-                  class="text-weight-bolder shadow-1 q-px-md"
-                  :loading="enviandoPlanilla"
-                  @click="enviarPlanillaGoleadores"
-                />
-              </div>
-            </div>
-          </div>
-        </q-card>
-      </div>
     </div>
-
-    <!-- Modal para Personalizar Escudo Oficial del Club -->
-    <q-dialog v-model="modalEscudo">
-      <q-card style="width: 500px; max-width: 95vw;" class="rounded-borders bg-white">
-        <q-card-section class="bg-slate-900 text-white row items-center justify-between q-py-sm">
-          <div class="row items-center q-gutter-xs">
-            <q-icon :name="matShield" color="positive" size="20px" />
-            <span class="text-subtitle2 text-weight-bold">Escudo Oficial de {{ equipoActual?.nombre }}</span>
-          </div>
-          <q-btn flat round dense :icon="matClose" v-close-popup text-color="grey-4" />
-        </q-card-section>
-
-        <q-card-section class="q-pa-md q-gutter-y-sm">
-          <!-- Vista Previa -->
-          <div class="row items-center q-gutter-md bg-slate-50 q-pa-md rounded-borders border">
-            <div
-              class="escudo-preview-box flex flex-center rounded-borders shadow-1"
-              :style="{ backgroundColor: formEscudo.color || '#059669' }"
-            >
-              <img
-                v-if="formEscudo.url"
-                :src="formEscudo.url"
-                alt="Escudo"
-                class="escudo-preview-img"
-              />
-              <span v-else class="text-h5">{{ formEscudo.figura || '🛡️' }}</span>
-            </div>
-            <div class="col">
-              <div class="text-subtitle2 text-weight-bolder text-slate-900">{{ equipoActual?.nombre }}</div>
-              <div class="text-caption text-grey-6 font-11">
-                {{ formEscudo.url ? 'Imagen personalizada activa' : `Figura emblema: ${formEscudo.figura}` }}
-              </div>
-            </div>
-          </div>
-
-          <!-- Selector con pestañas: Figuras, Subir Archivo, Pegar URL -->
-          <q-tabs
-            v-model="tabModalEscudo"
-            dense
-            no-caps
-            active-color="positive"
-            indicator-color="positive"
-            class="text-grey-7 border-b font-11"
-            align="justify"
-          >
-            <q-tab name="figuras" label="Figuras Prediseñadas" />
-            <q-tab name="subir" label="Subir desde Computadora" />
-            <q-tab name="url" label="Pegar Enlace Web" />
-          </q-tabs>
-
-          <q-tab-panels v-model="tabModalEscudo" animated class="q-pa-none bg-transparent">
-            <!-- Pestaña 1: Figuras -->
-            <q-tab-panel name="figuras" class="q-pa-none">
-              <div class="text-caption text-weight-medium text-grey-7 q-mb-xs font-11">Elige un emblema:</div>
-              <div class="row q-col-gutter-xs q-mb-sm">
-                <div
-                  v-for="fig in figurasEscudoDisponibles"
-                  :key="fig.emoji"
-                  class="col-2 text-center"
-                >
-                  <div
-                    class="cursor-pointer q-pa-xs rounded-borders text-center border transition-all"
-                    :class="formEscudo.figura === fig.emoji && !formEscudo.url ? 'bg-emerald-1 border-emerald-6 shadow-1' : 'bg-white border-grey-3'"
-                    @click="formEscudo.figura = fig.emoji; formEscudo.url = ''"
-                  >
-                    <span class="text-subtitle1">{{ fig.emoji }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="text-caption text-weight-medium text-grey-7 q-mb-xs font-11">Color de fondo:</div>
-              <div class="row q-gutter-xs items-center">
-                <div
-                  v-for="c in coloresEscudoDisponibles"
-                  :key="c"
-                  class="color-dot cursor-pointer shadow-1"
-                  :style="{ backgroundColor: c }"
-                  :class="{ 'ring-active': formEscudo.color === c }"
-                  @click="formEscudo.color = c"
-                />
-              </div>
-            </q-tab-panel>
-
-            <!-- Pestaña 2: Subir Archivo -->
-            <q-tab-panel name="subir" class="q-pa-xs text-center">
-              <div class="text-caption text-grey-7 q-mb-sm font-11">
-                Selecciona una foto o imagen de escudo guardada en tu computadora:
-              </div>
-              <input
-                type="file"
-                id="modalArchivoEscudoInput"
-                accept="image/*"
-                style="display: none;"
-                @change="cargarArchivoEscudoModal"
-              />
-              <q-btn
-                unelevated
-                dense
-                no-caps
-                color="positive"
-                :icon="matCloudUpload"
-                label="Elegir Archivo de Imagen"
-                class="q-px-md text-weight-bold font-12"
-                onclick="document.getElementById('modalArchivoEscudoInput').click()"
-              />
-              <div v-if="formEscudo.url" class="q-mt-xs">
-                <q-btn
-                  flat
-                  dense
-                  no-caps
-                  size="xs"
-                  color="negative"
-                  label="Quitar imagen cargada"
-                  @click="formEscudo.url = ''"
-                />
-              </div>
-            </q-tab-panel>
-
-            <!-- Pestaña 3: Pegar URL -->
-            <q-tab-panel name="url" class="q-pa-none">
-              <div class="text-caption text-grey-7 q-mb-xs font-11">
-                Pega la dirección de internet (URL) de la imagen de tu escudo:
-              </div>
-              <q-input
-                v-model="formEscudo.url"
-                outlined
-                dense
-                bg-color="white"
-                placeholder="https://ejemplo.com/escudo.png"
-              >
-                <template #append v-if="formEscudo.url">
-                  <q-btn flat round dense size="xs" :icon="matClose" @click="formEscudo.url = ''" />
-                </template>
-              </q-input>
-            </q-tab-panel>
-          </q-tab-panels>
-        </q-card-section>
-
-        <q-card-actions align="right" class="q-pa-md bg-grey-1">
-          <q-btn flat no-caps label="Cancelar" v-close-popup color="grey-7" />
-          <q-btn
-            unelevated
-            no-caps
-            color="primary"
-            label="Guardar Escudo Oficial"
-            :icon="matCheck"
-            class="text-weight-bold"
-            @click="guardarEscudo"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
 
     <!-- Modal para dar de alta jugadores en el equipo seleccionado -->
     <JugadorDialog
@@ -972,23 +508,12 @@ import {
   matWarning,
   matEventSeat,
   matArrowUpward,
-  matInfo,
-  matMilitaryTech,
-  matShield,
-  matSportsSoccer,
-  matCalendarMonth,
-  matAdd,
-  matDelete,
-  matSend,
-  matCloudUpload,
-  matClose,
-  matCheck
+  matInfo
 } from '@quasar/extras/material-icons'
 
 const store = useTorneo()
 const roleStore = store
 
-const tabVista = ref('pizarra')
 const esquemaTactico = ref('4-3-3')
 const mostrarDialogoJugador = ref(false)
 const actualizandoId = ref(null)
@@ -1056,239 +581,6 @@ const jugadoresEnCancha = computed(() =>
 
 const totalEnCancha = computed(() => jugadoresEnCancha.value.length)
 const hayExcesoEnCancha = computed(() => totalEnCancha.value > 11)
-
-// CAPITÁN DE EQUIPO (Regla Oficial)
-const capitanActual = computed(() => {
-  return store.capitanDelEquipo(equipoSeleccionadoId.value)
-})
-
-const tieneCapitanAsignado = computed(() => {
-  return store.tieneCapitan(equipoSeleccionadoId.value)
-})
-
-function esElCapitan(j) {
-  if (j.esCapitan) return true
-  if (equipoActual.value?.capitan && (equipoActual.value.capitan === j.nombre || equipoActual.value.capitanId === (j.id || j._id))) return true
-  return false
-}
-
-async function nombrarCapitan(j) {
-  try {
-    await store.designarCapitan(j.id || j._id, equipoSeleccionadoId.value)
-    mensajeExito.value = `¡${j.nombre} ha sido nombrado Capitán oficial (Ⓒ)! Equipo reglamentariamente habilitado para jugar.`
-    setTimeout(() => {
-      mensajeExito.value = ''
-    }, 4500)
-  } catch (err) {
-    console.error('Error al designar capitán:', err)
-  }
-}
-
-// PERSONALIZAR ESCUDO DEL CLUB
-const modalEscudo = ref(false)
-const tabModalEscudo = ref('figuras')
-const formEscudo = ref({
-  figura: '🛡️',
-  url: '',
-  color: '#059669'
-})
-
-const figurasEscudoDisponibles = [
-  { emoji: '🛡️', label: 'Escudo' },
-  { emoji: '🦅', label: 'Águilas' },
-  { emoji: '🦁', label: 'Leones' },
-  { emoji: '⚡', label: 'Rayos' },
-  { emoji: '⚽', label: 'Balón' },
-  { emoji: '👑', label: 'Corona' },
-  { emoji: '🐯', label: 'Tigres' },
-  { emoji: '🐺', label: 'Lobos' },
-  { emoji: '🏆', label: 'Copa' },
-  { emoji: '⚔️', label: 'Gladiadores' },
-  { emoji: '🐉', label: 'Dragones' },
-  { emoji: '🥊', label: 'Guerreros' },
-  { emoji: '🦈', label: 'Tiburones' },
-  { emoji: '🐆', label: 'Panteras' },
-  { emoji: '🎯', label: 'Diana' },
-  { emoji: '🔥', label: 'Fuego' },
-  { emoji: '🏟️', label: 'Estadio' },
-  { emoji: '🥇', label: 'Campeón' }
-]
-
-const coloresEscudoDisponibles = [
-  '#059669', '#dc2626', '#2563eb', '#d97706', '#7c3aed',
-  '#0f172a', '#e11d48', '#0891b2', '#16a34a', '#475569'
-]
-
-function abrirEditorEscudo() {
-  if (!equipoActual.value) return
-  formEscudo.value = {
-    figura: equipoActual.value.escudoFigura || '🛡️',
-    url: equipoActual.value.escudoUrl || '',
-    color: equipoActual.value.escudocolor || '#059669'
-  }
-  modalEscudo.value = true
-}
-
-function cargarArchivoEscudoModal(e) {
-  const file = e.target?.files?.[0]
-  if (!file) return
-  const reader = new FileReader()
-  reader.onload = (ev) => {
-    formEscudo.value.url = ev.target.result
-  }
-  reader.readAsDataURL(file)
-}
-
-async function guardarEscudo() {
-  if (!equipoSeleccionadoId.value) return
-  try {
-    await store.actualizarEscudoEquipo(equipoSeleccionadoId.value, {
-      escudoFigura: formEscudo.value.figura,
-      escudoUrl: formEscudo.value.url,
-      escudocolor: formEscudo.value.color
-    })
-    modalEscudo.value = false
-    mensajeExito.value = '¡Escudo del club actualizado exitosamente!'
-    setTimeout(() => { mensajeExito.value = '' }, 3500)
-  } catch (err) {
-    console.error('Error al actualizar escudo:', err)
-  }
-}
-
-// REPORTAR GOLEADORES DEL PARTIDO
-const partidoReporteId = ref('')
-const marcadorLocal = ref(0)
-const marcadorVisitante = ref(0)
-const filasGoleadores = ref([])
-const enviandoPlanilla = ref(false)
-
-const partidosDelClub = computed(() => {
-  if (!equipoSeleccionadoId.value) return []
-  return store.partidos.filter(p => {
-    const loc = p.localId || (p.local && typeof p.local === 'object' ? (p.local._id || p.local.id) : p.local)
-    const vis = p.visitanteId || (p.visitante && typeof p.visitante === 'object' ? (p.visitante._id || p.visitante.id) : p.visitante)
-    return loc === equipoSeleccionadoId.value || vis === equipoSeleccionadoId.value
-  })
-})
-
-const opcionesPartidosReporte = computed(() =>
-  partidosDelClub.value.map(p => {
-    const locNom = store.equipoPorId(p.localId)?.nombre || 'Local'
-    const visNom = store.equipoPorId(p.visitanteId)?.nombre || 'Visitante'
-    return {
-      label: `${locNom} vs ${visNom} (Jornada ${p.fecha})`,
-      value: p.id || p._id,
-      jornada: p.fecha,
-      estado: p.estado || 'Programado'
-    }
-  })
-)
-
-watch(partidosDelClub, (partidos) => {
-  if (partidos.length && !partidoReporteId.value) {
-    partidoReporteId.value = partidos[0].id || partidos[0]._id
-  }
-}, { immediate: true })
-
-const partidoSeleccionado = computed(() =>
-  partidosDelClub.value.find(p => (p.id || p._id) === partidoReporteId.value)
-)
-
-const esLocal = computed(() => {
-  if (!partidoSeleccionado.value || !equipoSeleccionadoId.value) return true
-  const loc = partidoSeleccionado.value.localId || (partidoSeleccionado.value.local?._id || partidoSeleccionado.value.local)
-  return loc === equipoSeleccionadoId.value
-})
-
-const rivalDelPartido = computed(() => {
-  if (!partidoSeleccionado.value) return null
-  const rivalId = esLocal.value ? partidoSeleccionado.value.visitanteId : partidoSeleccionado.value.localId
-  return store.equipoPorId(rivalId)
-})
-
-watch(partidoSeleccionado, (nuevo) => {
-  if (nuevo) {
-    marcadorLocal.value = Number(nuevo.golesLocal ?? nuevo.goles_local ?? 0)
-    marcadorVisitante.value = Number(nuevo.golesVisitante ?? nuevo.goles_visitante ?? 0)
-    if (Array.isArray(nuevo.goleadores) && nuevo.goleadores.length) {
-      filasGoleadores.value = nuevo.goleadores.map(g => ({
-        jugadorId: g.jugadorId || g.jugador?._id || g.jugador || '',
-        goles: Number(g.goles || 1),
-        minuto: g.minuto || ''
-      }))
-    } else {
-      filasGoleadores.value = []
-    }
-  }
-}, { immediate: true })
-
-const opcionesJugadoresClub = computed(() =>
-  jugadoresDelEquipo.value.map(j => ({
-    label: `#${j.numero || j.dorsal || '-'} ${j.nombre} ${j.apellido || ''} (${j.posicion || 'Delantero'})`,
-    value: j.id || j._id
-  }))
-)
-
-function agregarFilaGoleador() {
-  const primerJugador = jugadoresDelEquipo.value[0]?.id || ''
-  filasGoleadores.value.push({
-    jugadorId: primerJugador,
-    goles: 1,
-    minuto: ''
-  })
-}
-
-function quitarFilaGoleador(idx) {
-  filasGoleadores.value.splice(idx, 1)
-}
-
-async function enviarPlanillaGoleadores() {
-  if (!partidoSeleccionado.value) return
-  if (!tieneCapitanAsignado.value) {
-    mensajeExito.value = '⚠️ No se puede enviar la planilla: El club debe tener un Capitán oficial designado.'
-    return
-  }
-
-  enviandoPlanilla.value = true
-  try {
-    const listaReporte = filasGoleadores.value.filter(f => f.jugadorId).map(f => {
-      const jug = jugadoresDelEquipo.value.find(j => (j.id || j._id) === f.jugadorId)
-      return {
-        jugadorId: f.jugadorId,
-        nombre: jug ? `${jug.nombre} ${jug.apellido || ''}`.trim() : 'Jugador',
-        dorsal: jug?.numero || jug?.dorsal || '-',
-        goles: Number(f.goles) || 1,
-        minuto: f.minuto || ''
-      }
-    })
-
-    const golesClub = esLocal.value ? marcadorLocal.value : marcadorVisitante.value
-    const golesRival = esLocal.value ? marcadorVisitante.value : marcadorLocal.value
-    const rivalId = esLocal.value ? partidoSeleccionado.value.visitanteId : partidoSeleccionado.value.localId
-
-    await store.registrarGoleadoresDT({
-      partidoId: partidoSeleccionado.value.id || partidoSeleccionado.value._id,
-      equipoId: equipoSeleccionadoId.value,
-      equipoNombre: equipoActual.value?.nombre || 'Club',
-      dtNombre: store.user?.usuario || 'Director Técnico',
-      goleadores: listaReporte,
-      golesClub,
-      golesRival,
-      rivalId,
-      rivalNombre: rivalDelPartido.value?.nombre || 'Rival',
-      jornada: partidoSeleccionado.value.fecha || 1
-    })
-
-    mensajeExito.value = '⚽ ¡Planilla de goleadores registrada y notificación oficial enviada al Administrador!'
-    setTimeout(() => {
-      mensajeExito.value = ''
-    }, 5000)
-  } catch (err) {
-    console.error('Error al registrar goleadores:', err)
-  } finally {
-    enviandoPlanilla.value = false
-  }
-}
 
 function normalizarPos(pos) {
   if (!pos) return 'delantero'
@@ -1584,33 +876,5 @@ onMounted(() => {
 
 .bg-emerald-50 {
   background-color: #ecfdf5;
-}
-
-.ring-captain {
-  border: 3px solid #fbbf24 !important;
-  box-shadow: 0 0 10px rgba(251, 191, 36, 0.8) !important;
-}
-
-.escudo-preview-box {
-  width: 52px;
-  height: 52px;
-  overflow: hidden;
-}
-
-.escudo-preview-img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.color-dot {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 2px solid #ffffff;
-}
-
-.color-dot.ring-active {
-  outline: 2px solid #0f172a;
 }
 </style>

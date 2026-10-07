@@ -30,59 +30,6 @@
       </q-card-section>
     </q-card>
 
-    <!-- BANNER DE PRIVACIDAD: Modo Jugador (Solo ve partidos de su equipo) -->
-    <q-banner
-      v-if="store.esJugador"
-      dense
-      rounded
-      class="bg-indigo-1 text-indigo-10 q-mb-md q-py-sm q-px-md border border-indigo-2 shadow-1"
-    >
-      <template #avatar>
-        <q-icon :name="matSportsSoccer" size="24px" color="indigo-8" />
-      </template>
-      <div>
-        <div class="text-caption text-weight-bolder">
-          ⚽ Calendario Oficial · Modo Jugador
-        </div>
-        <div class="text-caption text-grey-8">
-          Como futbolista de <strong>{{ store.miEquipo?.nombre || 'Tu Club' }}</strong>, solo tienes acceso a los partidos en los que juega tu propio equipo (encuentros que van a disputar o ya jugados). Los partidos entre otros equipos no están disponibles.
-        </div>
-      </div>
-    </q-banner>
-
-    <!-- TARJETA DESTACADA: Próximo Partido de tu Equipo -->
-    <q-card
-      v-if="store.esJugador && proximoPartido"
-      flat
-      bordered
-      class="bg-emerald-50 border border-emerald-4 rounded-borders q-mb-md q-pa-md shadow-2"
-    >
-      <div class="row items-center justify-between no-wrap q-col-gutter-md">
-        <div class="row items-center q-gutter-md">
-          <q-avatar size="44px" color="emerald-7" text-color="white" class="text-weight-bold text-h6 shadow-1">
-            ⚔️
-          </q-avatar>
-          <div>
-            <div class="text-caption text-uppercase text-weight-bolder text-emerald-9">
-              Próximo Partido Programado de tu Equipo
-            </div>
-            <div class="text-subtitle1 text-weight-bolder text-slate-900 row items-center q-gutter-xs">
-              <span>{{ store.miEquipo?.nombre }}</span>
-              <span class="text-grey-6 text-caption text-weight-bold">VS</span>
-              <span class="text-positive">{{ rivalProximo?.nombre || 'Rival Oficial' }}</span>
-            </div>
-            <div class="text-caption text-grey-8">
-              Jornada {{ proximoPartido.fecha }} · Tu equipo jugará contra <strong>{{ rivalProximo?.nombre || 'el rival asignado' }}</strong>.
-              <span v-if="rivalProximo?.capitan" class="q-ml-xs text-grey-7 font-mono font-11">
-                (Capitán rival: {{ rivalProximo.capitan }} Ⓒ)
-              </span>
-            </div>
-          </div>
-        </div>
-        <q-badge color="positive" text-color="white" label="Tu Próximo Encuentro" class="text-weight-bold font-11 q-px-sm q-py-xs" />
-      </div>
-    </q-card>
-
     <!-- Lista de Partidos en Tarjetas de Marcador -->
     <div class="row q-col-gutter-md">
       <div v-for="p in lista" :key="p.id" class="col-12 col-md-6">
@@ -107,14 +54,7 @@
             <div class="row items-center justify-between no-wrap">
               <!-- Equipo Local -->
               <div class="team-side col-5 row items-center no-wrap">
-                <img
-                  v-if="crestUrl(p.localId)"
-                  :src="crestUrl(p.localId)"
-                  alt="Escudo"
-                  class="club-fixture-crest q-mr-xs"
-                />
-                <span v-else-if="crestFigura(p.localId)" class="q-mr-xs font-14">{{ crestFigura(p.localId) }}</span>
-                <span v-else class="club-crest-dot q-mr-sm" :style="{ background: color(p.localId) }" />
+                <span class="club-crest-dot q-mr-sm" :style="{ background: color(p.localId) }" />
                 <span class="team-name text-weight-bold text-dark ellipsis" :title="nombre(p.localId)">
                   {{ nombre(p.localId) }}
                 </span>
@@ -139,14 +79,7 @@
                 <span class="team-name text-weight-bold text-dark ellipsis" :title="nombre(p.visitanteId)">
                   {{ nombre(p.visitanteId) }}
                 </span>
-                <img
-                  v-if="crestUrl(p.visitanteId)"
-                  :src="crestUrl(p.visitanteId)"
-                  alt="Escudo"
-                  class="club-fixture-crest q-ml-xs"
-                />
-                <span v-else-if="crestFigura(p.visitanteId)" class="q-ml-xs font-14">{{ crestFigura(p.visitanteId) }}</span>
-                <span v-else class="club-crest-dot q-ml-sm" :style="{ background: color(p.visitanteId) }" />
+                <span class="club-crest-dot q-ml-sm" :style="{ background: color(p.visitanteId) }" />
               </div>
             </div>
           </q-card-section>
@@ -170,7 +103,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useTorneo } from '../torneo.js'
-import { matCalendarMonth, matEvent, matEventBusy, matSportsSoccer } from '@quasar/extras/material-icons'
+import { matCalendarMonth, matEvent, matEventBusy } from '@quasar/extras/material-icons'
 
 const store = useTorneo()
 const fecha = ref('todos')
@@ -180,45 +113,16 @@ const opciones = computed(() => [
   ...store.fechas.map(f => ({ label: `Jornada ${f}`, value: f }))
 ])
 
+const lista = computed(() =>
+  store.partidos.filter(p => fecha.value === 'todos' || p.fecha === fecha.value)
+)
+
 const finalizado = (p) => ['jugado', 'finalizado'].includes(p.estado)
 const nombre = (id) => store.equipoPorId(id)?.nombre ?? 'Club no asignado'
 const color = (id) => store.equipoPorId(id)?.color || store.equipoPorId(id)?.escudocolor || '#059669'
-const crestUrl = (id) => store.equipoPorId(id)?.escudoUrl
-const crestFigura = (id) => store.equipoPorId(id)?.escudoFigura
-
-const lista = computed(() => {
-  let list = store.partidos.filter(p => fecha.value === 'todos' || p.fecha === fecha.value)
-
-  // REGLA OFICIAL: Los jugadores solo pueden ver los partidos en los que juega su propio equipo
-  if (store.esJugador && store.miEquipoId) {
-    list = list.filter(p => p.localId === store.miEquipoId || p.visitanteId === store.miEquipoId)
-  }
-
-  return list
-})
-
-const proximoPartido = computed(() => {
-  if (!store.esJugador || !store.miEquipoId) return null
-  return store.partidos.find(p =>
-    !finalizado(p) && (p.localId === store.miEquipoId || p.visitanteId === store.miEquipoId)
-  )
-})
-
-const rivalProximo = computed(() => {
-  if (!proximoPartido.value) return null
-  const esLocal = proximoPartido.value.localId === store.miEquipoId
-  const rivalId = esLocal ? proximoPartido.value.visitanteId : proximoPartido.value.localId
-  return store.equipoPorId(rivalId)
-})
 </script>
 
 <style scoped>
-.club-fixture-crest {
-  width: 20px;
-  height: 20px;
-  object-fit: contain;
-  border-radius: 4px;
-}
 .match-card {
   border: 1px solid #e2e8f0;
   transition: transform 0.15s ease, box-shadow 0.15s ease;

@@ -49,17 +49,6 @@ const dialogoEquipo = ref(false)
 const mostrarAuthModal = ref(false)
 const errorAuth = ref('')
 
-// Notificaciones Oficiales para el Administrador
-const notificacionesGuardadas = (() => {
-  try {
-    return JSON.parse(localStorage.getItem('futbolito_notificaciones') || '[]')
-  } catch {
-    return []
-  }
-})()
-const notificaciones = ref(notificacionesGuardadas)
-const notificacionesNoLeidas = computed(() => notificaciones.value.filter(n => !n.leida))
-
 // Helper para headers con token
 function authHeaders() {
   return token.value ? { Authorization: `Bearer ${token.value}` } : {}
@@ -76,8 +65,7 @@ const normPartido = (p) => ({
   localId: idDe(p.localId ?? p.local),
   visitanteId: idDe(p.visitanteId ?? p.visitante),
   golesLocal: p.golesLocal ?? p.goles_local ?? 0,
-  golesVisitante: p.golesVisitante ?? p.goles_visitante ?? 0,
-  goleadores: Array.isArray(p.goleadores) ? p.goleadores : []
+  golesVisitante: p.golesVisitante ?? p.goles_visitante ?? 0
 })
 
 // Carga de datos de la API
@@ -85,12 +73,11 @@ async function cargarTodo() {
   cargando.value = true
   error.value = ''
   try {
-    const [tRes, eRes, jRes, pRes, nRes] = await Promise.all([
+    const [tRes, eRes, jRes, pRes] = await Promise.all([
       axios.get(`${API_URL}/torneos`).catch(() => ({ data: [] })),
       axios.get(`${API_URL}/equipos`).catch(() => ({ data: [] })),
       axios.get(`${API_URL}/jugadores`).catch(() => ({ data: [] })),
-      axios.get(`${API_URL}/partidos`).catch(() => ({ data: [] })),
-      axios.get(`${API_URL}/notificaciones`).catch(() => ({ data: [] }))
+      axios.get(`${API_URL}/partidos`).catch(() => ({ data: [] }))
     ])
 
     const tData = tRes.data
@@ -98,12 +85,6 @@ async function cargarTodo() {
     equipos.value = lista(eRes.data).map(normEquipo)
     jugadores.value = lista(jRes.data).map(normJugador)
     partidos.value = lista(pRes.data).map(normPartido)
-
-    const nData = lista(nRes.data)
-    if (nData.length) {
-      notificaciones.value = nData
-      localStorage.setItem('futbolito_notificaciones', JSON.stringify(nData))
-    }
   } catch (err) {
     error.value = err.response?.data?.msg || err.message || 'Error de conexión'
   } finally {
@@ -260,9 +241,7 @@ async function registro(datos) {
             nombre: datos.nombreEquipo,
             barriada: datos.barriada || 'Sede Barrial',
             capitan: datos.nombre || datos.usuario,
-            escudocolor: datos.escudocolor || '#0d9488',
-            escudoFigura: datos.escudoFigura || '🛡️',
-            escudoUrl: datos.escudoUrl || ''
+            escudocolor: datos.escudocolor || '#0d9488'
           })
           const nuevoId = eqRes.data?._id || eqRes.data?.id
           if (nuevoId) {
@@ -309,11 +288,6 @@ function logout() {
 }
 
 function cambiarRol(nuevoRol) {
-  // REGLA: Los usuarios autenticados NO pueden cambiar su rol asignado
-  if (user.value && user.value.rol) {
-    console.warn('El rol del usuario está bloqueado a su rol oficial:', user.value.rol)
-    return
-  }
   rolActual.value = nuevoRol
   localStorage.setItem('futbolito_rol', nuevoRol)
 }
@@ -475,105 +449,8 @@ const jugadoresEnBancaEquipo = (equipoId) => {
 const cantidadEnCancha = (equipoId) => jugadoresEnCanchaEquipo(equipoId).length
 const cantidadEnBanca = (equipoId) => jugadoresEnBancaEquipo(equipoId).length
 const tieneExcesoEnCancha = (equipoId) => cantidadEnCancha(equipoId) > 11
-
-const tieneCapitan = (equipoId) => {
-  const eqId = idDe(equipoId)
-  if (!eqId) return false
-  const jugCapitan = jugadores.value.find(j => idDe(j.equipoId ?? j.equipo) === eqId && j.esCapitan)
-  if (jugCapitan) return true
-  const eq = equipoPorId(eqId)
-  if (eq?.capitan && eq.capitan !== 'Sin Asignar' && String(eq.capitan).trim() !== '') return true
-  return false
-}
-
-const capitanDelEquipo = (equipoId) => {
-  const eqId = idDe(equipoId)
-  if (!eqId) return null
-  const jug = jugadores.value.find(j => idDe(j.equipoId ?? j.equipo) === eqId && j.esCapitan)
-  if (jug) return jug
-  const eq = equipoPorId(eqId)
-  if (eq?.capitan && eq.capitan !== 'Sin Asignar' && String(eq.capitan).trim() !== '') {
-    return { nombre: eq.capitan, esCapitan: true }
-  }
-  return null
-}
-
 const equipoHabilitadoParaJugar = (equipoId) => {
-  return cantidadJugadoresEquipo(equipoId) >= 11 && !tieneExcesoEnCancha(equipoId) && tieneCapitan(equipoId)
-}
-
-async function designarCapitan(jugadorId, equipoId) {
-  const eqId = idDe(equipoId)
-  if (!eqId || !jugadorId) return
-
-  // 1. Quitar capitanía de los demás jugadores del equipo
-  const delEquipo = jugadores.value.filter(j => idDe(j.equipoId ?? j.equipo) === eqId)
-  for (const j of delEquipo) {
-    if (j.id !== jugadorId && j.esCapitan) {
-      j.esCapitan = false
-      try {
-        await axios.put(`${API_URL}/jugadores/${j.id}`, { esCapitan: false }, { headers: authHeaders() })
-      } catch (_) {}
-    }
-  }
-
-  // 2. Asignar al nuevo capitán
-  const elegido = jugadores.value.find(j => (j.id || j._id) === jugadorId)
-  if (elegido) {
-    elegido.esCapitan = true
-    try {
-      await axios.put(`${API_URL}/jugadores/${jugadorId}`, { esCapitan: true }, { headers: authHeaders() })
-    } catch (_) {}
-    try {
-      await axios.put(`${API_URL}/equipos/${eqId}`, { capitan: elegido.nombre, capitanId: jugadorId }, { headers: authHeaders() })
-    } catch (_) {}
-  }
-
-  await cargarTodo()
-}
-
-const miEquipoId = computed(() => {
-  if (user.value?.equipo) return idDe(user.value.equipo)
-  // Si es jugador y no vino equipo en el objeto user, buscarlo en la nómina
-  if (user.value?.usuario) {
-    const uClean = String(user.value.usuario).toLowerCase().trim()
-    const jEncontrado = jugadores.value.find(j => {
-      const emailMatch = j.email && j.email.toLowerCase().includes(uClean)
-      const nombreMatch = j.nombre && j.nombre.toLowerCase().trim() === (user.value.nombre || '').toLowerCase().trim()
-      return emailMatch || nombreMatch
-    })
-    if (jEncontrado) {
-      const eqId = idDe(jEncontrado.equipoId ?? jEncontrado.equipo)
-      if (eqId) return eqId
-    }
-  }
-  const dtEq = localStorage.getItem('futbolito_dt_equipo')
-  if (dtEq) return dtEq
-  if (equipoEntrenadorId.value) return equipoEntrenadorId.value
-  return ''
-})
-
-const miEquipo = computed(() => equipoPorId(miEquipoId.value))
-
-async function actualizarEscudoEquipo(equipoId, { escudoFigura, escudoUrl, escudocolor }) {
-  const eqId = idDe(equipoId)
-  if (!eqId) return
-  try {
-    await axios.put(`${API_URL}/equipos/${eqId}`, {
-      escudoFigura,
-      escudoUrl,
-      escudocolor
-    }, { headers: authHeaders() })
-  } catch (e) {
-    console.warn('Aviso al actualizar escudo en backend:', e.message)
-  }
-  const eq = equipos.value.find(e => (e.id || e._id) === eqId)
-  if (eq) {
-    if (escudoFigura !== undefined) eq.escudoFigura = escudoFigura
-    if (escudoUrl !== undefined) eq.escudoUrl = escudoUrl
-    if (escudocolor !== undefined) eq.escudocolor = escudocolor
-  }
-  await cargarTodo()
+  return cantidadJugadoresEquipo(equipoId) >= 11 && !tieneExcesoEnCancha(equipoId)
 }
 
 async function enviarExcedentesABanca(equipoId) {
@@ -591,151 +468,16 @@ async function enviarExcedentesABanca(equipoId) {
   return movidos
 }
 
-// Acción del Entrenador: Registrar quiénes hicieron el gol y notificar al Administrador
-async function registrarGoleadoresDT({ partidoId, equipoId, equipoNombre, dtNombre, goleadores, golesClub, golesRival, rivalId, rivalNombre, jornada }) {
-  cargando.value = true
-  try {
-    // 1. Actualizar los goles de los jugadores del club
-    for (const g of (goleadores || [])) {
-      if (g.jugadorId && Number(g.goles) > 0) {
-        const jActual = jugadores.value.find(j => (j.id || j._id) === g.jugadorId)
-        const totalGoles = ((jActual?.goles) || 0) + Number(g.goles)
-        try {
-          await axios.put(`${API_URL}/jugadores/${g.jugadorId}`, { goles: totalGoles }, { headers: authHeaders() })
-        } catch (e) {
-          console.warn('Aviso al actualizar goles en backend:', e.message)
-        }
-        if (jActual) {
-          jActual.goles = totalGoles
-        }
-      }
-    }
-
-    // 2. Si hay partido vinculado, actualizar el marcador y lista de goleadores del partido
-    if (partidoId) {
-      try {
-        const pActual = partidos.value.find(p => (p.id || p._id) === partidoId)
-        const esLocal = pActual && idDe(pActual.localId || pActual.local) === equipoId
-        const nuevoMarcador = {
-          goleadores: [
-            ...(pActual?.goleadores || []),
-            ...goleadores.map(g => ({
-              jugador: g.jugadorId,
-              nombre: g.nombre,
-              dorsal: g.dorsal,
-              minuto: g.minuto || null,
-              goles: g.goles
-            }))
-          ]
-        }
-        if (esLocal) {
-          nuevoMarcador.golesLocal = Number(golesClub)
-          if (golesRival !== undefined && golesRival !== null) nuevoMarcador.golesVisitante = Number(golesRival)
-        } else {
-          nuevoMarcador.golesVisitante = Number(golesClub)
-          if (golesRival !== undefined && golesRival !== null) nuevoMarcador.golesLocal = Number(golesRival)
-        }
-
-        await axios.patch(`${API_URL}/partidos/${partidoId}/goleadores`, nuevoMarcador, { headers: authHeaders() })
-      } catch (e) {
-        console.warn('Aviso al actualizar partido en backend:', e.message)
-      }
-    }
-
-    // 3. Crear y registrar la notificación oficial para el Administrador
-    const resumenGoleadores = (goleadores || [])
-      .map(g => `${g.nombre} (Dorsal #${g.dorsal || '—'}): ${g.goles} gol(es)${g.minuto ? ` [Min ${g.minuto}]` : ''}`)
-      .join(' · ')
-
-    const notifData = {
-      tipo: 'reporte_goleadores',
-      titulo: `⚽ Planilla de Goleadores: ${equipoNombre}`,
-      mensaje: `El DT ${dtNombre || 'del club'} finalizó la selección de goleadores: ${golesClub} gol(es) reportados en la Jornada ${jornada || 1} frente a ${rivalNombre || 'el rival'}.\nDetalle: ${resumenGoleadores || 'Sin detalle de minutos'}`,
-      remitente: dtNombre ? `DT ${dtNombre} (${equipoNombre})` : `DT de ${equipoNombre}`,
-      equipo: equipoId,
-      equipoNombre,
-      partido: partidoId || null,
-      datos: {
-        jornada,
-        equipoId,
-        equipoNombre,
-        dtNombre,
-        rivalNombre,
-        golesClub,
-        golesRival,
-        resumenTexto: resumenGoleadores,
-        goleadores: (goleadores || []).map(g => ({
-          jugadorId: g.jugadorId,
-          nombre: g.nombre,
-          dorsal: g.dorsal,
-          posicion: g.posicion,
-          goles: Number(g.goles),
-          minuto: g.minuto || ''
-        }))
-      },
-      leida: false,
-      createdAt: new Date().toISOString()
-    }
-
-    try {
-      const resNotif = await axios.post(`${API_URL}/notificaciones`, notifData, { headers: authHeaders() })
-      if (resNotif.data) {
-        notificaciones.value.unshift(resNotif.data)
-      } else {
-        notifData._id = 'notif_' + Date.now()
-        notificaciones.value.unshift(notifData)
-      }
-    } catch (e) {
-      console.warn('Aviso guardando notificación en backend, guardando localmente:', e.message)
-      notifData._id = 'notif_' + Date.now()
-      notificaciones.value.unshift(notifData)
-    }
-
-    // Guardar copia local en localStorage
-    localStorage.setItem('futbolito_notificaciones', JSON.stringify(notificaciones.value))
-
-    // Recargar todo el estado actualizado
-    await cargarTodo()
-    return notifData
-  } catch (err) {
-    const msg = err.response?.data?.msg || err.message || 'Error al registrar goleadores'
-    throw new Error(msg)
-  } finally {
-    cargando.value = false
-  }
-}
-
-async function marcarNotificacionLeida(id) {
-  try {
-    await axios.patch(`${API_URL}/notificaciones/${id}/leida`, {}, { headers: authHeaders() })
-  } catch (_) {}
-  const n = notificaciones.value.find(item => (item._id || item.id) === id)
-  if (n) n.leida = true
-  localStorage.setItem('futbolito_notificaciones', JSON.stringify(notificaciones.value))
-}
-
-async function marcarTodasNotificacionesLeidas() {
-  try {
-    await axios.patch(`${API_URL}/notificaciones/marcar-todas`, {}, { headers: authHeaders() })
-  } catch (_) {}
-  notificaciones.value.forEach(item => { item.leida = true })
-  localStorage.setItem('futbolito_notificaciones', JSON.stringify(notificaciones.value))
-}
-
 // Objeto de estado único compartido y reactivo
 const state = reactive({
   // Datos
-  torneo, equipos, jugadores, partidos, notificaciones, notificacionesNoLeidas,
-  cargando, error, tabla, stats, fechas,
+  torneo, equipos, jugadores, partidos, cargando, error, tabla, stats, fechas,
   goleadores, asistidores, equipoPorId, cantidadJugadoresEquipo, equipoHabilitadoParaJugar,
-  tieneCapitan, capitanDelEquipo, designarCapitan, miEquipoId, miEquipo,
   normalizarPosicion, jugadoresEnCanchaEquipo, jugadoresEnBancaEquipo,
   cantidadEnCancha, cantidadEnBanca, tieneExcesoEnCancha, enviarExcedentesABanca,
-  // Acciones torneo y goleadores
+  // Acciones torneo
   cargarTodo, agregarEquipo, agregarJugador, actualizarPosicionJugador, actualizarJugador,
-  actualizarEscudoEquipo,
   crearTorneo, guardarPartido, completarPlantelEquipo,
-  registrarGoleadoresDT, marcarNotificacionLeida, marcarTodasNotificacionesLeidas,
   // Diálogos
   dialogoPartido, dialogoEquipo, abrirDialogoPartido, abrirDialogoEquipo,
   // Auth y Roles
