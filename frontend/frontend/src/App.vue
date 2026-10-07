@@ -248,145 +248,6 @@
                     />
                   </div>
                 </div>
-
-                <!-- Creador / Selector de Escudo Oficial del Club -->
-                <div class="q-mt-xs bg-white q-pa-sm rounded-borders border border-emerald-3">
-                  <div class="row items-center justify-between q-mb-xs">
-                    <span class="text-caption text-weight-bolder text-emerald-10">
-                      🛡️ Escudo Oficial del Club *
-                    </span>
-                    <span class="text-caption text-grey-6 font-10">
-                      Elige figura, sube tu imagen o pega una URL
-                    </span>
-                  </div>
-
-                  <!-- Vista Previa del Escudo -->
-                  <div class="row items-center q-gutter-sm q-mb-xs bg-slate-50 q-pa-xs rounded-borders border">
-                    <div
-                      class="escudo-preview-box flex flex-center rounded-borders shadow-1"
-                      :style="{ backgroundColor: registroForm.escudocolor || '#059669' }"
-                    >
-                      <img
-                        v-if="registroForm.escudoUrl"
-                        :src="registroForm.escudoUrl"
-                        alt="Escudo"
-                        class="escudo-preview-img"
-                      />
-                      <span v-else class="text-h6">{{ registroForm.escudoFigura || '🛡️' }}</span>
-                    </div>
-                    <div class="col">
-                      <div class="text-caption text-weight-bold text-slate-800 ellipsis">
-                        {{ registroForm.nombreEquipo || 'Tu Club Oficial' }}
-                      </div>
-                      <div class="text-caption text-grey-6 font-10">
-                        {{ registroForm.escudoUrl ? 'Imagen personalizada activa' : `Emblema: ${registroForm.escudoFigura}` }}
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Selector de Método de Escudo -->
-                  <q-tabs
-                    v-model="tabEscudo"
-                    dense
-                    no-caps
-                    active-color="positive"
-                    indicator-color="positive"
-                    class="text-grey-7 border-b q-mb-xs font-11"
-                    align="justify"
-                  >
-                    <q-tab name="figuras" label="Figuras" />
-                    <q-tab name="subir" label="Subir Archivo" />
-                    <q-tab name="url" label="Pegar URL" />
-                  </q-tabs>
-
-                  <q-tab-panels v-model="tabEscudo" animated class="q-pa-none bg-transparent">
-                    <!-- Panel 1: Figuras Prediseñadas y Colores -->
-                    <q-tab-panel name="figuras" class="q-pa-none">
-                      <div class="text-caption text-weight-medium text-grey-7 q-mb-xs font-11">Selecciona una figura para tu escudo:</div>
-                      <div class="row q-col-gutter-xs q-mb-xs">
-                        <div
-                          v-for="fig in figurasEscudoDisponibles"
-                          :key="fig.emoji"
-                          class="col-2 text-center"
-                        >
-                          <div
-                            class="cursor-pointer q-pa-xs rounded-borders text-center border transition-all"
-                            :class="registroForm.escudoFigura === fig.emoji && !registroForm.escudoUrl ? 'bg-emerald-1 border-emerald-6 shadow-1' : 'bg-white border-grey-3'"
-                            @click="seleccionarFiguraEscudo(fig.emoji)"
-                          >
-                            <span class="text-subtitle1">{{ fig.emoji }}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div class="text-caption text-weight-medium text-grey-7 q-mb-xs font-11">Color de fondo:</div>
-                      <div class="row q-gutter-xs items-center q-mb-xs">
-                        <div
-                          v-for="c in coloresEscudoDisponibles"
-                          :key="c"
-                          class="color-dot cursor-pointer shadow-1"
-                          :style="{ backgroundColor: c }"
-                          :class="{ 'ring-active': registroForm.escudocolor === c }"
-                          @click="registroForm.escudocolor = c"
-                        />
-                      </div>
-                    </q-tab-panel>
-
-                    <!-- Panel 2: Subir Archivo desde Computadora -->
-                    <q-tab-panel name="subir" class="q-pa-xs text-center">
-                      <div class="text-caption text-grey-7 q-mb-xs font-11">
-                        Sube una foto o imagen de escudo desde tu equipo:
-                      </div>
-                      <input
-                        type="file"
-                        id="archivoEscudoInput"
-                        accept="image/*"
-                        style="display: none;"
-                        @change="cargarArchivoEscudo"
-                      />
-                      <q-btn
-                        unelevated
-                        dense
-                        no-caps
-                        color="positive"
-                        icon="cloud_upload"
-                        label="Elegir archivo de imagen"
-                        class="q-px-sm text-weight-bold font-11"
-                        onclick="document.getElementById('archivoEscudoInput').click()"
-                      />
-                      <div v-if="registroForm.escudoUrl" class="q-mt-xs">
-                        <q-btn
-                          flat
-                          dense
-                          no-caps
-                          size="xs"
-                          color="negative"
-                          label="Quitar imagen subida"
-                          @click="registroForm.escudoUrl = ''"
-                        />
-                      </div>
-                    </q-tab-panel>
-
-                    <!-- Panel 3: Pegar Enlace de una Página Web -->
-                    <q-tab-panel name="url" class="q-pa-none">
-                      <div class="text-caption text-grey-7 q-mb-xs font-11">
-                        Pega el enlace web (URL) del escudo:
-                      </div>
-                      <q-input
-                        v-model="registroForm.escudoUrl"
-                        outlined
-                        dense
-                        bg-color="white"
-                        placeholder="https://ejemplo.com/escudo.png"
-                      >
-                        <template #append v-if="registroForm.escudoUrl">
-                          <q-btn flat round dense size="xs" icon="close" @click="registroForm.escudoUrl = ''" />
-                        </template>
-                      </q-input>
-                    </q-tab-panel>
-                  </q-tab-panels>
-                </div>
-
                 <div class="text-caption text-grey-8 font-11">
                   💡 Solo habrá un entrenador por equipo. Fundarás este club y serás su único director técnico.
                 </div>
@@ -548,40 +409,68 @@
               </q-tabs>
             </div>
 
-            <!-- Zona 3: Rol Oficial Asignado (Fijo), Notificaciones y Usuario Logueado -->
+            <!-- Zona 3: Selector de Rol y Usuario Logueado con Salir -->
             <div class="row items-center q-gutter-xs no-wrap">
-              <!-- Rol Oficial Asignado (Fijo, sin posibilidad de cambiar de rol) -->
-              <div
-                class="role-badge-official row items-center q-px-sm q-py-xs rounded-borders text-caption text-weight-bolder shadow-1"
-                :class="roleColorClass"
-              >
-                <span>{{ store.rolInfo.badge }}</span>
-                <q-tooltip>Rol asignado oficial de tu cuenta: {{ store.rolInfo.titulo }} (No modificable)</q-tooltip>
-              </div>
-
-              <!-- Campana de Notificaciones Oficiales para el Administrador / Usuarios -->
-              <q-btn
-                flat
-                round
+              <!-- Selector de Rol Interactivo -->
+              <q-btn-dropdown
+                unelevated
                 dense
-                :icon="matNotifications"
-                color="grey-4"
-                class="q-mx-xs relative-position notif-bell-btn"
-                @click="mostrarModalNotificaciones = true"
+                no-caps
+                class="role-dropdown-btn q-px-sm"
+                :class="roleColorClass"
+                :label="store.rolInfo.badge"
               >
-                <q-badge
-                  v-if="store.notificacionesNoLeidas.length"
-                  color="negative"
-                  floating
-                  rounded
-                  class="text-weight-bold animate-pulse-gentle"
-                >
-                  {{ store.notificacionesNoLeidas.length }}
-                </q-badge>
-                <q-tooltip>
-                  {{ store.notificacionesNoLeidas.length ? `${store.notificacionesNoLeidas.length} notificaciones del torneo pendientes` : 'Bandeja de Notificaciones Oficiales' }}
-                </q-tooltip>
-              </q-btn>
+                <q-list style="min-width: 220px" class="q-py-xs">
+                  <q-item-label header class="text-caption text-weight-bolder text-grey-8">
+                    SELECCIONAR ROL
+                  </q-item-label>
+
+                  <q-item
+                    clickable
+                    v-close-popup
+                    :active="store.esOrganizador"
+                    active-class="bg-amber-1 text-amber-10"
+                    @click="cambiarRolDirecto('organizador')"
+                  >
+                    <q-item-section avatar style="min-width: 32px">
+                      <span>👑</span>
+                    </q-item-section>
+                    <q-item-section>
+                      <span class="text-weight-bold">Organizador</span>
+                    </q-item-section>
+                  </q-item>
+
+                  <q-item
+                    clickable
+                    v-close-popup
+                    :active="store.esEntrenador"
+                    active-class="bg-emerald-1 text-emerald-10"
+                    @click="cambiarRolDirecto('entrenador')"
+                  >
+                    <q-item-section avatar style="min-width: 32px">
+                      <span>📋</span>
+                    </q-item-section>
+                    <q-item-section>
+                      <span class="text-weight-bold">Entrenador (DT)</span>
+                    </q-item-section>
+                  </q-item>
+
+                  <q-item
+                    clickable
+                    v-close-popup
+                    :active="store.esJugador"
+                    active-class="bg-indigo-1 text-indigo-10"
+                    @click="cambiarRolDirecto('jugador')"
+                  >
+                    <q-item-section avatar style="min-width: 32px">
+                      <span>⚽</span>
+                    </q-item-section>
+                    <q-item-section>
+                      <span class="text-weight-bold">Jugador</span>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </q-btn-dropdown>
 
               <!-- Perfil del Usuario Activo -->
               <div class="row items-center no-wrap q-ml-xs bg-slate-800 q-px-sm q-py-xs rounded-borders">
@@ -679,146 +568,26 @@
     <PartidoDialog v-model="store.dialogoPartido" />
     <EquipoDialog v-model="store.dialogoEquipo" />
 
-    <!-- Diálogo de Notificaciones Oficiales para el Administrador -->
-    <q-dialog v-model="mostrarModalNotificaciones">
-      <q-card style="width: 580px; max-width: 95vw;" class="rounded-borders overflow-hidden bg-white shadow-10">
-        <!-- Cabecera de Notificaciones -->
-        <q-card-section class="bg-slate-900 text-white row items-center justify-between q-py-md">
-          <div class="row items-center q-gutter-sm">
-            <q-avatar size="36px" color="amber-5" text-color="slate-900">
-              <q-icon :name="matNotifications" size="22px" />
-            </q-avatar>
-            <div>
-              <div class="text-subtitle1 text-weight-bolder row items-center q-gutter-xs">
-                <span>Notificaciones Oficiales</span>
-                <q-badge v-if="store.notificacionesNoLeidas.length" color="negative" class="text-weight-bold q-ml-xs">
-                  {{ store.notificacionesNoLeidas.length }} nuevas
-                </q-badge>
-              </div>
-              <div class="text-caption text-grey-4 font-11">
-                Avisos reglamentarios y reportes de goleadores de los directores técnicos
-              </div>
-            </div>
-          </div>
-          <div class="row items-center q-gutter-xs">
-            <q-btn
-              v-if="store.notificacionesNoLeidas.length"
-              flat
-              dense
-              no-caps
-              size="sm"
-              color="amber-4"
-              label="Marcar leídas"
-              :icon="matDoneAll"
-              @click="store.marcarTodasNotificacionesLeidas()"
-            />
-            <q-btn flat round dense :icon="matClose" v-close-popup text-color="grey-4" />
-          </div>
-        </q-card-section>
-
-        <!-- Contenido / Lista de Notificaciones -->
-        <q-card-section class="q-pa-md" style="max-height: 65vh; overflow-y: auto;">
-          <div v-if="!store.notificaciones.length" class="text-center q-py-xl text-grey-6">
-            <q-icon :name="matNotifications" size="52px" color="grey-4" class="q-mb-sm" />
-            <div class="text-subtitle2 text-weight-bold text-slate-800">No hay notificaciones registradas</div>
-            <div class="text-caption text-grey-5 q-mt-xs">
-              Cuando un Entrenador registre los goleadores de su club, el aviso oficial llegará aquí automáticamente.
-            </div>
-          </div>
-
-          <div v-else class="q-gutter-y-sm">
-            <q-card
-              v-for="n in store.notificaciones"
-              :key="n._id || n.id"
-              flat
-              bordered
-              class="rounded-borders transition-all"
-              :class="n.leida ? 'bg-slate-50 border-slate-200' : 'bg-amber-50 border-amber-3 shadow-1'"
-            >
-              <q-card-section class="q-pa-sm">
-                <div class="row items-center justify-between no-wrap q-mb-xs">
-                  <div class="row items-center q-gutter-xs">
-                    <span class="text-caption text-weight-bolder" :class="n.leida ? 'text-slate-800' : 'text-amber-10'">
-                      {{ n.titulo }}
-                    </span>
-                    <q-badge
-                      :color="n.leida ? 'grey-5' : 'negative'"
-                      :label="n.leida ? 'Leído' : 'NUEVO'"
-                      class="text-weight-bold"
-                      size="xs"
-                    />
-                  </div>
-                  <span class="text-caption text-grey-6 font-mono font-11">
-                    {{ formatearFechaNotif(n.createdAt) }}
-                  </span>
-                </div>
-
-                <div class="text-caption text-grey-8 q-mb-xs whitespace-pre-line" style="line-height: 1.45;">
-                  {{ n.mensaje }}
-                </div>
-
-                <!-- Desglose de Goleadores -->
-                <div v-if="n.datos?.goleadores && n.datos.goleadores.length" class="bg-white q-pa-xs rounded-borders border q-my-xs">
-                  <div class="text-caption text-weight-bold text-slate-700 q-mb-xs">
-                    ⚽ Goleadores seleccionados por el DT:
-                  </div>
-                  <div class="row q-gutter-xs">
-                    <q-chip
-                      v-for="(g, idx) in n.datos.goleadores"
-                      :key="idx"
-                      dense
-                      outline
-                      color="primary"
-                      icon="sports_soccer"
-                      class="text-weight-bold font-12"
-                    >
-                      {{ g.nombre }} (#{{ g.dorsal || '—' }}): {{ g.goles }} gol(es){{ g.minuto ? ` · Min ${g.minuto}` : '' }}
-                    </q-chip>
-                  </div>
-                </div>
-
-                <div class="row items-center justify-between q-mt-xs pt-1 border-t">
-                  <span class="text-caption text-weight-medium text-grey-7">
-                    Remitente: <strong class="text-slate-900">{{ n.remitente }}</strong>
-                  </span>
-                  <div class="row items-center q-gutter-xs">
-                    <q-btn
-                      v-if="!n.leida"
-                      flat
-                      dense
-                      no-caps
-                      size="xs"
-                      color="positive"
-                      label="Marcar Leído"
-                      :icon="matCheckCircle"
-                      @click="store.marcarNotificacionLeida(n._id || n.id)"
-                    />
-                    <q-btn
-                      flat
-                      dense
-                      no-caps
-                      size="xs"
-                      color="primary"
-                      label="Ver Fixture"
-                      v-close-popup
-                      @click="router.push('/fixture')"
-                    />
-                    <q-btn
-                      flat
-                      dense
-                      no-caps
-                      size="xs"
-                      color="amber-9"
-                      label="Ver Goleadores"
-                      v-close-popup
-                      @click="router.push('/ranking')"
-                    />
-                  </div>
-                </div>
-              </q-card-section>
-            </q-card>
-          </div>
-        </q-card-section>
+    <!-- Diálogo de Confirmación de Rol al presionar ENTER -->
+    <q-dialog v-model="mostrarAnuncioRol">
+      <q-card style="width: 440px; max-width: 92vw;" class="rounded-borders text-center q-pa-lg">
+        <q-avatar size="64px" :color="anuncioRolData.color" text-color="white" class="q-mb-md shadow-2">
+          <span class="text-h4">{{ anuncioRolData.emoji }}</span>
+        </q-avatar>
+        <div class="text-h6 text-weight-bolder text-slate-900 q-mb-xs">
+          {{ anuncioRolData.titulo }}
+        </div>
+        <div class="text-body2 text-grey-7 q-mb-lg">
+          {{ anuncioRolData.descripcion }}
+        </div>
+        <q-btn
+          unelevated
+          no-caps
+          :color="anuncioRolData.color"
+          class="full-width text-weight-bold"
+          label="Continuar"
+          v-close-popup
+        />
       </q-card>
     </q-dialog>
   </q-layout>
@@ -851,10 +620,7 @@ import {
   matVisibility,
   matVisibilityOff,
   matErrorOutline,
-  matCheckCircle,
-  matNotifications,
-  matDoneAll,
-  matClose
+  matCheckCircle
 } from '@quasar/extras/material-icons'
 
 const $q = useQuasar()
@@ -881,52 +647,8 @@ const registroForm = ref({
   equipo: null,
   nombreEquipo: '',
   barriada: '',
-  posicion: 'Delantero',
-  escudocolor: '#059669',
-  escudoFigura: '🛡️',
-  escudoUrl: ''
+  posicion: 'Delantero'
 })
-
-const tabEscudo = ref('figuras')
-
-const figurasEscudoDisponibles = [
-  { emoji: '🛡️', label: 'Escudo' },
-  { emoji: '🦅', label: 'Águilas' },
-  { emoji: '🦁', label: 'Leones' },
-  { emoji: '⚡', label: 'Rayos' },
-  { emoji: '⚽', label: 'Balón' },
-  { emoji: '👑', label: 'Corona' },
-  { emoji: '🐯', label: 'Tigres' },
-  { emoji: '🐺', label: 'Lobos' },
-  { emoji: '🏆', label: 'Copa' },
-  { emoji: '⚔️', label: 'Gladiadores' },
-  { emoji: '🐉', label: 'Dragones' },
-  { emoji: '🥊', label: 'Guerreros' }
-]
-
-const coloresEscudoDisponibles = [
-  '#059669', '#dc2626', '#2563eb', '#d97706', '#7c3aed', '#0f172a', '#e11d48', '#0891b2'
-]
-
-function seleccionarFiguraEscudo(emoji) {
-  registroForm.value.escudoFigura = emoji
-  registroForm.value.escudoUrl = ''
-}
-
-function cargarArchivoEscudo(event) {
-  const file = event.target.files?.[0]
-  if (!file) return
-  if (!file.type.startsWith('image/')) {
-    $q.notify({ type: 'negative', message: 'Por favor selecciona un archivo de imagen válido.' })
-    return
-  }
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    registroForm.value.escudoUrl = e.target.result
-    $q.notify({ type: 'positive', message: '¡Escudo cargado correctamente!', position: 'top', timeout: 2000 })
-  }
-  reader.readAsDataURL(file)
-}
 
 const opcionesPosiciones = [
   { label: '🧤 Portero', value: 'Arquero', desc: 'Bajo los tres palos' },
@@ -1003,15 +725,12 @@ async function ejecutarRegistro() {
       equipo: registroForm.value.equipo,
       nombreEquipo: registroForm.value.nombreEquipo,
       barriada: registroForm.value.barriada,
-      posicion: registroForm.value.posicion,
-      escudocolor: registroForm.value.escudocolor,
-      escudoFigura: registroForm.value.escudoFigura,
-      escudoUrl: registroForm.value.escudoUrl
+      posicion: registroForm.value.posicion
     })
     $q.notify({
       type: 'positive',
       icon: 'check_circle',
-      message: `¡Cuenta creada exitosamente! Rol oficial asignado: ${res.usuario.rol.toUpperCase()}`,
+      message: `¡Cuenta creada exitosamente! Rol: ${res.usuario.rol.toUpperCase()}`,
       position: 'top',
       timeout: 3500
     })
@@ -1032,21 +751,73 @@ function cerrarSesion() {
   })
 }
 
-// Modal de Notificaciones Oficiales para el Administrador
-const mostrarModalNotificaciones = ref(false)
-
-function formatearFechaNotif(dateStr) {
-  if (!dateStr) return 'Reciente'
-  const d = new Date(dateStr)
-  if (isNaN(d.getTime())) return 'Reciente'
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' · ' + d.toLocaleDateString([], { day: '2-digit', month: 'short' })
-}
+const mostrarAnuncioRol = ref(false)
+const anuncioRolData = ref({
+  titulo: '',
+  descripcion: '',
+  color: 'primary',
+  emoji: '⚽'
+})
 
 const roleColorClass = computed(() => {
   if (store.esOrganizador) return 'bg-amber-6 text-slate-900 font-bold'
   if (store.esEntrenador) return 'bg-emerald-6 text-white font-bold'
   return 'bg-indigo-6 text-white font-bold'
 })
+
+function cambiarRolDirecto(rol) {
+  if (rol === 'organizador') {
+    store.cambiarRol(ROLES.ORGANIZADOR)
+    anuncioRolData.value = {
+      titulo: 'Rol cambiado a ORGANIZADOR',
+      descripcion: 'Acceso habilitado para programar partidos, crear torneos y asentar actas oficiales.',
+      color: 'amber-9',
+      emoji: '👑'
+    }
+    mostrarAnuncioRol.value = true
+    $q.notify({
+      type: 'positive',
+      icon: 'check_circle',
+      message: '¡Rol cambiado a Organizador!',
+      position: 'top',
+      timeout: 3000
+    })
+  } else if (rol === 'entrenador') {
+    store.cambiarRol(ROLES.ENTRENADOR)
+    anuncioRolData.value = {
+      titulo: 'Rol cambiado a ENTRENADOR',
+      descripcion: 'Acceso a la pizarra táctica para definir formaciones y posiciones de tus futbolistas.',
+      color: 'positive',
+      emoji: '📋'
+    }
+    mostrarAnuncioRol.value = true
+    $q.notify({
+      type: 'positive',
+      icon: 'check_circle',
+      message: '¡Rol cambiado a Entrenador!',
+      position: 'top',
+      timeout: 3000
+    })
+    router.push('/entrenador')
+  } else if (rol === 'jugador') {
+    store.cambiarRol(ROLES.JUGADOR)
+    anuncioRolData.value = {
+      titulo: 'Rol cambiado a JUGADOR',
+      descripcion: 'Acceso para consultar planteles, alineaciones tácticas, fixture y estadísticas de tu club.',
+      color: 'indigo-8',
+      emoji: '⚽'
+    }
+    mostrarAnuncioRol.value = true
+    $q.notify({
+      type: 'positive',
+      icon: 'check_circle',
+      message: '¡Rol cambiado a Jugador!',
+      position: 'top',
+      timeout: 3000
+    })
+    router.push('/equipos')
+  }
+}
 
 onMounted(() => {
   store.cargarTodo()
@@ -1213,37 +984,9 @@ body {
 .header-tabs .q-tab__icon {
   margin-right: 6px;
 }
-.role-badge-official {
+.role-dropdown-btn {
   font-size: 0.78rem;
   font-weight: 700;
   border-radius: 6px;
-  letter-spacing: 0.02em;
-}
-.escudo-preview-box {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  overflow: hidden;
-  color: white;
-  border: 1px solid rgba(0,0,0,0.1);
-}
-.escudo-preview-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.color-dot {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 2px solid white;
-  transition: transform 0.15s ease;
-}
-.color-dot:hover {
-  transform: scale(1.15);
-}
-.ring-active {
-  box-shadow: 0 0 0 2px #059669;
-  transform: scale(1.1);
 }
 </style>
