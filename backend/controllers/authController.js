@@ -80,9 +80,11 @@ export const registro = async (req, res) => {
       // Crear el nuevo equipo propio para este entrenador
       nuevoEquipoCreado = new Equipo({
         nombre: nombreClub,
-        capitan: (nombre || usernameClean).trim(),
+        capitan: (req.body.capitan || '').trim(),
         barriada: (barriada || 'Barrio Central').trim(),
-        escudocolor: escudocolor || '#059669'
+        escudocolor: escudocolor || '#059669',
+        escudoUrl: req.body.escudoUrl || '',
+        escudoFigura: req.body.escudoFigura || '🛡️'
       })
       await nuevoEquipoCreado.save()
       equipoAsignadoId = nuevoEquipoCreado._id

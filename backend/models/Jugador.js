@@ -8,6 +8,9 @@ const jugadorSchema = new Schema({
   equipo: { type: Schema.Types.ObjectId, ref: 'Equipo', required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true, default: 'futbolito123' },
+  goles: { type: Number, default: 0, min: 0 },
+  asistencias: { type: Number, default: 0, min: 0 },
+  esCapitan: { type: Boolean, default: false },
   estado: { type: Number, default: 1 } // 1: Activo, 0: Inactivo
 }, { timestamps: true })
 

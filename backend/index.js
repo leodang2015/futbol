@@ -8,6 +8,7 @@ import jugadorRoutes from './routes/jugadorRoutes.js'
 import torneoRoutes from './routes/torneoRoutes.js'
 import partidoRoutes from './routes/partidoRoutes.js'
 import authRoutes from './routes/authRoutes.js'
+import notificacionRoutes from './routes/notificacionRoutes.js'
 
 dotenv.config()
 
@@ -56,6 +57,7 @@ app.use('/api/equipos', equipoRoutes)
 app.use('/api/jugadores', jugadorRoutes)
 app.use('/api/torneos', torneoRoutes)
 app.use('/api/partidos', partidoRoutes)
+app.use('/api/notificaciones', notificacionRoutes)
 
 // Control para rutas no encontradas (404)
 app.use((req, res, next) => {

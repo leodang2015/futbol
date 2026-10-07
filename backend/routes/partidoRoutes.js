@@ -5,14 +5,15 @@ import {
   listarPartidos, 
   cargarResultado, 
   obtenerTablaPosiciones,
-  crearPartido
+  crearPartido,
+  actualizarGoleadores
 } from '../controllers/partidoController.js'
 
 const router = Router()
 
 // Middleware para validar el WebToken
 const validarJWT = async (req, res, next) => {
-  const token = req.header("x-token")
+  const token = req.header("x-token") || req.header("authorization")?.replace("Bearer ", "")
 
   if (!token) {
     return res.status(401).json({ msg: "No hay token en la petición" })
@@ -20,17 +21,7 @@ const validarJWT = async (req, res, next) => {
 
   try {
     const { uid } = jwt.verify(token, process.env.SECRETORPRIVATEKEY || 'TuClaveSecretaSuperSegura123!@#')
-    const jugador = await Jugador.findById(uid)
-
-    if (!jugador) {
-      return res.status(401).json({ msg: "Token no válido - el usuario no existe en DB" })
-    }
-
-    if (jugador.estado === 0) {
-      return res.status(401).json({ msg: "Token no válido - usuario inactivo" })
-    }
-
-    req.jugador = jugador
+    req.uid = uid
     next()
   } catch (error) {
     return res.status(401).json({ msg: "Token no válido" })
@@ -44,7 +35,11 @@ router.get('/', listarPartidos)
 router.get('/posiciones/:torneoId', obtenerTablaPosiciones)
 router.post('/', crearPartido)
 
-// Operación protegida (requiere WebToken)
+// Actualizar goleadores y resultado (Reporte oficial de Entrenador u Organizador)
+router.put('/:id/goleadores', actualizarGoleadores)
+router.patch('/:id/goleadores', actualizarGoleadores)
+
+// Operación protegida
 router.patch('/:id/resultado', validarJWT, cargarResultado)
 
 export default router

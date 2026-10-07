@@ -49,6 +49,25 @@ export const cargarResultado = async (req, res) => {
       });
     }
 
+    // Regla Oficial: Solo se podrá jugar cuando el entrenador escoja al capitán del equipo
+    const eqLocal = await Equipo.findById(partido.local);
+    const eqVisitante = await Equipo.findById(partido.visitante);
+    const jugsLocal = await Jugador.find({ equipo: partido.local });
+    const jugsVisitante = await Jugador.find({ equipo: partido.visitante });
+    const capLocal = Boolean(eqLocal?.capitan?.trim()) || jugsLocal.some(j => j.esCapitan);
+    const capVisitante = Boolean(eqVisitante?.capitan?.trim()) || jugsVisitante.some(j => j.esCapitan);
+
+    if (!capLocal) {
+      return res.status(400).json({
+        msg: `Solo se podrá jugar cuando el entrenador escoja al capitán del equipo. El club "${eqLocal?.nombre || 'Local'}" no tiene capitán designado.`
+      });
+    }
+    if (!capVisitante) {
+      return res.status(400).json({
+        msg: `Solo se podrá jugar cuando el entrenador escoja al capitán del equipo. El club "${eqVisitante?.nombre || 'Visitante'}" no tiene capitán designado.`
+      });
+    }
+
     if (golesLocal < 0 || golesVisitante < 0) {
       return res.status(400).json({
         msg: "Los goles no pueden ser números negativos"
@@ -217,6 +236,22 @@ export const crearPartido = async (req, res) => {
       });
     }
 
+    // Regla Oficial: Solo se podrá jugar cuando el entrenador escoja al capitán del equipo
+    const tieneCapitanLocal = Boolean(equipoLocal.capitan && equipoLocal.capitan.trim()) || jugadoresLocal.some(j => j.esCapitan);
+    const tieneCapitanVisitante = Boolean(equipoVisitante.capitan && equipoVisitante.capitan.trim()) || jugadoresVisitante.some(j => j.esCapitan);
+
+    if (!tieneCapitanLocal) {
+      return res.status(400).json({
+        msg: `Regla reglamentaria: Solo se permite disputar partidos cuando el entrenador escoja al capitán del equipo. El club "${equipoLocal.nombre}" aún no tiene capitán designado.`
+      });
+    }
+
+    if (!tieneCapitanVisitante) {
+      return res.status(400).json({
+        msg: `Regla reglamentaria: Solo se permite disputar partidos cuando el entrenador escoja al capitán del equipo. El club "${equipoVisitante.nombre}" aún no tiene capitán designado.`
+      });
+    }
+
     // Normalizar jornada / fecha
     const j = Number(jornada ?? fecha ?? 1);
 
@@ -258,4 +293,47 @@ export const crearPartido = async (req, res) => {
   }
 };
 
-export default { listarPartidos, cargarResultado, obtenerTablaPosiciones, crearPartido };
+export const actualizarGoleadores = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { goleadores, golesLocal, golesVisitante } = req.body;
+
+    const partido = await Partido.findById(id);
+    if (!partido) {
+      return res.status(404).json({ msg: 'El partido no existe en la base de datos' });
+    }
+
+    const eqLocal = await Equipo.findById(partido.local);
+    const eqVisitante = await Equipo.findById(partido.visitante);
+    const jugsLocal = await Jugador.find({ equipo: partido.local });
+    const jugsVisitante = await Jugador.find({ equipo: partido.visitante });
+    const capLocal = Boolean(eqLocal?.capitan?.trim()) || jugsLocal.some(j => j.esCapitan);
+    const capVisitante = Boolean(eqVisitante?.capitan?.trim()) || jugsVisitante.some(j => j.esCapitan);
+
+    if (!capLocal || !capVisitante) {
+      return res.status(400).json({
+        msg: 'Solo se podrá jugar y registrar goles cuando el entrenador escoja al capitán del equipo. Ambos equipos deben contar con capitán designado.'
+      });
+    }
+
+    if (golesLocal !== undefined) partido.golesLocal = Number(golesLocal);
+    if (golesVisitante !== undefined) partido.golesVisitante = Number(golesVisitante);
+    if (Array.isArray(goleadores)) {
+      partido.goleadores = goleadores;
+    }
+    partido.estado = 'Finalizado';
+
+    await partido.save();
+    const partidoPoblado = await Partido.findById(partido._id).populate('local visitante');
+
+    res.json({
+      msg: 'Goleadores y resultado registrados exitosamente',
+      partido: partidoPoblado
+    });
+  } catch (error) {
+    console.error('Error al actualizar goleadores:', error);
+    res.status(400).json({ msg: error.message || 'Error al actualizar los goleadores' });
+  }
+};
+
+export default { listarPartidos, cargarResultado, obtenerTablaPosiciones, crearPartido, actualizarGoleadores };
