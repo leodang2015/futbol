@@ -103,6 +103,18 @@ export const actualizarJugadorValidator = [
     .optional({ checkFalsy: true })
     .isLength({ min: 4 }).withMessage("La contraseña debe tener al menos 4 caracteres"),
 
+  body("goles")
+    .optional()
+    .isInt({ min: 0 }).withMessage("Los goles deben ser un número entero mayor o igual a 0"),
+
+  body("asistencias")
+    .optional()
+    .isInt({ min: 0 }).withMessage("Las asistencias deben ser un número entero mayor o igual a 0"),
+
+  body("esCapitan")
+    .optional()
+    .isBoolean().withMessage("esCapitan debe ser booleano"),
+
   validarCampos
 ];
 

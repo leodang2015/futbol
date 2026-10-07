@@ -3,7 +3,7 @@ import Equipo from '../models/Equipo.js'
 import Jugador from '../models/Jugador.js'
 import jwt from 'jsonwebtoken'
 
-const JWT_SECRET = process.env.SECRETORPRIVATEKEY || 'TuClaveSecretaSuperSegura123!@#'
+const JWT_SECRET = process.env.SECRETORPRIVATEKEY 
 
 // Mapeo de códigos oficiales exigidos
 export const CODIGOS_ROL = {
@@ -80,9 +80,11 @@ export const registro = async (req, res) => {
       // Crear el nuevo equipo propio para este entrenador
       nuevoEquipoCreado = new Equipo({
         nombre: nombreClub,
-        capitan: (nombre || usernameClean).trim(),
+        capitan: (req.body.capitan || '').trim(),
         barriada: (barriada || 'Barrio Central').trim(),
-        escudocolor: escudocolor || '#059669'
+        escudocolor: escudocolor || '#059669',
+        escudoUrl: req.body.escudoUrl || '',
+        escudoFigura: req.body.escudoFigura || '🛡️'
       })
       await nuevoEquipoCreado.save()
       equipoAsignadoId = nuevoEquipoCreado._id

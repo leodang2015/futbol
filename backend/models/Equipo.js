@@ -11,10 +11,22 @@ const equipoSchema = new Schema({
     type: String, 
     default: 'bg-emerald-600' 
   },
+  escudoUrl: {
+    type: String,
+    default: ''
+  },
+  escudoFigura: {
+    type: String,
+    default: '🛡️'
+  },
   capitan: { 
     type: String, 
-    required: true, 
+    default: '', 
     trim: true 
+  },
+  capitanId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Jugador'
   },
   barriada: { 
     type: String, 
