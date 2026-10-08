@@ -136,6 +136,26 @@
     <div class="row q-col-gutter-lg">
       <!-- Columna Principal: Tabla Oficial de Posiciones -->
       <div class="col-12 col-lg-8">
+        <!-- BANNER DE PRIVACIDAD: Modo Jugador (Solo ve las posiciones de su propio equipo) -->
+        <q-banner
+          v-if="store.esJugador"
+          dense
+          rounded
+          class="bg-indigo-1 text-indigo-10 q-mb-md q-py-sm q-px-md border border-indigo-2 shadow-1"
+        >
+          <template #avatar>
+            <q-icon :name="matLock" size="24px" color="indigo-8" />
+          </template>
+          <div>
+            <div class="text-caption text-weight-bolder">
+              🔒 Vista Oficial Restringida · Modo Jugador
+            </div>
+            <div class="text-caption text-grey-8">
+              Por normativa de confidencialidad deportiva del torneo, los futbolistas <strong>solo pueden visualizar la posición y estadísticas oficiales de su propio equipo ({{ store.miEquipo?.nombre || 'Tu Club' }})</strong>. La tabla de posiciones de los demás clubes no es visible para jugadores.
+            </div>
+          </div>
+        </q-banner>
+
         <q-card flat bordered class="main-table-card bg-white rounded-borders overflow-hidden">
           <!-- Toolbar Superior: Filtro y Leyenda -->
           <q-card-section class="table-toolbar row items-center justify-between q-col-gutter-sm bg-slate-50 border-b">
@@ -386,7 +406,8 @@ import {
   matMilitaryTech,
   matArrowForward,
   matShield,
-  matSpeed
+  matSpeed,
+  matLock
 } from '@quasar/extras/material-icons'
 
 const store = useTorneo()
@@ -400,23 +421,36 @@ const metricas = computed(() => [
   { label: 'Promedio de Gol', value: store.stats.promedio, sub: 'Por encuentro oficial', icon: matMilitaryTech, bgClass: 'bg-teal-50', iconClass: 'text-teal-700' }
 ])
 
-const filas = computed(() =>
-  store.tabla
-    .map((e, i) => ({
-      ...e,
-      pos: i + 1,
-      color: e.color || e.escudocolor || '#059669'
-    }))
-    .filter(e =>
-      !buscar.value ||
-      e.nombre?.toLowerCase().includes(buscar.value.toLowerCase()) ||
-      e.barriada?.toLowerCase().includes(buscar.value.toLowerCase())
-    )
-)
+const filas = computed(() => {
+  const todas = store.tabla.map((e, i) => ({
+    ...e,
+    pos: i + 1,
+    color: e.color || e.escudocolor || '#059669'
+  }))
 
-const partidosResumen = computed(() =>
-  [...store.partidos].slice(-4).reverse()
-)
+  // REGLA OFICIAL: Los jugadores no podrán ver las posiciones de otros equipos, solo la de su equipo
+  if (store.esJugador) {
+    const miEqId = store.miEquipoId
+    if (miEqId) {
+      return todas.filter(e => (e.id || e._id) === miEqId)
+    }
+  }
+
+  return todas.filter(e =>
+    !buscar.value ||
+    e.nombre?.toLowerCase().includes(buscar.value.toLowerCase()) ||
+    e.barriada?.toLowerCase().includes(buscar.value.toLowerCase())
+  )
+})
+
+const partidosResumen = computed(() => {
+  let list = [...store.partidos]
+  // REGLA OFICIAL: Si es jugador, solo ve partidos en los que juega su equipo
+  if (store.esJugador && store.miEquipoId) {
+    list = list.filter(p => p.localId === store.miEquipoId || p.visitanteId === store.miEquipoId)
+  }
+  return list.slice(-4).reverse()
+})
 
 const goleadoresResumen = computed(() =>
   [...store.goleadores].slice(0, 4)
