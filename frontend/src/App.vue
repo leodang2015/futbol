@@ -65,14 +65,17 @@
               </div>
 
               <div>
-                <div class="text-caption text-weight-bold text-grey-8 q-mb-xs">Contraseña</div>
+                <div class="row items-center justify-between q-mb-xs">
+                  <div class="text-caption text-weight-bold text-grey-8">Contraseña</div>
+                  <div class="text-caption text-indigo-8 font-10">Futbolistas registrados: clave 1234</div>
+                </div>
                 <q-input
                   v-model="loginForm.password"
                   :type="verPasswordLogin ? 'text' : 'password'"
                   outlined
                   dense
                   bg-color="white"
-                  placeholder="Tu contraseña secreta"
+                  placeholder="Tu contraseña (para futbolistas: 1234)"
                   :rules="[val => !!val || 'La contraseña es obligatoria']"
                 >
                   <template #prepend>
@@ -947,7 +950,12 @@ function seleccionarRolRegistro(nuevoRol) {
   registroForm.value.rol = nuevoRol
   if (nuevoRol === 'organizador') registroForm.value.codigo = '1'
   else if (nuevoRol === 'entrenador') registroForm.value.codigo = '2'
-  else if (nuevoRol === 'jugador') registroForm.value.codigo = '3'
+  else if (nuevoRol === 'jugador') {
+    registroForm.value.codigo = '3'
+    if (!registroForm.value.password) {
+      registroForm.value.password = '1234'
+    }
+  }
 }
 
 async function ejecutarLogin() {

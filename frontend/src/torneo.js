@@ -18,7 +18,13 @@ export const CODIGOS_ROL = {
 }
 
 // Helpers
-const idDe = (v) => (v && typeof v === 'object' ? (v._id ?? v.id) : v)
+const idDe = (v) => {
+  if (!v) return ''
+  if (typeof v === 'object') {
+    return String(v._id ?? v.id ?? '').trim()
+  }
+  return String(v).trim()
+}
 const lista = (d) => (Array.isArray(d) ? d : d?.data ?? d?.equipos ?? d?.jugadores ?? d?.partidos ?? [])
 
 // Estado reactivo global sin usar Pinia ni librerías externas
@@ -72,7 +78,13 @@ const normPartido = (p) => ({
   ...p,
   id: idDe(p),
   fecha: p.fecha ?? p.jornada ?? 1,
-  estado: (p.estado || '').toLowerCase(),
+  jornada: p.jornada ?? p.fecha ?? 1,
+  estado: p.estado || 'Por Confirmar',
+  confirmacionLocal: Boolean(p.confirmacionLocal),
+  confirmacionVisitante: Boolean(p.confirmacionVisitante),
+  confirmadoPorDTs: Boolean(p.confirmadoPorDTs || (p.confirmacionLocal && p.confirmacionVisitante)),
+  asistenciasLocal: p.asistenciasLocal ?? 0,
+  asistenciasVisitante: p.asistenciasVisitante ?? 0,
   localId: idDe(p.localId ?? p.local),
   visitanteId: idDe(p.visitanteId ?? p.visitante),
   golesLocal: p.golesLocal ?? p.goles_local ?? 0,
@@ -139,11 +151,46 @@ async function crearTorneo(datos) {
 
 async function guardarPartido(datos) {
   try {
-    const res = await axios.post(`${API_URL}/partidos`, { ...datos, estado: 'jugado' }, { headers: authHeaders() })
+    const res = await axios.post(`${API_URL}/partidos`, {
+      ...datos,
+      estado: datos.estado || 'Por Confirmar'
+    }, { headers: authHeaders() })
     await cargarTodo()
     return res.data
   } catch (err) {
     const msg = err.response?.data?.msg || err.message || 'Error al registrar el partido'
+    throw new Error(msg)
+  }
+}
+
+async function confirmarPartidoDT(partidoId, equipoId) {
+  const pId = idDe(partidoId)
+  try {
+    const res = await axios.post(`${API_URL}/partidos/${pId}/confirmar`, {
+      equipoId: idDe(equipoId),
+      entrenadorNombre: user.value?.nombre || user.value?.usuario || 'Entrenador'
+    }, { headers: authHeaders() })
+    await cargarTodo()
+    return res.data
+  } catch (err) {
+    const msg = err.response?.data?.msg || err.message || 'Error al confirmar partido'
+    throw new Error(msg)
+  }
+}
+
+async function fijarMarcadorOrganizador(partidoId, { golesLocal, golesVisitante, asistenciasLocal, asistenciasVisitante }) {
+  const pId = idDe(partidoId)
+  try {
+    const res = await axios.put(`${API_URL}/partidos/${pId}/marcador-organizador`, {
+      golesLocal,
+      golesVisitante,
+      asistenciasLocal,
+      asistenciasVisitante
+    }, { headers: authHeaders() })
+    await cargarTodo()
+    return res.data
+  } catch (err) {
+    const msg = err.response?.data?.msg || err.message || 'Error al fijar marcador del organizador'
     throw new Error(msg)
   }
 }
@@ -175,7 +222,12 @@ async function login(credenciales) {
     localStorage.setItem('futbolito_user', JSON.stringify(data.usuario))
     localStorage.setItem('futbolito_rol', rolActual.value)
     if (data.usuario.equipo) {
-      localStorage.setItem('futbolito_dt_equipo', data.usuario.equipo)
+      const eqIdStr = idDe(data.usuario.equipo)
+      localStorage.setItem('futbolito_dt_equipo', eqIdStr)
+      equipoEntrenadorId.value = eqIdStr
+    } else {
+      localStorage.removeItem('futbolito_dt_equipo')
+      equipoEntrenadorId.value = ''
     }
 
     await cargarTodo()
@@ -302,6 +354,7 @@ function logout() {
   user.value = null
   token.value = ''
   rolActual.value = ROLES.ORGANIZADOR
+  equipoEntrenadorId.value = ''
   localStorage.removeItem('futbolito_auth_token')
   localStorage.removeItem('futbolito_user')
   localStorage.removeItem('futbolito_rol')
@@ -436,7 +489,11 @@ const fechas = computed(() => [...new Set(partidos.value.map(p => p.fecha))].sor
 const topPor = (campo) => [...jugadores.value].sort((a, b) => (b[campo] ?? 0) - (a[campo] ?? 0)).slice(0, 5)
 const goleadores = computed(() => topPor('goles'))
 const asistidores = computed(() => topPor('asistencias'))
-const equipoPorId = (id) => equipos.value.find(e => e.id === id)
+const equipoPorId = (id) => {
+  const sid = String(idDe(id) || '').trim()
+  if (!sid) return null
+  return equipos.value.find(e => String(e.id || e._id || '').trim() === sid) || null
+}
 
 const cantidadJugadoresEquipo = (equipoId) => {
   const eqId = idDe(equipoId)
@@ -533,23 +590,40 @@ async function designarCapitan(jugadorId, equipoId) {
 }
 
 const miEquipoId = computed(() => {
-  if (user.value?.equipo) return idDe(user.value.equipo)
+  if (user.value?.equipo) {
+    const id = idDe(user.value.equipo)
+    if (id) return String(id).trim()
+  }
+  // Si es entrenador, buscar el club que fundó o donde figura como técnico/capitán
+  if (user.value?.rol === 'entrenador') {
+    const uClean = String(user.value.usuario || '').toLowerCase().trim()
+    const uNombre = String(user.value.nombre || '').toLowerCase().trim()
+    const eq = equipos.value.find(e => {
+      const tec = String(e.tecnico || '').toLowerCase().trim()
+      const cap = String(e.capitan || '').toLowerCase().trim()
+      const nom = String(e.nombre || '').toLowerCase().trim()
+      return (tec && (tec === uClean || tec === uNombre)) ||
+             (cap && (cap === uClean || cap === uNombre)) ||
+             (nom && (nom === uClean || nom === uNombre))
+    })
+    if (eq) return String(idDe(eq)).trim()
+  }
   // Si es jugador y no vino equipo en el objeto user, buscarlo en la nómina
   if (user.value?.usuario) {
     const uClean = String(user.value.usuario).toLowerCase().trim()
+    const uNombre = String(user.value.nombre || '').toLowerCase().trim()
     const jEncontrado = jugadores.value.find(j => {
       const emailMatch = j.email && j.email.toLowerCase().includes(uClean)
-      const nombreMatch = j.nombre && j.nombre.toLowerCase().trim() === (user.value.nombre || '').toLowerCase().trim()
-      return emailMatch || nombreMatch
+      const nombreMatch = j.nombre && j.nombre.toLowerCase().trim() === uNombre
+      const userMatch = j.nombre && j.nombre.toLowerCase().trim() === uClean
+      return emailMatch || nombreMatch || userMatch
     })
     if (jEncontrado) {
       const eqId = idDe(jEncontrado.equipoId ?? jEncontrado.equipo)
-      if (eqId) return eqId
+      if (eqId) return String(eqId).trim()
     }
   }
-  const dtEq = localStorage.getItem('futbolito_dt_equipo')
-  if (dtEq) return dtEq
-  if (equipoEntrenadorId.value) return equipoEntrenadorId.value
+  if (!user.value && equipoEntrenadorId.value) return String(equipoEntrenadorId.value).trim()
   return ''
 })
 
@@ -734,7 +808,7 @@ const state = reactive({
   // Acciones torneo y goleadores
   cargarTodo, agregarEquipo, agregarJugador, actualizarPosicionJugador, actualizarJugador,
   actualizarEscudoEquipo,
-  crearTorneo, guardarPartido, completarPlantelEquipo,
+  crearTorneo, guardarPartido, confirmarPartidoDT, fijarMarcadorOrganizador, completarPlantelEquipo,
   registrarGoleadoresDT, marcarNotificacionLeida, marcarTodasNotificacionesLeidas,
   // Diálogos
   dialogoPartido, dialogoEquipo, abrirDialogoPartido, abrirDialogoEquipo,

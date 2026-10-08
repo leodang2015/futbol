@@ -7,13 +7,13 @@
           <q-card-section class="q-py-md bg-slate-50 border-b">
             <div>
               <div class="text-subtitle1 text-weight-bold text-dark">Clubes del Torneo</div>
-              <div class="text-caption text-grey-6">{{ store.equipos.length }} equipos registrados</div>
+              <div class="text-caption text-grey-6">{{ clubesVisibles.length }} equipos registrados</div>
             </div>
           </q-card-section>
 
           <q-list separator class="club-list">
             <q-item
-              v-for="e in store.equipos"
+              v-for="e in clubesVisibles"
               :key="e.id"
               clickable
               :active="e.id === seleccionId"
@@ -22,12 +22,30 @@
               @click="seleccionId = e.id"
             >
               <q-item-section avatar>
-                <span class="club-avatar-dot shadow-sm" :style="{ background: e.color || e.escudocolor || '#059669' }" />
+                <img
+                  v-if="e.escudoUrl"
+                  :src="e.escudoUrl"
+                  alt="Escudo"
+                  class="club-list-crest shadow-sm"
+                />
+                <span v-else-if="e.escudoFigura" class="font-18 q-mr-xs">{{ e.escudoFigura }}</span>
+                <span v-else class="club-avatar-dot shadow-sm" :style="{ background: e.color || e.escudocolor || '#059669' }" />
               </q-item-section>
 
               <q-item-section>
                 <div class="row items-center justify-between no-wrap">
-                  <q-item-label class="text-weight-bold text-dark ellipsis">{{ e.nombre }}</q-item-label>
+                  <div class="row items-center no-wrap ellipsis">
+                    <q-item-label class="text-weight-bold text-dark ellipsis">{{ e.nombre }}</q-item-label>
+                    <q-badge
+                      v-if="store.esJugador && (e.id === store.miEquipoId || e._id === store.miEquipoId)"
+                      color="indigo-7"
+                      text-color="white"
+                      size="xs"
+                      class="q-ml-xs text-weight-bold"
+                    >
+                      Tu Club
+                    </q-badge>
+                  </div>
                   <q-badge
                     :color="store.equipoHabilitadoParaJugar(e.id) ? 'positive' : 'grey-7'"
                     text-color="white"
@@ -65,40 +83,63 @@
             <!-- Banner Cabecera del Club -->
             <div class="club-header-banner q-pa-lg text-white" :style="{ background: headerGradient }">
               <div class="row items-center justify-between">
-                <div>
-                  <div class="text-caption text-uppercase text-weight-bold opacity-80">Ficha de Club</div>
-                  <h2 class="text-h5 text-weight-bolder q-my-xs text-white">{{ equipo.nombre }}</h2>
-                  <div class="row items-center q-gutter-sm text-caption opacity-90">
-                    <span v-if="equipo.barriada || equipo.barrio">
-                      <q-icon :name="matPlace" size="14px" /> {{ equipo.barriada || equipo.barrio }}
-                    </span>
-                    <span v-if="equipo.capitan || equipo.tecnico">
-                      <q-icon :name="matBadge" size="14px" /> DT/Capitán: {{ equipo.capitan || equipo.tecnico }}
-                    </span>
+                <div class="row items-center q-gutter-md">
+                  <div
+                    class="escudo-view-box flex flex-center rounded-borders shadow-2"
+                    :style="{ background: equipo.escudocolor || '#059669' }"
+                  >
+                    <img v-if="equipo.escudoUrl" :src="equipo.escudoUrl" class="escudo-view-img" />
+                    <span v-else class="text-h4">{{ equipo.escudoFigura || '🛡️' }}</span>
                   </div>
+                  <div>
+                    <div class="text-caption text-uppercase text-weight-bold opacity-80">Ficha de Club</div>
+                    <h2 class="text-h5 text-weight-bolder q-my-none text-white">{{ equipo.nombre }}</h2>
+                    <div class="row items-center q-gutter-sm text-caption opacity-90 q-mt-xs">
+                      <span v-if="equipo.barriada || equipo.barrio">
+                        <q-icon :name="matPlace" size="14px" /> {{ equipo.barriada || equipo.barrio }}
+                      </span>
+                      <span>
+                        <q-icon :name="matBadge" size="14px" /> Ⓒ Capitán: <strong>{{ equipo.capitan || 'Sin asignar' }}</strong>
+                      </span>
+                    </div>
 
-                  <!-- Estado Reglamentario: Mínimo 11 personas para partidos -->
-                  <div class="q-mt-sm">
-                    <span
-                      v-if="plantel.length >= 11"
-                      class="bg-emerald-800 text-emerald-100 text-caption text-weight-bold q-px-sm q-py-xs rounded-borders inline-flex items-center"
-                    >
-                      <q-icon name="check_circle" size="14px" class="q-mr-xs text-positive" />
-                      Habilitado para disputar partidos oficiales ({{ plantel.length }} jugadores)
-                    </span>
-                    <span
-                      v-else
-                      class="bg-amber-9 text-white text-caption text-weight-bold q-px-sm q-py-xs rounded-borders inline-flex items-center"
-                    >
-                      <q-icon name="warning" size="14px" class="q-mr-xs text-white" />
-                      Nómina en formación: {{ plantel.length }}/11 jugadores (Mínimo 11 para disputar partidos)
-                    </span>
+                    <!-- Estado Reglamentario: Mínimo 11 personas y Capitán Oficial -->
+                    <div class="q-mt-xs row items-center q-gutter-xs">
+                      <span
+                        v-if="plantel.length >= 11"
+                        class="bg-emerald-800 text-emerald-100 text-caption text-weight-bold q-px-sm q-py-xs rounded-borders inline-flex items-center"
+                      >
+                        <q-icon name="check_circle" size="14px" class="q-mr-xs text-positive" />
+                        Nómina con {{ plantel.length }} jugadores
+                      </span>
+                      <span
+                        v-else
+                        class="bg-amber-9 text-white text-caption text-weight-bold q-px-sm q-py-xs rounded-borders inline-flex items-center"
+                      >
+                        <q-icon name="warning" size="14px" class="q-mr-xs text-white" />
+                        {{ plantel.length }}/11 jugadores (Mínimo 11)
+                      </span>
+
+                      <!-- Badge de Capitán -->
+                      <span
+                        v-if="store.tieneCapitan(equipo.id)"
+                        class="bg-amber-8 text-white text-caption text-weight-bold q-px-sm q-py-xs rounded-borders inline-flex items-center font-11"
+                      >
+                        Ⓒ Capitán Oficial: {{ equipo.capitan }}
+                      </span>
+                      <span
+                        v-else
+                        class="bg-rose-9 text-white text-caption text-weight-bold q-px-sm q-py-xs rounded-borders inline-flex items-center font-11"
+                      >
+                        ⚠️ Sin Capitán Designado
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 <div class="row items-center q-gutter-sm">
                   <q-btn
-                    v-if="plantel.length < 11"
+                    v-if="store.esOrganizador && plantel.length < 11"
                     unelevated
                     no-caps
                     color="amber-4"
@@ -112,24 +153,21 @@
                     <q-tooltip>Incorporar automáticamente los jugadores restantes para habilitar partidos oficiales</q-tooltip>
                   </q-btn>
                   <q-btn
+                    v-if="store.esEntrenador && store.miEquipoId === equipo.id"
                     outline
                     no-caps
                     color="white"
                     :icon="matSports"
-                    label="Elegir Posiciones (DT)"
+                    label="Elegir Posiciones (Pizarra DT)"
                     class="text-weight-bold"
                     @click="irAPizarraDT(equipo.id)"
                   />
-                  <q-btn
-                    unelevated
-                    no-caps
-                    color="white"
-                    text-color="dark"
-                    :icon="matPersonAdd"
-                    label="Agregar Jugador"
-                    class="text-weight-bold"
-                    @click="modalJugador = true"
-                  />
+                  <q-badge v-else-if="store.esEntrenador" color="emerald-9" text-color="white" class="text-weight-bold q-px-sm q-py-xs">
+                    Modo DT · Nómina de {{ equipo?.nombre }}
+                  </q-badge>
+                  <q-badge v-else-if="store.esJugador" color="indigo-8" text-color="white" class="text-weight-bold q-px-sm q-py-xs">
+                    👁️ Modo Futbolista · Nómina Oficial
+                  </q-badge>
                 </div>
               </div>
             </div>
@@ -179,7 +217,18 @@
                         #{{ j.dorsal ?? j.numero ?? '—' }}
                       </td>
                       <td class="text-weight-bold text-dark">
-                        {{ [j.nombre, j.apellido].filter(Boolean).join(' ') }}
+                        <div class="row items-center no-wrap q-gutter-xs">
+                          <span>{{ [j.nombre, j.apellido].filter(Boolean).join(' ') }}</span>
+                          <q-badge
+                            v-if="j.esCapitan || equipo?.capitan === j.nombre"
+                            color="amber-9"
+                            text-color="white"
+                            class="text-weight-bolder font-10 q-px-xs"
+                            title="Capitán Oficial del Club"
+                          >
+                            Ⓒ CAPITÁN
+                          </q-badge>
+                        </div>
                       </td>
                       <td class="text-center">
                         <span
@@ -204,7 +253,7 @@
                           <q-icon :name="matPersonOutline" size="32px" color="grey-4" class="q-mb-xs" />
                           <div class="text-body2 text-weight-medium">Aún no hay jugadores registrados en este club.</div>
                           <div class="text-caption text-grey-6 q-mt-xs">
-                            Haz clic en "Agregar Jugador" para dar de alta al plantel.
+                            Los futbolistas se incorporan al registrarse con rol jugador (contraseña: 1234) o mediante la nómina completada por el organizador.
                           </div>
                         </div>
                       </td>
@@ -225,17 +274,15 @@
 
     <!-- Modales -->
     <EquipoDialog v-model="modalEquipo" />
-    <JugadorDialog v-model="modalJugador" :equipo-preseleccionado="seleccionId || equipo?.id" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useTorneo, ROLES } from '../torneo.js'
 import EquipoDialog from '../components/EquipoDialog.vue'
-import JugadorDialog from '../components/JugadorDialog.vue'
 import {
   matAdd,
   matPersonAdd,
@@ -245,7 +292,8 @@ import {
   matTouchApp,
   matPlace,
   matBadge,
-  matSports
+  matSports,
+  matShield
 } from '@quasar/extras/material-icons'
 
 const $q = useQuasar()
@@ -253,10 +301,26 @@ const store = useTorneo()
 const roleStore = store
 const router = useRouter()
 
-const seleccionId = ref(null)
+const seleccionId = ref(store.miEquipoId || null)
 const modalEquipo = ref(false)
-const modalJugador = ref(false)
 const completandoPlantel = ref(false)
+
+const clubesVisibles = computed(() => {
+  if (store.esEntrenador || store.esJugador) {
+    const miId = String(store.miEquipoId || '').trim()
+    if (miId) {
+      return store.equipos.filter(e => String(e.id || e._id || '').trim() === miId)
+    }
+    return []
+  }
+  return store.equipos
+})
+
+watch(() => store.miEquipoId, (id) => {
+  if (id && (store.esEntrenador || store.esJugador)) {
+    seleccionId.value = String(id).trim()
+  }
+}, { immediate: true })
 
 async function completarPlantelClub(equipoId) {
   completandoPlantel.value = true
@@ -283,17 +347,22 @@ async function completarPlantelClub(equipoId) {
 }
 
 function irAPizarraDT(equipoId) {
-  roleStore.setEquipoEntrenador(equipoId)
-  roleStore.cambiarRol(ROLES.ENTRENADOR)
   router.push('/entrenador')
 }
 
 const equipo = computed(() => {
+  if (store.esEntrenador || store.esJugador) {
+    const miId = String(store.miEquipoId || '').trim()
+    if (miId) {
+      return store.equipoPorId(miId) || clubesVisibles.value[0] || null
+    }
+    return null
+  }
   if (seleccionId.value) {
     const e = store.equipoPorId(seleccionId.value)
     if (e) return e
   }
-  return store.equipos[0] || null
+  return clubesVisibles.value[0] || store.equipos[0] || null
 })
 
 const plantel = computed(() => {

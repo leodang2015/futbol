@@ -136,9 +136,9 @@
     <div class="row q-col-gutter-lg">
       <!-- Columna Principal: Tabla Oficial de Posiciones -->
       <div class="col-12 col-lg-8">
-        <!-- BANNER DE PRIVACIDAD: Modo Jugador (Solo ve las posiciones de su propio equipo) -->
+        <!-- BANNER DE PRIVACIDAD: Modo Jugador o Entrenador (Solo ve las posiciones de su propio equipo) -->
         <q-banner
-          v-if="store.esJugador"
+          v-if="(store.esJugador || store.esEntrenador) && store.miEquipoId"
           dense
           rounded
           class="bg-indigo-1 text-indigo-10 q-mb-md q-py-sm q-px-md border border-indigo-2 shadow-1"
@@ -148,10 +148,10 @@
           </template>
           <div>
             <div class="text-caption text-weight-bolder">
-              🔒 Vista Oficial Restringida · Modo Jugador
+              🔒 Vista Oficial Restringida · Modo {{ store.esEntrenador ? 'Director Técnico' : 'Futbolista' }}
             </div>
             <div class="text-caption text-grey-8">
-              Por normativa de confidencialidad deportiva del torneo, los futbolistas <strong>solo pueden visualizar la posición y estadísticas oficiales de su propio equipo ({{ store.miEquipo?.nombre || 'Tu Club' }})</strong>. La tabla de posiciones de los demás clubes no es visible para jugadores.
+              Por normativa de confidencialidad deportiva del torneo, los integrantes de club <strong>solo pueden visualizar la posición y estadísticas oficiales de su propio equipo ({{ store.miEquipo?.nombre || 'Tu Club' }})</strong>. La tabla de posiciones de los demás clubes no es visible para entrenadores ni jugadores.
             </div>
           </div>
         </q-banner>
@@ -180,16 +180,16 @@
 
             <div class="row items-center q-gutter-md text-caption text-grey-7">
               <div class="row items-center q-gutter-xs">
-                <span class="legend-badge bg-emerald-600 text-white">V</span>
-                <span>Victoria (+3)</span>
+                <span class="legend-badge legend-v">V</span>
+                <span class="text-weight-bold text-slate-800">Victoria (+3)</span>
               </div>
               <div class="row items-center q-gutter-xs">
-                <span class="legend-badge bg-amber-600 text-white">E</span>
-                <span>Empate (+1)</span>
+                <span class="legend-badge legend-e">E</span>
+                <span class="text-weight-bold text-slate-800">Empate (+1)</span>
               </div>
               <div class="row items-center q-gutter-xs">
-                <span class="legend-badge bg-rose-600 text-white">D</span>
-                <span>Derrota (0)</span>
+                <span class="legend-badge legend-d">D</span>
+                <span class="text-weight-bold text-slate-800">Derrota (0)</span>
               </div>
             </div>
           </q-card-section>
@@ -259,21 +259,24 @@
 
                   <!-- Racha / Forma -->
                   <td class="text-center td-racha">
-                    <div class="row items-center justify-center q-gutter-xs no-wrap">
+                    <div v-if="e.racha && e.racha.length" class="row items-center justify-center q-gutter-xs no-wrap">
                       <span
                         v-for="(r, idx) in e.racha.slice(-4)"
                         :key="idx"
                         class="racha-chip"
                         :class="{
-                          'bg-emerald-600 text-white': r === 'V',
-                          'bg-amber-600 text-white': r === 'E',
-                          'bg-rose-600 text-white': r === 'D'
+                          'racha-v': r === 'V',
+                          'racha-e': r === 'E',
+                          'racha-d': r === 'D'
                         }"
+                        :title="r === 'V' ? 'Victoria (+3 pts)' : r === 'E' ? 'Empate (+1 pto)' : 'Derrota (0 pts)'"
                       >
                         {{ r }}
                       </span>
-                      <span v-if="!e.racha.length" class="text-caption text-grey-5 font-mono">—</span>
                     </div>
+                    <span v-else class="text-caption text-grey-6 font-mono bg-slate-100 q-px-xs rounded-borders">
+                      Sin partidos
+                    </span>
                   </td>
                 </tr>
 
@@ -428,12 +431,13 @@ const filas = computed(() => {
     color: e.color || e.escudocolor || '#059669'
   }))
 
-  // REGLA OFICIAL: Los jugadores no podrán ver las posiciones de otros equipos, solo la de su equipo
-  if (store.esJugador) {
-    const miEqId = store.miEquipoId
+  // REGLA OFICIAL: Los entrenadores y jugadores solo ven la posición de su propio equipo
+  if (store.esJugador || store.esEntrenador) {
+    const miEqId = String(store.miEquipoId || '').trim()
     if (miEqId) {
-      return todas.filter(e => (e.id || e._id) === miEqId)
+      return todas.filter(e => String(e.id || e._id || '').trim() === miEqId)
     }
+    return []
   }
 
   return todas.filter(e =>
@@ -445,9 +449,14 @@ const filas = computed(() => {
 
 const partidosResumen = computed(() => {
   let list = [...store.partidos]
-  // REGLA OFICIAL: Si es jugador, solo ve partidos en los que juega su equipo
-  if (store.esJugador && store.miEquipoId) {
-    list = list.filter(p => p.localId === store.miEquipoId || p.visitanteId === store.miEquipoId)
+  // REGLA OFICIAL: Si es jugador o entrenador, solo ve partidos en los que juega su equipo
+  if (store.esJugador || store.esEntrenador) {
+    const miEqId = String(store.miEquipoId || '').trim()
+    if (miEqId) {
+      list = list.filter(p => String(p.localId || '').trim() === miEqId || String(p.visitanteId || '').trim() === miEqId)
+    } else {
+      list = []
+    }
   }
   return list.slice(-4).reverse()
 })
@@ -546,11 +555,22 @@ function colorEquipo(id) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-weight: 700;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.legend-v {
+  background-color: #16a34a !important;
+}
+.legend-e {
+  background-color: #d97706 !important;
+}
+.legend-d {
+  background-color: #dc2626 !important;
 }
 .table-responsive {
   overflow-x: auto;
@@ -600,16 +620,30 @@ function colorEquipo(id) {
   font-size: 1.05rem;
   font-weight: 800;
 }
+.th-racha, .td-racha {
+  min-width: 140px;
+}
 .racha-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
-  font-size: 0.68rem;
-  font-weight: 700;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  font-weight: 800;
   line-height: 1;
+  color: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.racha-v {
+  background-color: #16a34a !important;
+}
+.racha-e {
+  background-color: #d97706 !important;
+}
+.racha-d {
+  background-color: #dc2626 !important;
 }
 .zone-marker {
   width: 8px;

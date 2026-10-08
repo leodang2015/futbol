@@ -2,7 +2,7 @@ import { createApp } from 'vue'
 import { Quasar, Notify } from 'quasar'
 import router from './router/router.js'
 
-// Importar CSS base de Quasar
+// Import Quasar css
 import '@quasar/extras/material-icons/material-icons.css'
 import 'quasar/src/css/index.sass'
 
