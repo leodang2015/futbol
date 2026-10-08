@@ -36,14 +36,32 @@
 
         <div class="row q-col-gutter-md">
           <div class="col-12 col-sm-6">
-            <div class="text-caption text-weight-medium text-grey-8 q-mb-xs">Dorsal / Número</div>
-            <q-input v-model.number="form.dorsal" type="number" min="1" max="99" placeholder="Ej: 10" outlined dense />
+            <div class="row items-center justify-between q-mb-xs">
+              <span class="text-caption text-weight-medium text-grey-8">Dorsal / Número *</span>
+              <span v-if="dorsalOcupadoPor" class="text-negative text-caption text-weight-bold">
+                ⚠️ Ocupado
+              </span>
+            </div>
+            <q-input
+              v-model.number="form.dorsal"
+              type="number"
+              min="1"
+              max="99"
+              placeholder="Ej: 10"
+              outlined
+              dense
+              :error="!!dorsalOcupadoPor"
+              :error-message="dorsalOcupadoPor ? `En uso por ${dorsalOcupadoPor.nombre}` : ''"
+            />
+            <div v-if="siguienteDorsalDisponible && dorsalOcupadoPor" class="text-caption text-grey-7 q-mt-xs">
+              Sugerencia libre: <q-btn flat dense no-caps color="primary" class="q-pa-none text-weight-bold" :label="'#' + siguienteDorsalDisponible" @click="form.dorsal = siguienteDorsalDisponible" />
+            </div>
           </div>
           <div class="col-12 col-sm-6">
             <div class="text-caption text-weight-medium text-grey-8 q-mb-xs">Posición</div>
             <q-select
               v-model="form.posicion"
-              :options="['Arquero', 'Defensor', 'Mediocampista', 'Delantero']"
+              :options="['Arquero', 'Defensor', 'Mediocampista', 'Delantero', 'En Banca']"
               outlined
               dense
             />
@@ -71,7 +89,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useTorneoStore } from '../stores/torneoStore.js'
+import { useTorneo } from '../torneo.js'
 import { matPersonAdd, matClose, matCheck } from '@quasar/extras/material-icons'
 
 const props = defineProps({
@@ -79,7 +97,7 @@ const props = defineProps({
   equipoPreseleccionado: String
 })
 const emit = defineEmits(['update:modelValue'])
-const store = useTorneoStore()
+const store = useTorneo()
 
 const form = ref({
   equipo: props.equipoPreseleccionado || '',
@@ -103,6 +121,28 @@ const opcionesEquipos = computed(() =>
   }))
 )
 
+const jugadoresDelEquipo = computed(() => {
+  if (!form.value.equipo) return []
+  return store.jugadores.filter(j => {
+    const eqId = typeof j.equipo === 'object' ? (j.equipo._id || j.equipo.id) : j.equipo
+    return String(eqId) === String(form.value.equipo)
+  })
+})
+
+const dorsalOcupadoPor = computed(() => {
+  const d = Number(form.value.dorsal)
+  if (!d) return null
+  return jugadoresDelEquipo.value.find(j => (Number(j.dorsal) === d || Number(j.numero) === d))
+})
+
+const siguienteDorsalDisponible = computed(() => {
+  const usados = new Set(jugadoresDelEquipo.value.map(j => Number(j.dorsal || j.numero)))
+  for (let num = 1; num <= 99; num++) {
+    if (!usados.has(num)) return num
+  }
+  return 10
+})
+
 async function guardar() {
   error.value = ''
   if (!form.value.equipo) {
@@ -111,6 +151,10 @@ async function guardar() {
   }
   if (!form.value.nombre.trim()) {
     error.value = 'El nombre es obligatorio.'
+    return
+  }
+  if (dorsalOcupadoPor.value) {
+    error.value = `El dorsal #${form.value.dorsal} ya está asignado a ${dorsalOcupadoPor.value.nombre} en este equipo. Cada jugador debe tener un dorsal único.`
     return
   }
 

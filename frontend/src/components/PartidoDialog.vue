@@ -48,11 +48,51 @@
                     <span class="dot" :style="{ background: colorEquipo(scope.opt.value) }" />
                   </q-item-section>
                   <q-item-section>
-                    <q-item-label>{{ scope.opt.label }}</q-item-label>
+                    <q-item-label class="text-weight-bold">{{ scope.opt.label }}</q-item-label>
+                    <q-item-label caption>
+                      <span :class="scope.opt.habilitado ? 'text-positive text-weight-bold' : 'text-negative text-weight-bold'">
+                        {{ scope.opt.badgeText }}
+                      </span>
+                    </q-item-label>
                   </q-item-section>
                 </q-item>
               </template>
             </q-select>
+            <!-- Estado de nómina local -->
+            <div v-if="form.local" class="q-mt-xs">
+              <span v-if="store.equipoHabilitadoParaJugar(form.local)" class="text-positive text-caption text-weight-bold font-11">
+                ✅ Habilitado ({{ store.cantidadEnCancha(form.local) }} en cancha · {{ store.cantidadEnBanca(form.local) }} en banca)
+              </span>
+              <div v-else-if="store.tieneExcesoEnCancha(form.local)" class="column items-start q-gutter-xs">
+                <span class="text-negative text-caption text-weight-bold font-11">
+                  ⚠️ {{ store.cantidadEnCancha(form.local) }}/11 en cancha (Excedido en +{{ store.cantidadEnCancha(form.local) - 11 }})
+                </span>
+                <q-btn
+                  flat
+                  dense
+                  no-caps
+                  size="xs"
+                  color="negative"
+                  label="🪑 Enviar excedentes a banca"
+                  @click="store.enviarExcedentesABanca(form.local)"
+                />
+              </div>
+              <div v-else class="column items-start q-gutter-xs">
+                <span class="text-negative text-caption text-weight-bold font-11">
+                  ⚠️ Incompleto ({{ store.cantidadJugadoresEquipo(form.local) }}/11 jug.)
+                </span>
+                <q-btn
+                  flat
+                  dense
+                  no-caps
+                  size="xs"
+                  color="primary"
+                  label="+ Completar a 11"
+                  :loading="completando"
+                  @click="completarPlantel(form.local)"
+                />
+              </div>
+            </div>
           </div>
 
           <!-- Marcador VS -->
@@ -78,11 +118,59 @@
                     <span class="dot" :style="{ background: colorEquipo(scope.opt.value) }" />
                   </q-item-section>
                   <q-item-section>
-                    <q-item-label>{{ scope.opt.label }}</q-item-label>
+                    <q-item-label class="text-weight-bold">{{ scope.opt.label }}</q-item-label>
+                    <q-item-label caption>
+                      <span :class="scope.opt.habilitado ? 'text-positive text-weight-bold' : 'text-negative text-weight-bold'">
+                        {{ scope.opt.badgeText }}
+                      </span>
+                    </q-item-label>
                   </q-item-section>
                 </q-item>
               </template>
             </q-select>
+            <!-- Estado de nómina visitante -->
+            <div v-if="form.visitante" class="q-mt-xs">
+              <span v-if="store.equipoHabilitadoParaJugar(form.visitante)" class="text-positive text-caption text-weight-bold font-11">
+                ✅ Habilitado ({{ store.cantidadEnCancha(form.visitante) }} en cancha · {{ store.cantidadEnBanca(form.visitante) }} en banca)
+              </span>
+              <div v-else-if="store.tieneExcesoEnCancha(form.visitante)" class="column items-start q-gutter-xs">
+                <span class="text-negative text-caption text-weight-bold font-11">
+                  ⚠️ {{ store.cantidadEnCancha(form.visitante) }}/11 en cancha (Excedido en +{{ store.cantidadEnCancha(form.visitante) - 11 }})
+                </span>
+                <q-btn
+                  flat
+                  dense
+                  no-caps
+                  size="xs"
+                  color="negative"
+                  label="🪑 Enviar excedentes a banca"
+                  @click="store.enviarExcedentesABanca(form.visitante)"
+                />
+              </div>
+              <div v-else class="column items-start q-gutter-xs">
+                <span class="text-negative text-caption text-weight-bold font-11">
+                  ⚠️ Incompleto ({{ store.cantidadJugadoresEquipo(form.visitante) }}/11 jug.)
+                </span>
+                <q-btn
+                  flat
+                  dense
+                  no-caps
+                  size="xs"
+                  color="primary"
+                  label="+ Completar a 11"
+                  :loading="completando"
+                  @click="completarPlantel(form.visitante)"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alerta Reglamentaria: Mínimo 11 personas -->
+        <div v-if="alertaReglamentaria" class="bg-amber-1 border border-amber-3 q-pa-sm rounded-borders text-amber-10 row items-center no-wrap">
+          <q-icon name="warning" size="20px" class="q-mr-sm" color="amber-9" />
+          <div class="text-caption text-weight-medium">
+            {{ alertaReglamentaria }}
           </div>
         </div>
 
@@ -124,8 +212,13 @@
           label="Guardar Partido"
           :icon="matCheck"
           :loading="guardando"
+          :disable="!puedeGuardar"
           @click="guardar"
-        />
+        >
+          <q-tooltip v-if="!puedeGuardar">
+            Ambos clubes deben contar con al menos 11 jugadores registrados para habilitar el partido.
+          </q-tooltip>
+        </q-btn>
       </q-card-actions>
     </q-card>
   </q-dialog>
@@ -133,19 +226,42 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { useTorneoStore } from '../stores/torneoStore.js'
+import { useTorneo } from '../torneo.js'
 import { matSportsScore, matClose, matRemove, matAdd, matCheck } from '@quasar/extras/material-icons'
 
 const props = defineProps({ modelValue: Boolean })
 const emit = defineEmits(['update:modelValue'])
-const store = useTorneoStore()
+const store = useTorneo()
 
 const vacio = () => ({ fecha: 1, local: null, visitante: null, golesLocal: 0, golesVisitante: 0 })
 const form = ref(vacio())
 const error = ref('')
 const guardando = ref(false)
+const completando = ref(false)
 
-const opciones = computed(() => store.equipos.map(e => ({ label: e.nombre, value: e.id || e._id })))
+const opciones = computed(() =>
+  store.equipos.map(e => {
+    const id = e.id || e._id
+    const cant = store.cantidadJugadoresEquipo(id)
+    const enCancha = store.cantidadEnCancha(id)
+    const tieneExceso = store.tieneExcesoEnCancha(id)
+    const habilitado = cant >= 11 && !tieneExceso
+    let badgeText = `${cant} jug. ✅`
+    if (cant < 11) badgeText = `${cant}/11 jug. ⚠️`
+    else if (tieneExceso) badgeText = `⚠️ ${enCancha}/11 en cancha`
+
+    return {
+      label: e.nombre,
+      value: id,
+      cant,
+      enCancha,
+      tieneExceso,
+      habilitado,
+      badgeText,
+      badgeColor: habilitado ? 'positive' : 'negative'
+    }
+  })
+)
 
 function nombreEquipo(id) {
   return store.equipoPorId(id)?.nombre
@@ -153,6 +269,54 @@ function nombreEquipo(id) {
 
 function colorEquipo(id) {
   return store.equipoPorId(id)?.color || store.equipoPorId(id)?.escudocolor || '#059669'
+}
+
+const alertaReglamentaria = computed(() => {
+  if (form.value.local) {
+    const cant = store.cantidadJugadoresEquipo(form.value.local)
+    const nom = nombreEquipo(form.value.local)
+    if (cant < 11) {
+      return `"${nom}" tiene ${cant}/11 jugadores. Se exige un mínimo reglamentario de 11 personas para disputar partidos.`
+    }
+    if (store.tieneExcesoEnCancha(form.value.local)) {
+      const enCancha = store.cantidadEnCancha(form.value.local)
+      return `⚠️ ADVERTENCIA: "${nom}" tiene ${enCancha} jugadores en cancha. Solo se permite jugar con un máximo de 11 futbolistas en la cancha. Debe asignar el rol 'En Banca' a los suplentes.`
+    }
+  }
+  if (form.value.visitante) {
+    const cant = store.cantidadJugadoresEquipo(form.value.visitante)
+    const nom = nombreEquipo(form.value.visitante)
+    if (cant < 11) {
+      return `"${nom}" tiene ${cant}/11 jugadores. Se exige un mínimo reglamentario de 11 personas para disputar partidos.`
+    }
+    if (store.tieneExcesoEnCancha(form.value.visitante)) {
+      const enCancha = store.cantidadEnCancha(form.value.visitante)
+      return `⚠️ ADVERTENCIA: "${nom}" tiene ${enCancha} jugadores en cancha. Solo se permite jugar con un máximo de 11 futbolistas en la cancha. Debe asignar el rol 'En Banca' a los suplentes.`
+    }
+  }
+  return ''
+})
+
+const puedeGuardar = computed(() => {
+  return Boolean(
+    form.value.local &&
+    form.value.visitante &&
+    form.value.local !== form.value.visitante &&
+    store.equipoHabilitadoParaJugar(form.value.local) &&
+    store.equipoHabilitadoParaJugar(form.value.visitante)
+  )
+})
+
+async function completarPlantel(equipoId) {
+  completando.value = true
+  error.value = ''
+  try {
+    await store.completarPlantelEquipo(equipoId)
+  } catch (err) {
+    error.value = err.message || 'Error al completar plantel'
+  } finally {
+    completando.value = false
+  }
 }
 
 async function guardar() {
@@ -163,6 +327,18 @@ async function guardar() {
   }
   if (form.value.local === form.value.visitante) {
     error.value = 'El equipo local y visitante no pueden ser el mismo.'
+    return
+  }
+
+  const cantLocal = store.cantidadJugadoresEquipo(form.value.local)
+  if (cantLocal < 11) {
+    error.value = `El club local "${nombreEquipo(form.value.local)}" solo tiene ${cantLocal} jugadores. Se exige un mínimo reglamentario de 11 personas para registrarse a partidos.`
+    return
+  }
+
+  const cantVisitante = store.cantidadJugadoresEquipo(form.value.visitante)
+  if (cantVisitante < 11) {
+    error.value = `El club visitante "${nombreEquipo(form.value.visitante)}" solo tiene ${cantVisitante} jugadores. Se exige un mínimo reglamentario de 11 personas para registrarse a partidos.`
     return
   }
 

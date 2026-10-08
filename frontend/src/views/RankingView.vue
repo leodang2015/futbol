@@ -94,10 +94,10 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useTorneoStore } from '../stores/torneoStore.js'
+import { useTorneo } from '../torneo.js'
 import { matLocalFireDepartment, matAutoAwesome } from '@quasar/extras/material-icons'
 
-const store = useTorneoStore()
+const store = useTorneo()
 
 const tablas = computed(() => [
   {

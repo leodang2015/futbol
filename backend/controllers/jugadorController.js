@@ -8,8 +8,7 @@ export const generarJWT = (uid) => {
 
     jwt.sign(
       payload,
-      process.env.SECRETORPRIVATEKEY || 'TuClaveSecretaSuperSegura123!@#',
-      { expiresIn: "4h" },
+      process.env.SECRETORPRIVATEKEY ,
       (err, token) => {
         if (err) {
           console.error("Error al firmar JWT:", err);

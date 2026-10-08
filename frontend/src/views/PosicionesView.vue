@@ -1,179 +1,538 @@
 <template>
-  <div class="posiciones-view">
-    <q-card flat bordered class="main-table-card bg-white rounded-borders overflow-hidden">
-      <!-- Toolbar Superior: Filtro y Leyenda -->
-      <q-card-section class="table-toolbar row items-center justify-between q-col-gutter-sm bg-slate-50 border-b">
-        <div class="row items-center q-gutter-sm">
-          <q-input
-            v-model="buscar"
-            dense
-            outlined
-            bg-color="white"
-            placeholder="Buscar club por nombre..."
-            class="search-input"
-            clearable
-          >
-            <template #prepend>
-              <q-icon :name="matSearch" size="18px" color="grey-6" />
-            </template>
-          </q-input>
-          <span v-if="buscar" class="text-caption text-grey-6 font-mono">
-            {{ filas.length }} resultado(s)
-          </span>
-        </div>
-
-        <div class="row items-center q-gutter-md text-caption text-grey-7">
-          <div class="row items-center q-gutter-xs">
-            <span class="legend-badge bg-emerald-600 text-white">V</span>
-            <span>Victoria (+3)</span>
+  <div class="index-torneo-page">
+    <!-- Hero Header del Torneo -->
+    <div class="tournament-hero-card rounded-borders q-mb-lg overflow-hidden">
+      <div class="hero-content-wrap q-pa-lg row items-center justify-between">
+        <div class="col-12 col-md-8">
+          <div class="row items-center q-gutter-xs q-mb-xs">
+            <span class="hero-kicker text-uppercase text-weight-bolder text-emerald-400">
+              Torneo Barrial Oficial
+            </span>
+            <span class="live-dot q-ml-xs" />
+            <span class="text-caption text-emerald-300 font-mono">En vivo</span>
           </div>
-          <div class="row items-center q-gutter-xs">
-            <span class="legend-badge bg-amber-600 text-white">E</span>
-            <span>Empate (+1)</span>
-          </div>
-          <div class="row items-center q-gutter-xs">
-            <span class="legend-badge bg-rose-600 text-white">D</span>
-            <span>Derrota (0)</span>
-          </div>
-        </div>
-      </q-card-section>
+          <h1 class="hero-heading text-weight-bolder text-white q-my-none">
+            {{ store.torneo?.nombre || 'Liga de Fútbol Barrial' }}
+          </h1>
+          <p class="hero-subtext text-grey-3 q-mt-xs q-mb-md">
+            {{ store.torneo?.descripcion || 'Resultados oficiales, tabla de posiciones y fixture en tiempo real desde MongoDB Atlas.' }}
+          </p>
 
-      <!-- Tabla Oficial de Posiciones -->
-      <div class="table-responsive">
-        <table class="posiciones-table">
-          <thead>
-            <tr>
-              <th class="th-pos text-center">#</th>
-              <th class="th-club text-left">Club</th>
-              <th class="th-num text-center">PJ</th>
-              <th class="th-num text-center">G</th>
-              <th class="th-num text-center">E</th>
-              <th class="th-num text-center">P</th>
-              <th class="th-num text-center">GF</th>
-              <th class="th-num text-center">GC</th>
-              <th class="th-num text-center">DG</th>
-              <th class="th-pts text-center">PTS</th>
-              <th class="th-racha text-center">Forma</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="e in filas"
-              :key="e.id"
-              class="table-row"
-              :class="{ 'leader-row': e.pos === 1, 'playoff-zone': e.pos > 1 && e.pos <= 4 }"
-            >
-              <!-- Posición -->
-              <td class="text-center font-mono td-pos">
-                <span v-if="e.pos === 1" class="rank-crown text-amber-500 font-bold">1★</span>
-                <span v-else class="rank-num text-weight-medium">{{ e.pos }}</span>
-              </td>
+          <!-- Barra de Acción Contextual Única según el Rol Activo (Sin duplicados) -->
+          <div class="hero-role-action-bar row items-center q-gutter-sm">
+            <div class="role-pill row items-center q-px-sm q-py-xs rounded-borders" :class="roleStore.rolInfo.bgClass">
+              <span class="text-caption text-weight-bold" :class="roleStore.rolInfo.textColor">
+                {{ roleStore.rolInfo.badge }}
+              </span>
+            </div>
 
-              <!-- Club -->
-              <td class="td-club">
-                <div class="row items-center no-wrap">
-                  <span class="club-color-dot q-mr-sm" :style="{ background: e.color }" />
-                  <span class="text-weight-bold text-dark ellipsis">{{ e.nombre }}</span>
-                  <span v-if="e.barriada" class="text-caption text-grey-6 q-ml-sm hidden sm:inline">
-                    ({{ e.barriada }})
-                  </span>
-                </div>
-              </td>
-
-              <!-- Métricas numéricas -->
-              <td class="text-center font-mono td-stat">{{ e.pj }}</td>
-              <td class="text-center font-mono td-stat">{{ e.pg }}</td>
-              <td class="text-center font-mono td-stat">{{ e.pe }}</td>
-              <td class="text-center font-mono td-stat">{{ e.pp }}</td>
-              <td class="text-center font-mono td-stat text-grey-8">{{ e.gf }}</td>
-              <td class="text-center font-mono td-stat text-grey-8">{{ e.gc }}</td>
-
-              <!-- Diferencia de Gol -->
-              <td
-                class="text-center font-mono td-stat text-weight-bold"
-                :class="e.dg > 0 ? 'text-positive' : e.dg < 0 ? 'text-negative' : 'text-grey-6'"
+            <!-- Botones de Acción (Únicos, específicos del rol) -->
+            <template v-if="roleStore.esOrganizador">
+              <q-btn
+                unelevated
+                dense
+                no-caps
+                color="primary"
+                :icon="matSportsScore"
+                label="+ Registrar Partido"
+                class="q-px-md text-weight-bold"
+                :disable="store.equipos.length < 2"
+                @click="store.abrirDialogoPartido()"
               >
-                {{ e.dg > 0 ? `+${e.dg}` : e.dg }}
-              </td>
+                <q-tooltip>
+                  Se requiere un mínimo de 11 jugadores en nómina por equipo para disputar partidos oficiales.
+                </q-tooltip>
+              </q-btn>
+            </template>
 
-              <!-- Puntos Totales -->
-              <td class="text-center font-mono td-pts text-weight-bolder text-primary">
-                {{ e.pts }}
-              </td>
+            <template v-else-if="roleStore.esEntrenador">
+              <q-btn
+                unelevated
+                dense
+                no-caps
+                color="positive"
+                :icon="matSports"
+                label="Abrir Pizarra Táctica DT"
+                class="q-px-md text-weight-bold"
+                to="/entrenador"
+              />
+            </template>
 
-              <!-- Racha / Forma -->
-              <td class="text-center td-racha">
-                <div class="row items-center justify-center q-gutter-xs no-wrap">
-                  <span
-                    v-for="(r, idx) in e.racha.slice(-4)"
-                    :key="idx"
-                    class="racha-chip"
-                    :class="{
-                      'bg-emerald-600 text-white': r === 'V',
-                      'bg-amber-600 text-white': r === 'E',
-                      'bg-rose-600 text-white': r === 'D'
-                    }"
+            <template v-else>
+              <q-btn
+                unelevated
+                dense
+                no-caps
+                color="indigo"
+                :icon="matShield"
+                label="Ver Clubes del Torneo"
+                class="q-px-md text-weight-bold"
+                to="/equipos"
+              />
+            </template>
+          </div>
+        </div>
+
+        <div class="col-12 col-md-4 text-left text-md-right q-mt-md q-mt-md-none">
+          <div class="atlas-badge inline-flex items-center">
+            <span class="atlas-dot q-mr-xs" />
+            <span class="text-caption text-white font-mono">Cluster MongoDB Atlas</span>
+          </div>
+          <div class="text-caption text-grey-4 q-mt-xs">
+            Actualización automática
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fila de Estadísticas Oficiales con SVG icons -->
+    <div class="row q-col-gutter-md q-mb-lg">
+      <div v-for="s in metricas" :key="s.label" class="col-6 col-md-3">
+        <q-card flat bordered class="metric-card bg-white rounded-borders">
+          <q-card-section class="q-pa-md">
+            <div class="row items-center justify-between no-wrap q-mb-xs">
+              <span class="metric-label text-caption text-grey-7 text-weight-medium">{{ s.label }}</span>
+              <div class="metric-icon-box" :class="s.bgClass">
+                <q-icon :name="s.icon" size="18px" :class="s.iconClass" />
+              </div>
+            </div>
+            <div class="metric-value font-mono text-h4 text-weight-bold text-dark q-mt-xs">
+              {{ s.value }}
+            </div>
+            <div class="metric-sub text-caption text-grey-6 q-mt-xs">
+              {{ s.sub }}
+            </div>
+          </q-card-section>
+        </q-card>
+      </div>
+    </div>
+
+    <!-- Estado vacío cuando no hay clubes registrados -->
+    <div
+      v-if="!store.cargando && store.equipos.length === 0"
+      class="empty-onboarding-card bg-white q-pa-xl rounded-borders text-center q-mb-lg"
+    >
+      <div class="empty-icon-wrap q-mx-auto q-mb-md">
+        <q-icon :name="matSportsSoccer" size="40px" color="primary" />
+      </div>
+      <div class="text-h6 text-weight-bold text-dark q-mb-xs">Tu Liga Barrial está Lista para Comenzar</div>
+      <p class="text-grey-7 text-body2 max-w-lg q-mx-auto q-mb-lg">
+        Actualmente no hay clubes registrados en tu base de datos de MongoDB Atlas. Cada entrenador funda y registra su propio equipo al crear su cuenta en la plataforma.
+      </p>
+      <div>
+        <q-btn
+          color="primary"
+          unelevated
+          no-caps
+          :icon="matShield"
+          label="Ver Clubes del Torneo"
+          class="q-px-lg text-weight-bold"
+          to="/equipos"
+        />
+      </div>
+    </div>
+
+    <!-- Contenido Principal: Tabla Oficial + Widgets Laterales -->
+    <div class="row q-col-gutter-lg">
+      <!-- Columna Principal: Tabla Oficial de Posiciones -->
+      <div class="col-12 col-lg-8">
+        <!-- BANNER DE PRIVACIDAD: Modo Jugador (Solo ve las posiciones de su propio equipo) -->
+        <q-banner
+          v-if="store.esJugador"
+          dense
+          rounded
+          class="bg-indigo-1 text-indigo-10 q-mb-md q-py-sm q-px-md border border-indigo-2 shadow-1"
+        >
+          <template #avatar>
+            <q-icon :name="matLock" size="24px" color="indigo-8" />
+          </template>
+          <div>
+            <div class="text-caption text-weight-bolder">
+              🔒 Vista Oficial Restringida · Modo Jugador
+            </div>
+            <div class="text-caption text-grey-8">
+              Por normativa de confidencialidad deportiva del torneo, los futbolistas <strong>solo pueden visualizar la posición y estadísticas oficiales de su propio equipo ({{ store.miEquipo?.nombre || 'Tu Club' }})</strong>. La tabla de posiciones de los demás clubes no es visible para jugadores.
+            </div>
+          </div>
+        </q-banner>
+
+        <q-card flat bordered class="main-table-card bg-white rounded-borders overflow-hidden">
+          <!-- Toolbar Superior: Filtro y Leyenda -->
+          <q-card-section class="table-toolbar row items-center justify-between q-col-gutter-sm bg-slate-50 border-b">
+            <div class="row items-center q-gutter-sm">
+              <q-input
+                v-model="buscar"
+                dense
+                outlined
+                bg-color="white"
+                placeholder="Buscar club por nombre o barrio..."
+                class="search-input"
+                clearable
+              >
+                <template #prepend>
+                  <q-icon :name="matSearch" size="18px" color="grey-6" />
+                </template>
+              </q-input>
+              <span v-if="buscar" class="text-caption text-grey-6 font-mono">
+                {{ filas.length }} resultado(s)
+              </span>
+            </div>
+
+            <div class="row items-center q-gutter-md text-caption text-grey-7">
+              <div class="row items-center q-gutter-xs">
+                <span class="legend-badge bg-emerald-600 text-white">V</span>
+                <span>Victoria (+3)</span>
+              </div>
+              <div class="row items-center q-gutter-xs">
+                <span class="legend-badge bg-amber-600 text-white">E</span>
+                <span>Empate (+1)</span>
+              </div>
+              <div class="row items-center q-gutter-xs">
+                <span class="legend-badge bg-rose-600 text-white">D</span>
+                <span>Derrota (0)</span>
+              </div>
+            </div>
+          </q-card-section>
+
+          <!-- Tabla Oficial de Posiciones -->
+          <div class="table-responsive">
+            <table class="posiciones-table">
+              <thead>
+                <tr>
+                  <th class="th-pos text-center">#</th>
+                  <th class="th-club text-left">Club</th>
+                  <th class="th-num text-center">PJ</th>
+                  <th class="th-num text-center">G</th>
+                  <th class="th-num text-center">E</th>
+                  <th class="th-num text-center">P</th>
+                  <th class="th-num text-center">GF</th>
+                  <th class="th-num text-center">GC</th>
+                  <th class="th-num text-center">DG</th>
+                  <th class="th-pts text-center">PTS</th>
+                  <th class="th-racha text-center">Forma</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="e in filas"
+                  :key="e.id"
+                  class="table-row"
+                  :class="{ 'leader-row': e.pos === 1, 'playoff-zone': e.pos > 1 && e.pos <= 4 }"
+                >
+                  <!-- Posición -->
+                  <td class="text-center font-mono td-pos">
+                    <span v-if="e.pos === 1" class="rank-crown text-amber-500 font-bold">1★</span>
+                    <span v-else class="rank-num text-weight-medium">{{ e.pos }}</span>
+                  </td>
+
+                  <!-- Club -->
+                  <td class="td-club">
+                    <div class="row items-center no-wrap">
+                      <span class="club-color-dot q-mr-sm" :style="{ background: e.color }" />
+                      <span class="text-weight-bold text-dark ellipsis">{{ e.nombre }}</span>
+                      <span v-if="e.barriada" class="text-caption text-grey-6 q-ml-sm hidden sm:inline">
+                        ({{ e.barriada }})
+                      </span>
+                    </div>
+                  </td>
+
+                  <!-- Métricas numéricas -->
+                  <td class="text-center font-mono td-stat">{{ e.pj }}</td>
+                  <td class="text-center font-mono td-stat">{{ e.pg }}</td>
+                  <td class="text-center font-mono td-stat">{{ e.pe }}</td>
+                  <td class="text-center font-mono td-stat">{{ e.pp }}</td>
+                  <td class="text-center font-mono td-stat text-grey-8">{{ e.gf }}</td>
+                  <td class="text-center font-mono td-stat text-grey-8">{{ e.gc }}</td>
+
+                  <!-- Diferencia de Gol -->
+                  <td
+                    class="text-center font-mono td-stat text-weight-bold"
+                    :class="e.dg > 0 ? 'text-positive' : e.dg < 0 ? 'text-negative' : 'text-grey-6'"
                   >
-                    {{ r }}
-                  </span>
-                  <span v-if="!e.racha.length" class="text-caption text-grey-5 font-mono">—</span>
-                </div>
-              </td>
-            </tr>
+                    {{ e.dg > 0 ? `+${e.dg}` : e.dg }}
+                  </td>
 
-            <!-- Estado Vacío -->
-            <tr v-if="!filas.length">
-              <td colspan="11" class="text-center q-py-xl text-grey-6">
-                <div class="q-py-md">
-                  <q-icon :name="matSports" size="36px" color="grey-4" class="q-mb-sm" />
-                  <div class="text-body2 text-weight-medium">
-                    {{ buscar ? `No se encontraron clubes que coincidan con "${buscar}"` : 'No hay clubes registrados todavía en MongoDB Atlas.' }}
-                  </div>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                  <!-- Puntos Totales -->
+                  <td class="text-center font-mono td-pts text-weight-bolder text-primary">
+                    {{ e.pts }}
+                  </td>
+
+                  <!-- Racha / Forma -->
+                  <td class="text-center td-racha">
+                    <div class="row items-center justify-center q-gutter-xs no-wrap">
+                      <span
+                        v-for="(r, idx) in e.racha.slice(-4)"
+                        :key="idx"
+                        class="racha-chip"
+                        :class="{
+                          'bg-emerald-600 text-white': r === 'V',
+                          'bg-amber-600 text-white': r === 'E',
+                          'bg-rose-600 text-white': r === 'D'
+                        }"
+                      >
+                        {{ r }}
+                      </span>
+                      <span v-if="!e.racha.length" class="text-caption text-grey-5 font-mono">—</span>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Estado Vacío -->
+                <tr v-if="!filas.length">
+                  <td colspan="11" class="text-center q-py-xl text-grey-6">
+                    <div class="q-py-md">
+                      <q-icon :name="matSports" size="36px" color="grey-4" class="q-mb-sm" />
+                      <div class="text-body2 text-weight-medium">
+                        {{ buscar ? `No se encontraron clubes que coincidan con "${buscar}"` : 'No hay clubes registrados todavía en MongoDB Atlas.' }}
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pie de Tabla Informativo -->
+          <q-card-section class="table-footer row items-center justify-between text-caption text-grey-7 bg-slate-50 border-t">
+            <div class="row items-center q-gutter-xs">
+              <span class="zone-marker bg-primary" />
+              <span>Zona de clasificación a fase final (puestos 1 a 4)</span>
+            </div>
+            <div class="font-mono text-grey-8">
+              Promedio del torneo: <strong class="text-dark">{{ store.stats.promedio }}</strong> goles/partido
+            </div>
+          </q-card-section>
+        </q-card>
       </div>
 
-      <!-- Pie de Tabla Informativo -->
-      <q-card-section class="table-footer row items-center justify-between text-caption text-grey-7 bg-slate-50 border-t">
-        <div class="row items-center q-gutter-xs">
-          <span class="zone-marker bg-primary" />
-          <span>Zona de clasificación a fase final (puestos 1 a 4)</span>
-        </div>
-        <div class="font-mono text-grey-8">
-          Promedio del torneo: <strong class="text-dark">{{ store.stats.promedio }}</strong> goles/partido
-        </div>
-      </q-card-section>
-    </q-card>
+      <!-- Columna Lateral: Resumen de Partidos & Goleadores -->
+      <div class="col-12 col-lg-4 q-gutter-y-md">
+        <!-- Widget: Últimos Resultados o Próximos Encuentros -->
+        <q-card flat bordered class="bg-white rounded-borders overflow-hidden">
+          <q-card-section class="row items-center justify-between q-py-sm bg-slate-50 border-b">
+            <div class="row items-center">
+              <q-icon :name="matCalendarMonth" size="18px" color="primary" class="q-mr-xs" />
+              <span class="text-subtitle2 text-weight-bold text-dark">Partidos Recientes</span>
+            </div>
+            <q-btn flat dense no-caps color="primary" label="Ver Fixture" to="/fixture" size="sm" :icon-right="matArrowForward" />
+          </q-card-section>
+
+          <q-list separator class="match-mini-list">
+            <q-item v-for="p in partidosResumen" :key="p.id" class="q-py-sm">
+              <q-item-section>
+                <div class="row items-center justify-between text-caption text-grey-6 font-mono q-mb-xs">
+                  <span>Jornada {{ p.fecha }}</span>
+                  <q-badge :color="p.estado === 'jugado' ? 'positive' : 'grey-7'" text-color="white" size="xs">
+                    {{ p.estado === 'jugado' ? 'Finalizado' : 'Pendiente' }}
+                  </q-badge>
+                </div>
+                <div class="row items-center justify-between no-wrap">
+                  <div class="row items-center no-wrap ellipsis" style="max-width: 140px">
+                    <span class="club-color-dot q-mr-xs" :style="{ background: colorEquipo(p.localId) }" />
+                    <span class="text-weight-medium ellipsis">{{ nombreEquipo(p.localId) }}</span>
+                  </div>
+                  <div class="font-mono text-weight-bolder text-dark q-px-sm">
+                    {{ p.estado === 'jugado' ? `${p.golesLocal} - ${p.golesVisitante}` : 'vs' }}
+                  </div>
+                  <div class="row items-center justify-end no-wrap ellipsis" style="max-width: 140px">
+                    <span class="text-weight-medium ellipsis text-right">{{ nombreEquipo(p.visitanteId) }}</span>
+                    <span class="club-color-dot q-ml-xs" :style="{ background: colorEquipo(p.visitanteId) }" />
+                  </div>
+                </div>
+              </q-item-section>
+            </q-item>
+
+            <q-item v-if="!store.partidos.length" class="q-py-md text-center text-grey-6">
+              <q-item-section>
+                <div class="text-caption">Aún no se han programado partidos</div>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card>
+
+        <!-- Widget: Top Goleadores -->
+        <q-card flat bordered class="bg-white rounded-borders overflow-hidden">
+          <q-card-section class="row items-center justify-between q-py-sm bg-slate-50 border-b">
+            <div class="row items-center">
+              <q-icon :name="matMilitaryTech" size="18px" color="amber-9" class="q-mr-xs" />
+              <span class="text-subtitle2 text-weight-bold text-dark">Top Goleadores</span>
+            </div>
+            <q-btn flat dense no-caps color="primary" label="Ver Tabla" to="/ranking" size="sm" :icon-right="matArrowForward" />
+          </q-card-section>
+
+          <q-list separator>
+            <q-item v-for="(g, idx) in goleadoresResumen" :key="g.id" class="q-py-sm">
+              <q-item-section avatar style="min-width: 32px">
+                <span class="font-mono text-weight-bold" :class="idx === 0 ? 'text-amber-8 text-h6' : 'text-grey-7'">
+                  {{ idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.` }}
+                </span>
+              </q-item-section>
+              <q-item-section>
+                <q-item-label class="text-weight-bold text-dark">{{ g.nombre }} {{ g.apellido || '' }}</q-item-label>
+                <q-item-label caption class="text-grey-6">
+                  Dorsal #{{ g.numero || g.dorsal || '-' }} · {{ g.posicion || 'Jugador' }}
+                </q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-badge color="primary" text-color="white" class="font-mono text-weight-bold q-px-sm">
+                  {{ g.goles || 0 }} goles
+                </q-badge>
+              </q-item-section>
+            </q-item>
+
+            <q-item v-if="!goleadoresResumen.length" class="q-py-md text-center text-grey-6">
+              <q-item-section>
+                <div class="text-caption">Aún no hay goleadores registrados</div>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import { useTorneoStore } from '../stores/torneoStore.js'
-import { matSearch, matSports } from '@quasar/extras/material-icons'
+import { useTorneo } from '../torneo.js'
+import {
+  matSearch,
+  matSports,
+  matSportsSoccer,
+  matSportsScore,
+  matGroupAdd,
+  matAdd,
+  matCalendarMonth,
+  matMilitaryTech,
+  matArrowForward,
+  matShield,
+  matSpeed,
+  matLock
+} from '@quasar/extras/material-icons'
 
-const store = useTorneoStore()
+const store = useTorneo()
+const roleStore = store
 const buscar = ref('')
 
-const filas = computed(() =>
-  store.tabla
-    .map((e, i) => ({
-      ...e,
-      pos: i + 1,
-      color: e.color || e.escudocolor || '#059669'
-    }))
-    .filter(e =>
-      !buscar.value ||
-      e.nombre?.toLowerCase().includes(buscar.value.toLowerCase()) ||
-      e.barriada?.toLowerCase().includes(buscar.value.toLowerCase())
-    )
+const metricas = computed(() => [
+  { label: 'Clubes Inscriptos', value: store.stats.equipos, sub: 'Equipos en competencia', icon: matShield, bgClass: 'bg-emerald-50', iconClass: 'text-emerald-700' },
+  { label: 'Partidos Jugados', value: store.stats.partidos, sub: 'Encuentros disputados', icon: matSportsSoccer, bgClass: 'bg-indigo-50', iconClass: 'text-indigo-700' },
+  { label: 'Goles Totales', value: store.stats.goles, sub: 'Goles anotados en el torneo', icon: matSpeed, bgClass: 'bg-amber-50', iconClass: 'text-amber-800' },
+  { label: 'Promedio de Gol', value: store.stats.promedio, sub: 'Por encuentro oficial', icon: matMilitaryTech, bgClass: 'bg-teal-50', iconClass: 'text-teal-700' }
+])
+
+const filas = computed(() => {
+  const todas = store.tabla.map((e, i) => ({
+    ...e,
+    pos: i + 1,
+    color: e.color || e.escudocolor || '#059669'
+  }))
+
+  // REGLA OFICIAL: Los jugadores no podrán ver las posiciones de otros equipos, solo la de su equipo
+  if (store.esJugador) {
+    const miEqId = store.miEquipoId
+    if (miEqId) {
+      return todas.filter(e => (e.id || e._id) === miEqId)
+    }
+  }
+
+  return todas.filter(e =>
+    !buscar.value ||
+    e.nombre?.toLowerCase().includes(buscar.value.toLowerCase()) ||
+    e.barriada?.toLowerCase().includes(buscar.value.toLowerCase())
+  )
+})
+
+const partidosResumen = computed(() => {
+  let list = [...store.partidos]
+  // REGLA OFICIAL: Si es jugador, solo ve partidos en los que juega su equipo
+  if (store.esJugador && store.miEquipoId) {
+    list = list.filter(p => p.localId === store.miEquipoId || p.visitanteId === store.miEquipoId)
+  }
+  return list.slice(-4).reverse()
+})
+
+const goleadoresResumen = computed(() =>
+  [...store.goleadores].slice(0, 4)
 )
+
+function nombreEquipo(id) {
+  const eq = store.equipoPorId(id)
+  return eq ? eq.nombre : 'Club'
+}
+
+function colorEquipo(id) {
+  const eq = store.equipoPorId(id)
+  return eq?.color || eq?.escudocolor || '#059669'
+}
 </script>
 
 <style scoped>
+.tournament-hero-card {
+  background: linear-gradient(135deg, #064e3b 0%, #022c22 60%, #0f172a 100%);
+  border: 1px solid #047857;
+  box-shadow: 0 10px 25px -5px rgba(2, 44, 34, 0.4);
+}
+.hero-heading {
+  font-size: clamp(1.6rem, 3.5vw, 2.3rem);
+  line-height: 1.15;
+}
+.hero-subtext {
+  font-size: 0.95rem;
+  max-width: 620px;
+}
+.atlas-badge {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px 14px;
+  border-radius: 9999px;
+}
+.atlas-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #34d399;
+  box-shadow: 0 0 10px #34d399;
+}
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #34d399;
+  display: inline-block;
+}
+.role-pill {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+.metric-card {
+  border: 1px solid #e2e8f0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.06);
+}
+.metric-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.empty-onboarding-card {
+  border: 1px dashed #cbd5e1;
+}
+.empty-icon-wrap {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background-color: #ecfdf5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .main-table-card {
   border: 1px solid #e2e8f0;
 }

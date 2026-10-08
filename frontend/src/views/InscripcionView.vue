@@ -213,8 +213,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useTorneoStore } from '../stores/torneoStore.js'
-import { useRoleStore, ROLES } from '../stores/roleStore.js'
+import { useTorneo, ROLES } from '../torneo.js'
 import JugadorDialog from '../components/JugadorDialog.vue'
 import {
   matShield,
@@ -223,8 +222,8 @@ import {
   matPersonAdd
 } from '@quasar/extras/material-icons'
 
-const store = useTorneoStore()
-const roleStore = useRoleStore()
+const store = useTorneo()
+const roleStore = store
 
 const guardando = ref(false)
 const error = ref('')

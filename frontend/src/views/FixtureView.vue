@@ -102,10 +102,10 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { useTorneoStore } from '../stores/torneoStore.js'
+import { useTorneo } from '../torneo.js'
 import { matCalendarMonth, matEvent, matEventBusy } from '@quasar/extras/material-icons'
 
-const store = useTorneoStore()
+const store = useTorneo()
 const fecha = ref('todos')
 
 const opciones = computed(() => [

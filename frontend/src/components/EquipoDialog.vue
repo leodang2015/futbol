@@ -4,7 +4,7 @@
       <q-card-section class="bg-grey-10 text-white row items-center justify-between q-py-md">
         <div class="row items-center">
           <q-icon :name="matShield" color="positive" size="24px" class="q-mr-sm" />
-          <div class="text-subtitle1 text-weight-bold">Inscribir Nuevo Club</div>
+          <div class="text-subtitle1 text-weight-bold">Registrar Club</div>
         </div>
         <q-btn flat round dense :icon="matClose" v-close-popup text-color="grey-4" />
       </q-card-section>
@@ -65,12 +65,12 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useTorneoStore } from '../stores/torneoStore.js'
+import { useTorneo } from '../torneo.js'
 import { matShield, matClose, matCheck } from '@quasar/extras/material-icons'
 
 const props = defineProps({ modelValue: Boolean })
 const emit = defineEmits(['update:modelValue'])
-const store = useTorneoStore()
+const store = useTorneo()
 
 const colores = [
   '#059669', '#1e3a8a', '#dc2626', '#d97706', '#7c3aed', '#0284c7', '#0d9488', '#18181b'
