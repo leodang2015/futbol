@@ -9,6 +9,7 @@ export const generarJWT = (uid) => {
     jwt.sign(
       payload,
       process.env.SECRETORPRIVATEKEY ,
+      { expiresIn: "4h" },
       (err, token) => {
         if (err) {
           console.error("Error al firmar JWT:", err);
@@ -92,9 +93,9 @@ export const crearJugador = async (req, res) => {
       req.body.email = `${nom}.${ape}.${rnd}@futbolito.local`;
     }
 
-    // Password por defecto
+    // Password reglamentario 1234 para jugadores
     if (!req.body.password || !req.body.password.trim()) {
-      req.body.password = 'futbolito123';
+      req.body.password = '1234';
     }
 
     let { email } = req.body;
@@ -124,6 +125,24 @@ export const crearJugador = async (req, res) => {
 
     const jugador = new Jugador(req.body);
     await jugador.save();
+
+    // Crear cuenta de usuario con contraseña reglamentaria 1234 para que pueda iniciar sesión
+    try {
+      const Usuario = (await import('../models/Usuario.js')).default;
+      const cleanUser = (jugador.nombre || 'jugador').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+      const usuarioExistente = await Usuario.findOne({ usuario: cleanUser });
+      if (!usuarioExistente) {
+        const u = new Usuario({
+          usuario: cleanUser,
+          nombre: `${jugador.nombre} ${jugador.apellido && jugador.apellido !== '-' ? jugador.apellido : ''}`.trim(),
+          rol: 'jugador',
+          equipo: jugador.equipo,
+          posicion: jugador.posicion || 'Delantero'
+        });
+        u.setPassword('1234');
+        await u.save();
+      }
+    } catch (_) {}
 
     res.status(201).json(jugador);
 

@@ -7,7 +7,7 @@ const jugadorSchema = new Schema({
   posicion: { type: String, required: true, default: 'Delantero' },
   equipo: { type: Schema.Types.ObjectId, ref: 'Equipo', required: true },
   email: { type: String, required: true, unique: true },
-  password: { type: String, required: true, default: 'futbolito123' },
+  password: { type: String, required: true, default: '1234' },
   goles: { type: Number, default: 0, min: 0 },
   asistencias: { type: Number, default: 0, min: 0 },
   esCapitan: { type: Boolean, default: false },

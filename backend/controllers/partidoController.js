@@ -252,8 +252,39 @@ export const crearPartido = async (req, res) => {
       });
     }
 
-    // Normalizar jornada / fecha
+    // Normalizar jornada / fecha (mínimo 1 y máximo 5)
     const j = Number(jornada ?? fecha ?? 1);
+    if (j < 1 || j > 5) {
+      return res.status(400).json({
+        msg: 'Por reglamento oficial, el torneo tiene como mínimo la Fecha 1 y máximo la Fecha 5.'
+      });
+    }
+
+    // Regla Oficial: Un equipo debe tener mínimo 2 fechas después de ese partido para jugar de nuevo
+    const partidosPrevios = await Partido.find({
+      $or: [
+        { local: local }, { visitante: local },
+        { local: visitante }, { visitante: visitante }
+      ]
+    });
+
+    for (const p of partidosPrevios) {
+      const fechaP = Number(p.jornada || 1);
+      const involucraLocal = String(p.local) === String(local) || String(p.visitante) === String(local);
+      const involucraVisitante = String(p.local) === String(visitante) || String(p.visitante) === String(visitante);
+
+      if (involucraLocal && Math.abs(j - fechaP) < 2) {
+        return res.status(400).json({
+          msg: `Regla de descanso oficial: El club "${equipoLocal.nombre}" ya tiene un partido en la Jornada ${fechaP}. Debe tener como mínimo 2 fechas después de ese partido para jugar de nuevo (próxima fecha válida: Jornada ${fechaP + 2} o superior).`
+        });
+      }
+
+      if (involucraVisitante && Math.abs(j - fechaP) < 2) {
+        return res.status(400).json({
+          msg: `Regla de descanso oficial: El club "${equipoVisitante.nombre}" ya tiene un partido en la Jornada ${fechaP}. Debe tener como mínimo 2 fechas después de ese partido para jugar de nuevo (próxima fecha válida: Jornada ${fechaP + 2} o superior).`
+        });
+      }
+    }
 
     // Si no viene torneo, asignar o inicializar el torneo oficial de la liga
     if (!torneo) {
@@ -268,21 +299,61 @@ export const crearPartido = async (req, res) => {
       torneo = t._id;
     }
 
+    const fechaReal = req.body.fechaHora ? new Date(req.body.fechaHora) : new Date();
+    if (fechaReal.getTime() > Date.now() + 65000) {
+      return res.status(400).json({
+        msg: 'Por reglamento oficial, el organizador debe fijar la fecha y hora en tiempo real y no puede ser posterior al momento actual.'
+      });
+    }
+
     const nuevoPartido = new Partido({
       torneo,
       local,
       visitante,
       jornada: j,
+      fechaHora: fechaReal,
       golesLocal: Number(golesLocal) || 0,
       golesVisitante: Number(golesVisitante) || 0,
-      estado: estado === 'jugado' ? 'Finalizado' : (estado || 'Finalizado')
+      asistenciasLocal: Number(req.body.asistenciasLocal) || 0,
+      asistenciasVisitante: Number(req.body.asistenciasVisitante) || 0,
+      estado: req.body.estado || 'Por Confirmar',
+      confirmacionLocal: req.body.confirmacionLocal || false,
+      confirmacionVisitante: req.body.confirmacionVisitante || false,
+      confirmadoPorDTs: Boolean(req.body.confirmacionLocal && req.body.confirmacionVisitante)
     });
 
     await nuevoPartido.save();
+
+    // Notificaciones oficiales automáticas para que los dos entrenadores confirmen que van a jugar
+    try {
+      const Notificacion = (await import('../models/Notificacion.js')).default;
+      await Notificacion.create({
+        tipo: 'convocatoria_partido',
+        titulo: `📅 Convocatoria Oficial: Jornada ${j} vs ${equipoVisitante.nombre}`,
+        mensaje: `El Organizador ha programado el partido de tu club ${equipoLocal.nombre} vs ${equipoVisitante.nombre} para la Jornada ${j}. Ambos entrenadores deben confirmar que van a jugar.`,
+        remitente: 'Organizador del Torneo',
+        equipo: equipoLocal._id,
+        equipoNombre: equipoLocal.nombre,
+        partido: nuevoPartido._id,
+        datos: { partidoId: nuevoPartido._id, jornada: j, rival: equipoVisitante.nombre, esLocal: true }
+      });
+
+      await Notificacion.create({
+        tipo: 'convocatoria_partido',
+        titulo: `📅 Convocatoria Oficial: Jornada ${j} vs ${equipoLocal.nombre}`,
+        mensaje: `El Organizador ha programado el partido de tu club ${equipoVisitante.nombre} vs ${equipoLocal.nombre} para la Jornada ${j}. Ambos entrenadores deben confirmar que van a jugar.`,
+        remitente: 'Organizador del Torneo',
+        equipo: equipoVisitante._id,
+        equipoNombre: equipoVisitante.nombre,
+        partido: nuevoPartido._id,
+        datos: { partidoId: nuevoPartido._id, jornada: j, rival: equipoLocal.nombre, esLocal: false }
+      });
+    } catch (_) {}
+
     const partidoPoblado = await Partido.findById(nuevoPartido._id).populate('local visitante');
 
     res.status(201).json({
-      msg: 'Partido registrado exitosamente',
+      msg: 'Partido registrado exitosamente y convocatoria enviada a ambos entrenadores para confirmar que van a jugar.',
       partido: partidoPoblado
     });
   } catch (error) {
@@ -293,10 +364,135 @@ export const crearPartido = async (req, res) => {
   }
 };
 
+export const confirmarPartidoDT = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { equipoId, entrenadorNombre } = req.body;
+
+    const partido = await Partido.findById(id).populate('local visitante');
+    if (!partido) {
+      return res.status(404).json({ msg: 'El partido no existe en la base de datos' });
+    }
+
+    const eqIdStr = String(equipoId || '').trim();
+    const locIdStr = String(partido.local._id || partido.local);
+    const visIdStr = String(partido.visitante._id || partido.visitante);
+
+    if (eqIdStr === locIdStr) {
+      partido.confirmacionLocal = true;
+    } else if (eqIdStr === visIdStr) {
+      partido.confirmacionVisitante = true;
+    } else {
+      return res.status(400).json({ msg: 'Tu club no forma parte de este encuentro.' });
+    }
+
+    const Notificacion = (await import('../models/Notificacion.js')).default;
+
+    if (partido.confirmacionLocal && partido.confirmacionVisitante) {
+      partido.confirmadoPorDTs = true;
+      if (partido.estado === 'Por Confirmar') {
+        partido.estado = 'En Preparación';
+      }
+
+      // Notificar al organizador
+      try {
+        await Notificacion.create({
+          tipo: 'partido_confirmado_dts',
+          titulo: `✅ Ambos DTs Confirmaron: ${partido.local.nombre} vs ${partido.visitante.nombre}`,
+          mensaje: `Los directores técnicos de ambos clubes han confirmado que van a jugar el partido de la Jornada ${partido.jornada}. El encuentro está listo en preparación; el organizador ya puede fijar los goles y asistencias oficiales.`,
+          remitente: entrenadorNombre || 'Directores Técnicos',
+          partido: partido._id,
+          datos: { partidoId: partido._id, jornada: partido.jornada }
+        });
+      } catch (_) {}
+    } else {
+      try {
+        const nombreClubConfirmado = eqIdStr === locIdStr ? partido.local.nombre : partido.visitante.nombre;
+        await Notificacion.create({
+          tipo: 'confirmacion_dt',
+          titulo: `⚽ El DT de ${nombreClubConfirmado} confirmó su participación`,
+          mensaje: `El DT de ${nombreClubConfirmado} confirmó que jugará el partido de la Jornada ${partido.jornada}. Se espera la confirmación del DT rival.`,
+          remitente: entrenadorNombre || 'Entrenador',
+          equipo: equipoId,
+          partido: partido._id,
+          datos: { partidoId: partido._id }
+        });
+      } catch (_) {}
+    }
+
+    await partido.save();
+    const partidoPoblado = await Partido.findById(partido._id).populate('local visitante');
+
+    res.json({
+      msg: partido.confirmadoPorDTs 
+        ? '¡Confirmado por ambos DTs! El partido pasa a estar En Preparación para disputarse.' 
+        : '¡Tu club ha confirmado la participación! Esperando confirmación del DT rival.',
+      partido: partidoPoblado
+    });
+  } catch (error) {
+    console.error('Error al confirmar partido DT:', error);
+    res.status(400).json({ msg: error.message || 'Error al confirmar partido' });
+  }
+};
+
+export const fijarMarcadorOrganizador = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { golesLocal, golesVisitante, asistenciasLocal, asistenciasVisitante } = req.body;
+
+    const partido = await Partido.findById(id).populate('local visitante');
+    if (!partido) {
+      return res.status(404).json({ msg: 'El partido no existe en la base de datos' });
+    }
+
+    if (!partido.confirmacionLocal || !partido.confirmacionVisitante) {
+      return res.status(400).json({
+        msg: 'Ambos entrenadores deben confirmar que van a jugar antes de que el organizador pueda fijar el marcador y las asistencias.'
+      });
+    }
+
+    partido.golesLocal = Number(golesLocal) || 0;
+    partido.golesVisitante = Number(golesVisitante) || 0;
+    partido.asistenciasLocal = Number(asistenciasLocal) || 0;
+    partido.asistenciasVisitante = Number(asistenciasVisitante) || 0;
+    partido.estado = 'En Preparación';
+
+    await partido.save();
+
+    // Notificar a los entrenadores
+    try {
+      const Notificacion = (await import('../models/Notificacion.js')).default;
+      await Notificacion.create({
+        tipo: 'marcador_fijado',
+        titulo: `⚽ Marcador Oficial Fijado: ${partido.local.nombre} ${partido.golesLocal} - ${partido.golesVisitante} ${partido.visitante.nombre}`,
+        mensaje: `El Organizador ha fijado el marcador oficial: ${partido.local.nombre} (${partido.golesLocal} goles, ${partido.asistenciasLocal} asistencias) vs ${partido.visitante.nombre} (${partido.golesVisitante} goles, ${partido.asistenciasVisitante} asistencias). Entrenadores: Ingresen a la Pizarra DT para escoger los autores de los goles. Los cuadros se crearán automáticamente.`,
+        remitente: 'Organizador del Torneo',
+        partido: partido._id,
+        datos: {
+          partidoId: partido._id,
+          golesLocal: partido.golesLocal,
+          golesVisitante: partido.golesVisitante,
+          asistenciasLocal: partido.asistenciasLocal,
+          asistenciasVisitante: partido.asistenciasVisitante
+        }
+      });
+    } catch (_) {}
+
+    const partidoPoblado = await Partido.findById(partido._id).populate('local visitante');
+    res.json({
+      msg: 'Marcador y asistencias fijados por el Organizador exitosamente.',
+      partido: partidoPoblado
+    });
+  } catch (error) {
+    console.error('Error al fijar marcador organizador:', error);
+    res.status(400).json({ msg: error.message || 'Error al fijar marcador' });
+  }
+};
+
 export const actualizarGoleadores = async (req, res) => {
   try {
     const { id } = req.params;
-    const { goleadores, golesLocal, golesVisitante } = req.body;
+    const { goleadores, golesLocal, golesVisitante, equipoId } = req.body;
 
     const partido = await Partido.findById(id);
     if (!partido) {
@@ -318,8 +514,14 @@ export const actualizarGoleadores = async (req, res) => {
 
     if (golesLocal !== undefined) partido.golesLocal = Number(golesLocal);
     if (golesVisitante !== undefined) partido.golesVisitante = Number(golesVisitante);
+
     if (Array.isArray(goleadores)) {
-      partido.goleadores = goleadores;
+      const targetEqId = String(equipoId || '').trim();
+      const otrosClubes = (partido.goleadores || []).filter(g => {
+        const gEq = String(g.equipo || g.equipoId || '');
+        return targetEqId && gEq && gEq !== targetEqId;
+      });
+      partido.goleadores = [...otrosClubes, ...goleadores];
     }
     partido.estado = 'Finalizado';
 
@@ -327,7 +529,7 @@ export const actualizarGoleadores = async (req, res) => {
     const partidoPoblado = await Partido.findById(partido._id).populate('local visitante');
 
     res.json({
-      msg: 'Goleadores y resultado registrados exitosamente',
+      msg: 'Goleadores registrados exitosamente por el Entrenador.',
       partido: partidoPoblado
     });
   } catch (error) {
@@ -336,4 +538,12 @@ export const actualizarGoleadores = async (req, res) => {
   }
 };
 
-export default { listarPartidos, cargarResultado, obtenerTablaPosiciones, crearPartido, actualizarGoleadores };
+export default { 
+  listarPartidos, 
+  cargarResultado, 
+  obtenerTablaPosiciones, 
+  crearPartido, 
+  confirmarPartidoDT, 
+  fijarMarcadorOrganizador, 
+  actualizarGoleadores 
+};

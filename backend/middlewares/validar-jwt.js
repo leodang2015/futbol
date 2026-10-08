@@ -8,7 +8,7 @@ export const generarJWT = (uid) => {
 
     jwt.sign(
       payload,
-      process.env.SECRETORPRIVATEKEY,
+      process.env.SECRETORPRIVATEKEY ,
       { expiresIn: "4h" },
       (err, token) => {
         if (err) {
@@ -33,8 +33,9 @@ export const validarJWT = async (req, res, next) => {
   }
 
   try {
-    const { uid } = jwt.verify(token, process.env.SECRETORPRIVATEKEY);
+    const { uid } = jwt.verify(token, process.env.SECRETORPRIVATEKEY || 'TuClaveSecretaSuperSegura123!@#');
 
+    // Se busca en la colección de Jugador
     const jugador = await Jugador.findById(uid);
 
     if (!jugador) {

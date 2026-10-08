@@ -18,8 +18,7 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || "mongodb+srv://javierpintorodriguez27_db_user:Vpm0KjNxypMN5dv1@cluster0.9ron6ec.mongodb.net/futbolito"
-
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI 
 // Conexión a MongoDB persistente / serverless
 let isConnected = false
 async function connectDB() {

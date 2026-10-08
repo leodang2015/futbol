@@ -6,6 +6,8 @@ import {
   cargarResultado, 
   obtenerTablaPosiciones,
   crearPartido,
+  confirmarPartidoDT,
+  fijarMarcadorOrganizador,
   actualizarGoleadores
 } from '../controllers/partidoController.js'
 
@@ -35,7 +37,14 @@ router.get('/', listarPartidos)
 router.get('/posiciones/:torneoId', obtenerTablaPosiciones)
 router.post('/', crearPartido)
 
-// Actualizar goleadores y resultado (Reporte oficial de Entrenador u Organizador)
+// Confirmación de DTs (Ambos entrenadores deben confirmar que van a jugar)
+router.post('/:id/confirmar', confirmarPartidoDT)
+
+// Fijar marcador y asistencias oficiales por el Organizador
+router.put('/:id/marcador-organizador', fijarMarcadorOrganizador)
+router.patch('/:id/marcador-organizador', fijarMarcadorOrganizador)
+
+// Actualizar goleadores y resultado (Reporte oficial exclusivo del Entrenador)
 router.put('/:id/goleadores', actualizarGoleadores)
 router.patch('/:id/goleadores', actualizarGoleadores)
 

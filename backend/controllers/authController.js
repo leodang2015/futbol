@@ -80,6 +80,7 @@ export const registro = async (req, res) => {
       // Crear el nuevo equipo propio para este entrenador
       nuevoEquipoCreado = new Equipo({
         nombre: nombreClub,
+        tecnico: (nombre || usernameClean).trim(),
         capitan: (req.body.capitan || '').trim(),
         barriada: (barriada || 'Barrio Central').trim(),
         escudocolor: escudocolor || '#059669',
@@ -175,24 +176,75 @@ export const login = async (req, res) => {
     }
 
     const usernameClean = String(usuario).toLowerCase().trim()
-    const user = await Usuario.findOne({ usuario: usernameClean }).populate('equipo')
+    let user = await Usuario.findOne({ usuario: usernameClean }).populate('equipo')
 
+    // Si no existe como Usuario, verificar si es un Jugador registrado en nómina oficial para ingresar con clave 1234
     if (!user) {
-      return res.status(401).json({
-        msg: 'Usuario no encontrado o credenciales incorrectas'
-      })
-    }
+      const jugador = await Jugador.findOne({
+        $or: [
+          { nombre: { $regex: new RegExp(`^${usernameClean}$`, 'i') } },
+          { email: usernameClean }
+        ]
+      }).populate('equipo')
 
-    if (!user.validPassword(password)) {
-      return res.status(401).json({
-        msg: 'Contraseña incorrecta'
-      })
+      if (jugador && String(password).trim() === '1234') {
+        user = new Usuario({
+          usuario: usernameClean,
+          nombre: jugador.nombre,
+          rol: 'jugador',
+          equipo: jugador.equipo ? (jugador.equipo._id || jugador.equipo) : null,
+          posicion: jugador.posicion || 'Delantero'
+        })
+        user.setPassword('1234')
+        await user.save()
+        user = await Usuario.findById(user._id).populate('equipo')
+      } else {
+        return res.status(401).json({
+          msg: 'Usuario no encontrado o credenciales incorrectas. Para jugadores registrados la contraseña es 1234.'
+        })
+      }
+    } else {
+      const passValido = user.validPassword(password) || (String(password).trim() === '1234' && user.rol === 'jugador')
+      if (!passValido) {
+        return res.status(401).json({
+          msg: 'Contraseña incorrecta. (Para futbolistas la contraseña reglamentaria es 1234)'
+        })
+      }
     }
 
     if (!user.estado) {
       return res.status(403).json({
         msg: 'Esta cuenta ha sido desactivada'
       })
+    }
+
+    // Vincular equipo si el entrenador o jugador aún no lo tiene enlazado
+    if (user.rol === 'entrenador' && !user.equipo) {
+      const eq = await Equipo.findOne({
+        $or: [
+          { tecnico: { $regex: new RegExp(`^${user.usuario}$`, 'i') } },
+          { tecnico: { $regex: new RegExp(`^${user.nombre}$`, 'i') } },
+          { capitan: { $regex: new RegExp(`^${user.usuario}$`, 'i') } },
+          { capitan: { $regex: new RegExp(`^${user.nombre}$`, 'i') } }
+        ]
+      })
+      if (eq) {
+        user.equipo = eq._id
+        await user.save()
+        user = await Usuario.findById(user._id).populate('equipo')
+      }
+    } else if (user.rol === 'jugador' && !user.equipo) {
+      const j = await Jugador.findOne({
+        $or: [
+          { nombre: { $regex: new RegExp(`^${user.nombre}$`, 'i') } },
+          { email: { $regex: new RegExp(`^${user.usuario}`, 'i') } }
+        ]
+      })
+      if (j && j.equipo) {
+        user.equipo = j.equipo
+        await user.save()
+        user = await Usuario.findById(user._id).populate('equipo')
+      }
     }
 
     const token = jwt.sign(

@@ -165,15 +165,31 @@ export const completarPlantel = async (req, res) => {
       const pos = posicionesSugeridas[(jugadoresActuales.length + i) % posicionesSugeridas.length];
       const email = `ficha.${equipo.nombre.toLowerCase().replace(/[^a-z0-9]/g, '')}.${d}.${Date.now().toString().slice(-4)}@futbolito.local`;
 
-      await Jugador.create({
+      const nuevoJ = await Jugador.create({
         nombre: partes[0],
         apellido: partes[1] || 'Club',
         numero: d,
         posicion: pos,
         equipo: equipo._id,
         email,
-        password: 'futbolito123'
+        password: '1234'
       });
+
+      // Crear cuenta de usuario con contraseña reglamentaria 1234 para que pueda iniciar sesión
+      try {
+        const Usuario = (await import('../models/Usuario.js')).default;
+        const cleanUser = partes[0].toLowerCase().trim().replace(/[^a-z0-9]/g, '') + d;
+        const u = new Usuario({
+          usuario: cleanUser,
+          nombre: `${partes[0]} ${partes[1] || ''}`.trim(),
+          rol: 'jugador',
+          equipo: equipo._id,
+          posicion: pos
+        });
+        u.setPassword('1234');
+        await u.save();
+      } catch (_) {}
+
       creados++;
     }
 
