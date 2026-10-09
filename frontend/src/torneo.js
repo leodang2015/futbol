@@ -73,7 +73,14 @@ function authHeaders() {
 
 // Normalizadores
 const normEquipo = (e) => ({ ...e, id: idDe(e) })
-const normJugador = (j) => ({ ...j, id: idDe(j), equipoId: idDe(j.equipoId ?? j.equipo) })
+const normJugador = (j) => ({
+  ...j,
+  id: idDe(j),
+  equipoId: idDe(j.equipoId ?? j.equipo),
+  goles: Number(j.goles) || 0,
+  asistencias: Number(j.asistencias) || 0,
+  numero: j.numero !== undefined ? Number(j.numero) : (j.dorsal !== undefined ? Number(j.dorsal) : 10)
+})
 const normPartido = (p) => ({
   ...p,
   id: idDe(p),
@@ -482,7 +489,9 @@ const rolInfo = computed(() => {
   }
 })
 
-const jugados = computed(() => partidos.value.filter(p => ['jugado', 'finalizado'].includes(p.estado)))
+const esFinalizado = (p) => ['jugado', 'finalizado'].includes(String(p?.estado || '').toLowerCase())
+
+const jugados = computed(() => partidos.value.filter(esFinalizado))
 
 const tabla = computed(() => {
   const t = equipos.value.map(e => ({ ...e, pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, dg: 0, pts: 0, racha: [] }))
@@ -491,8 +500,8 @@ const tabla = computed(() => {
     const v = t.find(e => e.id === p.visitanteId)
     if (!l || !v) return
     l.pj++; v.pj++
-    l.gf += p.golesLocal; l.gc += p.golesVisitante
-    v.gf += p.golesVisitante; v.gc += p.golesLocal
+    l.gf += Number(p.golesLocal || 0); l.gc += Number(p.golesVisitante || 0)
+    v.gf += Number(p.golesVisitante || 0); v.gc += Number(p.golesLocal || 0)
     if (p.golesLocal > p.golesVisitante) { l.pg++; l.pts += 3; l.racha.push('V'); v.pp++; v.racha.push('D') }
     else if (p.golesLocal < p.golesVisitante) { v.pg++; v.pts += 3; v.racha.push('V'); l.pp++; l.racha.push('D') }
     else { l.pe++; v.pe++; l.pts++; v.pts++; l.racha.push('E'); v.racha.push('E') }
@@ -501,10 +510,11 @@ const tabla = computed(() => {
   return t.sort((a, b) => b.pts - a.pts || b.dg - a.dg || b.gf - a.gf)
 })
 
+const pendientes = computed(() => partidos.value.filter(p => !esFinalizado(p)))
+
 const stats = computed(() => {
-  const goles = jugados.value.reduce((s, p) => s + p.golesLocal + p.golesVisitante, 0)
-  const pendientes = partidos.value.filter(p => !['jugado', 'finalizado'].includes(p.estado))
-  const proxima = pendientes.length ? Math.min(...pendientes.map(p => p.fecha)) : null
+  const goles = jugados.value.reduce((s, p) => s + (Number(p.golesLocal) || 0) + (Number(p.golesVisitante) || 0), 0)
+  const proxima = pendientes.value.length ? Math.min(...pendientes.value.map(p => p.fecha)) : null
   return {
     partidos: jugados.value.length,
     goles,
@@ -515,7 +525,13 @@ const stats = computed(() => {
 })
 
 const fechas = computed(() => [...new Set(partidos.value.map(p => p.fecha))].sort((a, b) => a - b))
-const topPor = (campo) => [...jugadores.value].sort((a, b) => (b[campo] ?? 0) - (a[campo] ?? 0)).slice(0, 5)
+const topPor = (campo) => {
+  const conPuntos = jugadores.value.filter(j => (Number(j[campo]) || 0) > 0)
+  if (conPuntos.length > 0) {
+    return [...conPuntos].sort((a, b) => (Number(b[campo]) || 0) - (Number(a[campo]) || 0)).slice(0, 10)
+  }
+  return [...jugadores.value].sort((a, b) => (Number(b[campo]) || 0) - (Number(a[campo]) || 0)).slice(0, 10)
+}
 const goleadores = computed(() => topPor('goles'))
 const asistidores = computed(() => topPor('asistencias'))
 const equipoPorId = (id) => {
@@ -727,7 +743,7 @@ async function enviarExcedentesABanca(equipoId) {
 async function registrarGoleadoresDT({ partidoId, equipoId, equipoNombre, dtNombre, goleadores, golesClub, golesRival, rivalId, rivalNombre, jornada }) {
   cargando.value = true
   try {
-    // 1. Actualizar los goles de los jugadores del club
+    // 1. Actualizar los goles y asistencias de los jugadores del club
     for (const g of (goleadores || [])) {
       if (g.jugadorId && Number(g.goles) > 0) {
         const jActual = jugadores.value.find(j => (j.id || j._id) === g.jugadorId)
@@ -739,6 +755,18 @@ async function registrarGoleadoresDT({ partidoId, equipoId, equipoNombre, dtNomb
         }
         if (jActual) {
           jActual.goles = totalGoles
+        }
+      }
+      if (g.asistenteId) {
+        const aActual = jugadores.value.find(j => (j.id || j._id) === g.asistenteId)
+        const totalAsist = ((aActual?.asistencias) || 0) + (Number(g.goles) || 1)
+        try {
+          await axios.put(`${API_URL}/jugadores/${g.asistenteId}`, { asistencias: totalAsist }, { headers: authHeaders() })
+        } catch (e) {
+          console.warn('Aviso al actualizar asistencias en backend:', e.message)
+        }
+        if (aActual) {
+          aActual.asistencias = totalAsist
         }
       }
     }
@@ -756,7 +784,9 @@ async function registrarGoleadoresDT({ partidoId, equipoId, equipoNombre, dtNomb
               nombre: g.nombre,
               dorsal: g.dorsal,
               minuto: g.minuto || null,
-              goles: g.goles
+              goles: g.goles,
+              asistente: g.asistenteId || null,
+              asistenteNombre: g.asistenteNombre || null
             }))
           ]
         }
@@ -858,7 +888,7 @@ async function marcarTodasNotificacionesLeidas() {
 const state = reactive({
   // Datos
   torneo, equipos, jugadores, partidos, notificaciones, notificacionesNoLeidas,
-  cargando, error, tabla, stats, fechas,
+  cargando, error, tabla, stats, fechas, esFinalizado, jugados, pendientes,
   goleadores, asistidores, equipoPorId, cantidadJugadoresEquipo, equipoHabilitadoParaJugar,
   tieneCapitan, capitanDelEquipo, designarCapitan, miEquipoId, miEquipo, miJugador,
   normalizarPosicion, jugadoresEnCanchaEquipo, jugadoresEnBancaEquipo,
