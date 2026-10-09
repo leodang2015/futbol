@@ -845,7 +845,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import { useTorneo, ROLES } from './torneo.js'
+import { useTorneo, ROLES } from '../torneo.js'
 import PartidoDialog from './components/PartidoDialog.vue'
 import EquipoDialog from './components/EquipoDialog.vue'
 
