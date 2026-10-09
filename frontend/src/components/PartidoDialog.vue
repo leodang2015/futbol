@@ -119,7 +119,7 @@
         <q-btn flat dense no-caps size="xs" color="primary" label="+ Completar a 11" :loading="completando" @click="completarPlantel(form.local)" />
       </div>
     </div>
-  </div>
+
 <!-- Marcador VS -->
 <div class="col-2 text-center q-pt-md">
   <div class="text-weight-bold text-grey-5 uppercase font-12">VS</div>
