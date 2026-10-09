@@ -231,6 +231,18 @@ async function fijarMarcadorOrganizador(partidoId, { golesLocal, golesVisitante,
   }
 }
 
+async function autogenerarGoleadoresPartido(partidoId) {
+  const pId = idDe(partidoId)
+  try {
+    const res = await axios.post(`${API_URL}/partidos/${pId}/autogenerar-goleadores`, {}, { headers: authHeaders() })
+    await cargarTodo()
+    return res.data
+  } catch (err) {
+    const msg = err.response?.data?.msg || err.message || 'Error al autogenerar goleadores'
+    throw new Error(msg)
+  }
+}
+
 async function completarPlantelEquipo(equipoId) {
   const eqId = idDe(equipoId)
   try {
@@ -526,11 +538,48 @@ const stats = computed(() => {
 
 const fechas = computed(() => [...new Set(partidos.value.map(p => p.fecha))].sort((a, b) => a - b))
 const topPor = (campo) => {
-  const conPuntos = jugadores.value.filter(j => (Number(j[campo]) || 0) > 0)
+  const listaMapeada = jugadores.value.map(j => {
+    let conteo = Number(j[campo]) || 0
+    if (campo === 'goles') {
+      const jId = String(j.id || j._id || '')
+      const jNom = `${j.nombre} ${j.apellido || ''}`.trim().toLowerCase()
+      let golesEnPartidos = 0
+      jugados.value.forEach(p => {
+        (p.goleadores || []).forEach(g => {
+          const gId = String(g.jugadorId || g.jugador?._id || g.jugador || '')
+          const gNom = String(g.nombre || '').trim().toLowerCase()
+          if ((gId && gId === jId) || (gNom && (gNom === jNom || gNom.includes(j.nombre.toLowerCase().trim())))) {
+            golesEnPartidos += Number(g.goles || 1)
+          }
+        })
+      })
+      conteo = Math.max(conteo, golesEnPartidos)
+    } else if (campo === 'asistencias') {
+      const jId = String(j.id || j._id || '')
+      const jNom = `${j.nombre} ${j.apellido || ''}`.trim().toLowerCase()
+      let asisEnPartidos = 0
+      jugados.value.forEach(p => {
+        (p.goleadores || []).forEach(g => {
+          const aId = String(g.asistenteId || g.asistente?._id || g.asistente || '')
+          const aNom = String(g.asistenteNombre || '').trim().toLowerCase()
+          if ((aId && aId === jId) || (aNom && (aNom === jNom || aNom.includes(j.nombre.toLowerCase().trim())))) {
+            asisEnPartidos += 1
+          }
+        })
+      })
+      conteo = Math.max(conteo, asisEnPartidos)
+    }
+    return {
+      ...j,
+      [campo]: conteo
+    }
+  })
+
+  const conPuntos = listaMapeada.filter(j => (Number(j[campo]) || 0) > 0)
   if (conPuntos.length > 0) {
     return [...conPuntos].sort((a, b) => (Number(b[campo]) || 0) - (Number(a[campo]) || 0)).slice(0, 10)
   }
-  return [...jugadores.value].sort((a, b) => (Number(b[campo]) || 0) - (Number(a[campo]) || 0)).slice(0, 10)
+  return [...listaMapeada].sort((a, b) => (Number(b[campo]) || 0) - (Number(a[campo]) || 0)).slice(0, 10)
 }
 const goleadores = computed(() => topPor('goles'))
 const asistidores = computed(() => topPor('asistencias'))
@@ -896,7 +945,7 @@ const state = reactive({
   // Acciones torneo y goleadores
   cargarTodo, agregarEquipo, agregarJugador, actualizarPosicionJugador, actualizarJugador, cambiarDorsalJugador,
   actualizarEscudoEquipo,
-  crearTorneo, guardarPartido, confirmarPartidoDT, fijarMarcadorOrganizador, completarPlantelEquipo,
+  crearTorneo, guardarPartido, confirmarPartidoDT, fijarMarcadorOrganizador, completarPlantelEquipo, autogenerarGoleadoresPartido,
   registrarGoleadoresDT, marcarNotificacionLeida, marcarTodasNotificacionesLeidas,
   // Diálogos
   dialogoPartido, dialogoEquipo, abrirDialogoPartido, abrirDialogoEquipo,
