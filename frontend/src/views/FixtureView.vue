@@ -100,9 +100,9 @@
             <div class="row items-center q-gutter-xs">
               <span
                 class="status-badge"
-                :class="finalizado(p) ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'"
+                :class="statusBadgeClass(p)"
               >
-                {{ finalizado(p) ? 'Finalizado' : 'Programado' }}
+                {{ statusBadgeLabel(p) }}
               </span>
             </div>
           </div>
@@ -155,6 +155,20 @@
               </div>
             </div>
           </q-card-section>
+
+          <!-- Detalle de Goleadores (Solo en Finalizados) -->
+          <div v-if="finalizado(p) && p.goleadores && p.goleadores.length" class="q-px-lg q-py-xs bg-slate-50 border-t border-slate-100">
+            <div class="row items-center q-gutter-xs">
+              <span class="text-caption text-weight-bold text-grey-8 font-11">⚽ Goles:</span>
+              <span
+                v-for="(g, gIdx) in p.goleadores"
+                :key="gIdx"
+                class="text-caption text-grey-7 font-mono font-11"
+              >
+                {{ g.nombre }} {{ g.minuto ? `(${g.minuto}')` : (g.dorsal ? `(#${g.dorsal})` : '') }}<span v-if="gIdx < p.goleadores.length - 1"> ·</span>
+              </span>
+            </div>
+          </div>
         </q-card>
       </div>
 
@@ -185,7 +199,23 @@ const opciones = computed(() => [
   ...store.fechas.map(f => ({ label: `Jornada ${f}`, value: f }))
 ])
 
-const finalizado = (p) => ['jugado', 'finalizado'].includes(p.estado)
+const finalizado = (p) => ['jugado', 'finalizado'].includes(String(p?.estado || '').toLowerCase())
+
+const statusBadgeLabel = (p) => {
+  const est = String(p?.estado || '').toLowerCase()
+  if (['jugado', 'finalizado'].includes(est)) return 'Finalizado'
+  if (est.includes('preparaci') || est.includes('proceso')) return 'En Preparación'
+  if (est.includes('confirmar')) return 'Por Confirmar'
+  return 'Programado'
+}
+
+const statusBadgeClass = (p) => {
+  const est = String(p?.estado || '').toLowerCase()
+  if (['jugado', 'finalizado'].includes(est)) return 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+  if (est.includes('preparaci') || est.includes('proceso')) return 'bg-amber-100 text-amber-900 border border-amber-300'
+  if (est.includes('confirmar')) return 'bg-sky-100 text-sky-800 border border-sky-300'
+  return 'bg-slate-100 text-slate-700 border border-slate-300'
+}
 const nombre = (id) => store.equipoPorId(id)?.nombre ?? 'Club no asignado'
 const color = (id) => store.equipoPorId(id)?.color || store.equipoPorId(id)?.escudocolor || '#059669'
 const crestUrl = (id) => store.equipoPorId(id)?.escudoUrl
