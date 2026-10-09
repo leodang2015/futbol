@@ -562,6 +562,19 @@
                 <q-tooltip>Rol asignado oficial de tu cuenta: {{ store.rolInfo.titulo }} (No modificable)</q-tooltip>
               </div>
 
+              <!-- Badge de Dorsal Oficial para Futbolistas -->
+              <q-btn
+                v-if="store.esJugador && store.miJugador"
+                flat
+                dense
+                no-caps
+                to="/equipos"
+                class="bg-indigo-9 text-indigo-1 q-px-sm rounded-borders font-mono text-caption text-weight-bold"
+              >
+                <span>👕 Dorsal #{{ store.miJugador.numero ?? store.miJugador.dorsal ?? '—' }}</span>
+                <q-tooltip>Tu número de camiseta en {{ store.miEquipo?.nombre || 'tu club' }} (Clic para cambiar)</q-tooltip>
+              </q-btn>
+
               <!-- Campana de Notificaciones Oficiales para el Administrador / Usuarios -->
               <q-btn
                 flat
