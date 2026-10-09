@@ -1,6 +1,6 @@
 <template>
   <q-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)">
-    <q-card style="width: 620px; max-width: 95vw" class="rounded-borders">
+    <q-card style="width: 480px; max-width: 95vw" class="rounded-borders">
       <q-card-section class="bg-grey-10 text-white row items-center justify-between q-py-md">
         <div class="row items-center">
           <q-icon :name="matSportsScore" color="positive" size="24px" class="q-mr-sm" />
