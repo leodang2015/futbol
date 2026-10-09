@@ -120,63 +120,44 @@
       </div>
     </div>
   </div>
-
 <!-- Marcador VS -->
-  <div class="col-2 text-center q-pt-md">
-    <div class="text-weight-bold text-grey-5 uppercase font-12">VS</div>
-  </div>
+<div class="col-2 text-center q-pt-md">
+  <div class="text-weight-bold text-grey-5 uppercase font-12">VS</div>
+</div>
 
-  <!-- Equipo Visitante -->
-  <div class="col-5">
-    <div class="text-subtitle2 text-weight-bolder text-teal-9 q-mb-xs">Equipo Visitante *</div>
-    <q-select
-      v-model="form.visitante"
-      :options="opciones"
-      emit-value
-      map-options
-      outlined
-      dense
-      bg-color="white"
-      placeholder="Visitante"
-    >
-      <template #option="scope">
-        <q-item v-bind="scope.itemProps">
-          <q-item-section avatar>
-            <span class="dot" :style="{ background: colorEquipo(scope.opt.value) }" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label class="text-weight-bold">{{ scope.opt.label }}</q-item-label>
-            <q-item-label caption>
-              <span :class="scope.opt.habilitado ? 'text-positive text-weight-bold' : 'text-negative text-weight-bold'">
-                {{ scope.opt.badgeText }}
-              </span>
-            </q-item-label>
-          </q-item-section>
-        </q-item>
-      </template>
-    </q-select>
-  </div>
+<!-- Equipo Visitante -->
+<div class="col-5">
+  <div class="text-subtitle2 text-weight-bolder text-teal-9 q-mb-xs">Equipo Visitante *</div>
+  <q-select
+    v-model="form.visitante"
+    :options="opciones"
+    emit-value
+    map-options
+    outlined
+    dense
+    bg-color="white"
+    placeholder="Visitante"
+  >
+    <template #option="scope">
+      <q-item v-bind="scope.itemProps">
+        <q-item-section avatar>
+          <span class="dot" :style="{ background: colorEquipo(scope.opt.value) }" />
+        </q-item-section>
+        <q-item-section>
+          <q-item-label class="text-weight-bold">{{ scope.opt.label }}</q-item-label>
+          <q-item-label caption>
+            <span :class="scope.opt.habilitado ? 'text-positive text-weight-bold' : 'text-negative text-weight-bold'">
+              {{ scope.opt.badgeText }}
+            </span>
+          </q-item-label>
+        </q-item-section>
+      </q-item>
+    </template>
+  </q-select>
+</div>
 
 </div>
-      <template #option="scope">
-        <q-item v-bind="scope.itemProps">
-          <q-item-section avatar>
-            <span class="dot" :style="{ background: colorEquipo(scope.opt.value) }" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label class="text-weight-bold">{{ scope.opt.label }}</q-item-label>
-            <q-item-label caption>
-              <span :class="scope.opt.habilitado ? 'text-positive text-weight-bold' : 'text-negative text-weight-bold'">
-                {{ scope.opt.badgeText }}
-              </span>
-            </q-item-label>
-          </q-item-section>
-        </q-item>
-      </template>
-    </q-select>
-  </div>
 
-</div>
 
 
         <!-- Alerta Reglamentaria: Mínimo 11 personas -->
