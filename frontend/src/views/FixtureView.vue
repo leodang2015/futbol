@@ -30,7 +30,7 @@
       </q-card-section>
     </q-card>
 
-    <!-- BANNER DE PRIVACIDAD: Modo Jugador o Entrenador (Solo ve partidos de su equipo) -->
+    <!-- BANNER DE PRIVACIDAD / VISTA: Modo Jugador o Entrenador -->
     <q-banner
       v-if="(store.esJugador || store.esEntrenador) && store.miEquipoId"
       dense
@@ -40,13 +40,31 @@
       <template #avatar>
         <q-icon :name="matSportsSoccer" size="24px" color="indigo-8" />
       </template>
-      <div>
-        <div class="text-caption text-weight-bolder">
-          ⚽ Calendario Oficial · Modo {{ store.esEntrenador ? 'Director Técnico' : 'Futbolista' }}
+      <div class="row items-center justify-between no-wrap">
+        <div>
+          <div class="text-caption text-weight-bolder">
+            ⚽ Calendario Oficial · {{ store.miEquipo?.nombre || 'Tu Club' }}
+          </div>
+          <div class="text-caption text-grey-8">
+            Puedes consultar todos los partidos del campeonato o alternar para ver solo los de tu equipo.
+          </div>
         </div>
-        <div class="text-caption text-grey-8">
-          Como integrante de <strong>{{ store.miEquipo?.nombre || 'Tu Club' }}</strong>, solo tienes acceso a los partidos en los que juega tu propio equipo (encuentros que van a disputar o ya jugados). Los partidos entre otros equipos no están disponibles.
-        </div>
+        <q-btn-toggle
+          v-model="filtroVistaFixture"
+          no-caps
+          dense
+          unelevated
+          size="xs"
+          color="white"
+          text-color="indigo-9"
+          toggle-color="indigo-9"
+          toggle-text-color="white"
+          class="q-ml-sm shadow-1"
+          :options="[
+            { label: 'Todos los Partidos', value: 'todos' },
+            { label: 'Solo Mi Club', value: 'mio' }
+          ]"
+        />
       </div>
     </q-banner>
 
@@ -156,17 +174,36 @@
             </div>
           </q-card-section>
 
-          <!-- Detalle de Goleadores (Solo en Finalizados) -->
-          <div v-if="finalizado(p) && p.goleadores && p.goleadores.length" class="q-px-lg q-py-xs bg-slate-50 border-t border-slate-100">
-            <div class="row items-center q-gutter-xs">
-              <span class="text-caption text-weight-bold text-grey-8 font-11">⚽ Goles:</span>
-              <span
+          <!-- Detalle de Goleadores y Asistencias (Solo en Finalizados) -->
+          <div v-if="finalizado(p) && p.goleadores && p.goleadores.length" class="q-px-md q-py-xs bg-slate-50 border-t border-slate-200">
+            <div class="row items-center justify-between no-wrap q-mb-xs">
+              <span class="text-caption text-weight-bolder text-emerald-9 font-11">
+                ⚽ Goleadores y Asistencias Oficiales
+              </span>
+              <span class="text-caption text-grey-6 font-mono font-10">Acta Final</span>
+            </div>
+            <div class="row q-col-gutter-xs">
+              <div
                 v-for="(g, gIdx) in p.goleadores"
                 :key="gIdx"
-                class="text-caption text-grey-7 font-mono font-11"
+                class="col-12 col-sm-6"
               >
-                {{ g.nombre }} {{ g.minuto ? `(${g.minuto}')` : (g.dorsal ? `(#${g.dorsal})` : '') }}<span v-if="gIdx < p.goleadores.length - 1"> ·</span>
-              </span>
+                <div class="bg-white q-pa-xs rounded-borders border border-slate-200 text-caption font-11">
+                  <div class="row items-center justify-between no-wrap">
+                    <div class="row items-center no-wrap q-gutter-xs ellipsis">
+                      <span class="text-weight-bold text-dark ellipsis">⚽ {{ g.nombre }}</span>
+                      <span v-if="g.dorsal" class="text-grey-6 font-mono font-10">#{{ g.dorsal }}</span>
+                    </div>
+                    <span class="text-positive text-weight-bolder font-mono font-11 q-ml-xs">
+                      {{ g.minuto ? `${g.minuto}'` : 'Gol' }}
+                    </span>
+                  </div>
+                  <div v-if="g.asistenteNombre" class="text-grey-7 font-mono font-10 row items-center q-gutter-xs q-mt-xs">
+                    <span class="text-indigo-8">🎯 Asistencia:</span>
+                    <span class="text-weight-medium text-slate-900">{{ g.asistenteNombre }}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </q-card>
@@ -193,6 +230,7 @@ import { matCalendarMonth, matEvent, matEventBusy, matSportsSoccer } from '@quas
 
 const store = useTorneo()
 const fecha = ref('todos')
+const filtroVistaFixture = ref('todos')
 
 const opciones = computed(() => [
   { label: 'Todas las jornadas', value: 'todos' },
@@ -224,13 +262,10 @@ const crestFigura = (id) => store.equipoPorId(id)?.escudoFigura
 const lista = computed(() => {
   let list = store.partidos.filter(p => fecha.value === 'todos' || p.fecha === fecha.value)
 
-  // REGLA OFICIAL: Los jugadores y entrenadores solo pueden ver los partidos en los que juega su propio equipo
-  if (store.esJugador || store.esEntrenador) {
+  if ((store.esJugador || store.esEntrenador) && filtroVistaFixture.value === 'mio') {
     const miId = String(store.miEquipoId || '').trim()
     if (miId) {
       list = list.filter(p => String(p.localId || '').trim() === miId || String(p.visitanteId || '').trim() === miId)
-    } else {
-      list = []
     }
   }
 
