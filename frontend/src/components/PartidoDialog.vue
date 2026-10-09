@@ -68,144 +68,113 @@
           </div>
         </div>
 
-        <!-- Enfrentamiento visual -->
-        <div class="row q-col-gutter-lg items-center q-py-sm">
-          <!-- Local -->
-          <div class="col-5">
-            <div class="text-caption text-weight-medium text-grey-8 q-mb-xs">Equipo Local *</div>
-            <q-select
-              v-model="form.local"
-              :options="opciones"
-              emit-value
-              map-options
-              outlined
-              dense
-              placeholder="Local"
-            >
-              <template #option="scope">
-                <q-item v-bind="scope.itemProps">
-                  <q-item-section avatar>
-                    <span class="dot" :style="{ background: colorEquipo(scope.opt.value) }" />
-                  </q-item-section>
-                  <q-item-section>
-                    <q-item-label class="text-weight-bold">{{ scope.opt.label }}</q-item-label>
-                    <q-item-label caption>
-                      <span :class="scope.opt.habilitado ? 'text-positive text-weight-bold' : 'text-negative text-weight-bold'">
-                        {{ scope.opt.badgeText }}
-                      </span>
-                    </q-item-label>
-                  </q-item-section>
-                </q-item>
-              </template>
-            </q-select>
-            <!-- Estado de nómina local -->
-            <div v-if="form.local" class="q-mt-xs">
-              <span v-if="store.equipoHabilitadoParaJugar(form.local)" class="text-positive text-caption text-weight-bold font-11">
-                ✅ Habilitado ({{ store.cantidadEnCancha(form.local) }} en cancha · {{ store.cantidadEnBanca(form.local) }} en banca)
+<!-- Enfrentamiento visual -->
+<div class="row q-col-gutter-lg items-center q-py-sm">
+  
+  <!-- Local -->
+  <div class="col-5">
+    <div class="text-caption text-weight-medium text-grey-8 q-mb-xs">Equipo Local *</div>
+    <q-select
+      v-model="form.local"
+      :options="opciones"
+      emit-value
+      map-options
+      outlined
+      dense
+      placeholder="Local"
+    >
+      <template #option="scope">
+        <q-item v-bind="scope.itemProps">
+          <q-item-section avatar>
+            <span class="dot" :style="{ background: colorEquipo(scope.opt.value) }" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label class="text-weight-bold">{{ scope.opt.label }}</q-item-label>
+            <q-item-label caption>
+              <span :class="scope.opt.habilitado ? 'text-positive text-weight-bold' : 'text-negative text-weight-bold'">
+                {{ scope.opt.badgeText }}
               </span>
-              <div v-else-if="store.tieneExcesoEnCancha(form.local)" class="column items-start q-gutter-xs">
-                <span class="text-negative text-caption text-weight-bold font-11">
-                  ⚠️ {{ store.cantidadEnCancha(form.local) }}/11 en cancha (Excedido en +{{ store.cantidadEnCancha(form.local) - 11 }})
-                </span>
-                <q-btn
-                  flat
-                  dense
-                  no-caps
-                  size="xs"
-                  color="negative"
-                  label="🪑 Enviar excedentes a banca"
-                  @click="store.enviarExcedentesABanca(form.local)"
-                />
-              </div>
-              <div v-else class="column items-start q-gutter-xs">
-                <span class="text-negative text-caption text-weight-bold font-11">
-                  ⚠️ Incompleto ({{ store.cantidadJugadoresEquipo(form.local) }}/11 jug.)
-                </span>
-                <q-btn
-                  flat
-                  dense
-                  no-caps
-                  size="xs"
-                  color="primary"
-                  label="+ Completar a 11"
-                  :loading="completando"
-                  @click="completarPlantel(form.local)"
-                />
-              </div>
-            </div>
-          </div>
+            </q-item-label>
+          </q-item-section>
+        </q-item>
+      </template>
+    </q-select>
+    
+    <!-- Estado de nómina local -->
+    <div v-if="form.local" class="q-mt-xs">
+      <span v-if="store.equipoHabilitadoParaJugar(form.local)" class="text-positive text-caption text-weight-bold font-11">
+        ✅ Habilitado ({{ store.cantidadEnCancha(form.local) }} en cancha · {{ store.cantidadEnBanca(form.local) }} en banca)
+      </span>
+      <div v-else-if="store.tieneExcesoEnCancha(form.local)" class="column items-start q-gutter-xs">
+        <span class="text-negative text-caption text-weight-bold font-11">
+          ⚠️ {{ store.cantidadEnCancha(form.local) }}/11 en cancha (Excedido en +{{ store.cantidadEnCancha(form.local) - 11 }})
+        </span>
+        <q-btn flat dense no-caps size="xs" color="negative" label="🪑 Enviar excedentes a banca" @click="store.enviarExcedentesABanca(form.local)" />
+      </div>
+      <div v-else class="column items-start q-gutter-xs">
+        <span class="text-negative text-caption text-weight-bold font-11">
+          ⚠️ Incompleto ({{ store.cantidadJugadoresEquipo(form.local) }}/11 jug.)
+        </span>
+        <q-btn flat dense no-caps size="xs" color="primary" label="+ Completar a 11" :loading="completando" @click="completarPlantel(form.local)" />
+      </div>
+    </div>
+  </div>
 
-          <!-- Marcador VS -->
-          <div class="col-2 text-center">
-            <div class="text-caption text-weight-bold text-grey-5 uppercase">VS</div>
-          </div>
+  <!-- Marcador VS -->
+  <div class="col-2 text-center">
+    <div class="text-caption text-weight-bold text-grey-5 uppercase">VS</div>
+  </div>
 
-          <!-- Visitante -->
-          <div class="col-5">
-            <div class="text-caption text-weight-medium text-grey-8 q-mb-xs">Equipo Visitante *</div>
-            <q-select
-              v-model="form.visitante"
-              :options="opciones"
-              emit-value
-              map-options
-              outlined
-              dense
-              placeholder="Visitante"
-            >
-              <template #option="scope">
-                <q-item v-bind="scope.itemProps">
-                  <q-item-section avatar>
-                    <span class="dot" :style="{ background: colorEquipo(scope.opt.value) }" />
-                  </q-item-section>
-                  <q-item-section>
-                    <q-item-label class="text-weight-bold">{{ scope.opt.label }}</q-item-label>
-                    <q-item-label caption>
-                      <span :class="scope.opt.habilitado ? 'text-positive text-weight-bold' : 'text-negative text-weight-bold'">
-                        {{ scope.opt.badgeText }}
-                      </span>
-                    </q-item-label>
-                  </q-item-section>
-                </q-item>
-              </template>
-            </q-select>
-            <!-- Estado de nómina visitante -->
-            <div v-if="form.visitante" class="q-mt-xs">
-              <span v-if="store.equipoHabilitadoParaJugar(form.visitante)" class="text-positive text-caption text-weight-bold font-11">
-                ✅ Habilitado ({{ store.cantidadEnCancha(form.visitante) }} en cancha · {{ store.cantidadEnBanca(form.visitante) }} en banca)
+  <!-- Visitante -->
+  <div class="col-5">
+    <div class="text-caption text-weight-medium text-grey-8 q-mb-xs">Equipo Visitante *</div>
+    <q-select
+      v-model="form.visitante"
+      :options="opciones"
+      emit-value
+      map-options
+      outlined
+      dense
+      placeholder="Visitante"
+    >
+      <template #option="scope">
+        <q-item v-bind="scope.itemProps">
+          <q-item-section avatar>
+            <span class="dot" :style="{ background: colorEquipo(scope.opt.value) }" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label class="text-weight-bold">{{ scope.opt.label }}</q-item-label>
+            <q-item-label caption>
+              <span :class="scope.opt.habilitado ? 'text-positive text-weight-bold' : 'text-negative text-weight-bold'">
+                {{ scope.opt.badgeText }}
               </span>
-              <div v-else-if="store.tieneExcesoEnCancha(form.visitante)" class="column items-start q-gutter-xs">
-                <span class="text-negative text-caption text-weight-bold font-11">
-                  ⚠️ {{ store.cantidadEnCancha(form.visitante) }}/11 en cancha (Excedido en +{{ store.cantidadEnCancha(form.visitante) - 11 }})
-                </span>
-                <q-btn
-                  flat
-                  dense
-                  no-caps
-                  size="xs"
-                  color="negative"
-                  label="🪑 Enviar excedentes a banca"
-                  @click="store.enviarExcedentesABanca(form.visitante)"
-                />
-              </div>
-              <div v-else class="column items-start q-gutter-xs">
-                <span class="text-negative text-caption text-weight-bold font-11">
-                  ⚠️ Incompleto ({{ store.cantidadJugadoresEquipo(form.visitante) }}/11 jug.)
-                </span>
-                <q-btn
-                  flat
-                  dense
-                  no-caps
-                  size="xs"
-                  color="primary"
-                  label="+ Completar a 11"
-                  :loading="completando"
-                  @click="completarPlantel(form.visitante)"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+            </q-item-label>
+          </q-item-section>
+        </q-item>
+      </template>
+    </q-select>
 
+    <!-- Estado de nómina visitante -->
+    <div v-if="form.visitante" class="q-mt-xs">
+      <span v-if="store.equipoHabilitadoParaJugar(form.visitante)" class="text-positive text-caption text-weight-bold font-11">
+        ✅ Habilitado ({{ store.cantidadEnCancha(form.visitante) }} en cancha · {{ store.cantidadEnBanca(form.visitante) }} en banca)
+      </span>
+      <div v-else-if="store.tieneExcesoEnCancha(form.visitante)" class="column items-start q-gutter-xs">
+        <span class="text-negative text-caption text-weight-bold font-11">
+          ⚠️ {{ store.cantidadEnCancha(form.visitante) }}/11 en cancha (Excedido en +{{ store.cantidadEnCancha(form.visitante) - 11 }})
+        </span>
+        <q-btn flat dense no-caps size="xs" color="negative" label="🪑 Enviar excedentes a banca" @click="store.enviarExcedentesABanca(form.visitante)" />
+      </div>
+      <div v-else class="column items-start q-gutter-xs">
+        <span class="text-negative text-caption text-weight-bold font-11">
+          ⚠️ Incompleto ({{ store.cantidadJugadoresEquipo(form.visitante) }}/11 jug.)
+        </span>
+        <q-btn flat dense no-caps size="xs" color="primary" label="+ Completar a 11" :loading="completando" @click="completarPlantel(form.visitante)" />
+      </div>
+    </div>
+  </div>
+
+</div>
         <!-- Alerta Reglamentaria: Mínimo 11 personas -->
         <div v-if="alertaReglamentaria" class="bg-amber-1 border border-amber-3 q-pa-md rounded-borders text-amber-10 row items-center no-wrap">
           <q-icon name="warning" size="20px" class="q-mr-sm" color="amber-9" />
