@@ -175,7 +175,7 @@
     </div>
   </div>
 
-</div>
+
         <!-- Alerta Reglamentaria: Mínimo 11 personas -->
         <div v-if="alertaReglamentaria" class="bg-amber-1 border border-amber-3 q-pa-md rounded-borders text-amber-10 row items-center no-wrap">
           <q-icon name="warning" size="20px" class="q-mr-sm" color="amber-9" />
