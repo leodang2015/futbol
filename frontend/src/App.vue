@@ -7,7 +7,7 @@
         <div class="login-card-header q-pa-lg text-center">
           <div class="brand-crest-wrapper q-mx-auto q-mb-sm">
             <img
-              src="/assets/images/league_crest_badge_1790957070182.jpg"
+              src="../assets/images/league_crest_badge_1790957070182.jpg"
               alt="Logo"
               class="brand-crest-img"
               referrerPolicy="no-referrer"
@@ -514,7 +514,7 @@
             <div class="row items-center no-wrap brand-zone">
               <div class="brand-crest-wrapper q-mr-sm">
                 <img
-                  src="/assets/images/league_crest_badge_1790957070182.jpg"
+                  src="../assets/images/league_crest_badge_1790957070182.jpg"
                   alt="Logo"
                   class="brand-crest-img"
                   referrerPolicy="no-referrer"
