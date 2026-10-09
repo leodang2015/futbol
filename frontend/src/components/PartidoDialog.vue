@@ -121,11 +121,12 @@
     </div>
   </div>
 
-  <!-- Marcador VS -->
- <div class="col-2 text-center q-pt-md">
+<!-- Marcador VS -->
+  <div class="col-2 text-center q-pt-md">
     <div class="text-weight-bold text-grey-5 uppercase font-12">VS</div>
   </div>
-<!-- Visitante -->
+
+  <!-- Equipo Visitante -->
   <div class="col-5">
     <div class="text-subtitle2 text-weight-bolder text-teal-9 q-mb-xs">Equipo Visitante *</div>
     <q-select
@@ -154,19 +155,9 @@
         </q-item>
       </template>
     </q-select>
+  </div>
 
-<div class="col-5">
-    <div class="text-subtitle2 text-weight-bolder text-teal-9 q-mb-xs">Equipo Visitante *</div>
-    <q-select
-      v-model="form.visitante"
-      :options="opciones"
-      emit-value
-      map-options
-      outlined
-      dense
-      bg-color="white"
-      placeholder="Visitante"
-    >
+</div>
       <template #option="scope">
         <q-item v-bind="scope.itemProps">
           <q-item-section avatar>
