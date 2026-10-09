@@ -7,7 +7,7 @@
         <div class="login-card-header q-pa-lg text-center">
           <div class="brand-crest-wrapper q-mx-auto q-mb-sm">
             <img
-              src="/assets/images/league_crest_badge_1790957070182.jpg"
+              src="./assets/images/league_crest_badge_1790957070182.jpg"
               alt="Logo"
               class="brand-crest-img"
               referrerPolicy="no-referrer"
@@ -847,6 +847,7 @@ import { useQuasar } from 'quasar'
 import { useTorneo, ROLES } from './torneo.js'
 import PartidoDialog from './components/PartidoDialog.vue'
 import EquipoDialog from './components/EquipoDialog.vue'
+import logoImg from './assets/images/league_crest_badge_1790957070182.jpg'
 
 // Quasar SVG Icons
 import {
