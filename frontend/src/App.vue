@@ -7,7 +7,7 @@
         <div class="login-card-header q-pa-lg text-center">
           <div class="brand-crest-wrapper q-mx-auto q-mb-sm">
             <img
-              src="./assets/images/league_crest_badge_1790957070182.jpg"
+              src="/assets/images/league_crest_badge_1790957070182.jpg"
               alt="Logo"
               class="brand-crest-img"
               referrerPolicy="no-referrer"
@@ -514,7 +514,7 @@
             <div class="row items-center no-wrap brand-zone">
               <div class="brand-crest-wrapper q-mr-sm">
                 <img
-                  src="./assets/images/league_crest_badge_1790957070182.jpg"
+                  src="/assets/images/league_crest_badge_1790957070182.jpg"
                   alt="Logo"
                   class="brand-crest-img"
                   referrerPolicy="no-referrer"
@@ -543,10 +543,11 @@
                 <q-route-tab to="/equipos" :icon="matShield" label="Clubes" />
                 <q-route-tab to="/ranking" :icon="matMilitaryTech" label="Goleadores" />
                 <q-route-tab
+                  v-if="store.esEntrenador"
                   to="/entrenador"
                   :icon="matSports"
                   label="Pizarra DT"
-                  :class="{ 'text-positive text-weight-bold': store.esEntrenador }"
+                  class="text-positive text-weight-bold"
                 />
               </q-tabs>
             </div>
@@ -652,7 +653,7 @@
               <q-route-tab to="/fixture" :icon="matCalendarMonth" label="Fixture" />
               <q-route-tab to="/equipos" :icon="matShield" label="Clubes" />
               <q-route-tab to="/ranking" :icon="matMilitaryTech" label="Goleadores" />
-              <q-route-tab to="/entrenador" :icon="matSports" label="Pizarra DT" />
+              <q-route-tab v-if="store.esEntrenador" to="/entrenador" :icon="matSports" label="Pizarra DT" />
             </q-tabs>
           </div>
         </div>
@@ -847,7 +848,6 @@ import { useQuasar } from 'quasar'
 import { useTorneo, ROLES } from './torneo.js'
 import PartidoDialog from './components/PartidoDialog.vue'
 import EquipoDialog from './components/EquipoDialog.vue'
-import logoImg from './assets/images/league_crest_badge_1790957070182.jpg'
 
 // Quasar SVG Icons
 import {
