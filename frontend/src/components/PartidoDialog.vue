@@ -9,8 +9,7 @@
         <q-btn flat round dense :icon="matClose" v-close-popup text-color="grey-4" />
       </q-card-section>
 
-      <q-card-section class="q-gutter-lg q-px-lg q-pb-lg q-pt-md">
-        <!-- Selector de Jornada (Mínimo Fecha 1, Máximo Fecha 5) -->
+      <q-card-section class="q-gutter-md q-pa-md">        <!-- Selector de Jornada (Mínimo Fecha 1, Máximo Fecha 5) -->
         <div class="row items-center justify-between bg-grey-2 q-pa-md rounded-borders">
           <div>
             <div class="text-caption text-weight-bold text-grey-8">Jornada Oficial del Torneo</div>
