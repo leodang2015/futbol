@@ -172,6 +172,45 @@
               </div>
             </div>
 
+            <!-- TARJETA DESTACADA PARA EL JUGADOR: TU FICHA Y SELECCIÓN DE DORSAL -->
+            <div
+              v-if="store.esJugador && esMiClub && miFichaJugador"
+              class="q-pa-md bg-indigo-50 border-b border-indigo-2"
+            >
+              <div class="row items-center justify-between q-col-gutter-sm">
+                <div class="row items-center q-gutter-md">
+                  <div class="player-jersey-box flex flex-center shadow-2">
+                    <span class="jersey-number font-mono">#{{ miFichaJugador.numero ?? miFichaJugador.dorsal ?? '—' }}</span>
+                  </div>
+                  <div>
+                    <div class="text-caption text-weight-bolder text-indigo-9 text-uppercase">
+                      ⚽ Tu Ficha de Jugador Oficial en {{ equipo?.nombre }}
+                    </div>
+                    <div class="text-subtitle1 text-weight-bolder text-dark row items-center q-gutter-xs">
+                      <span>{{ [miFichaJugador.nombre, miFichaJugador.apellido].filter(Boolean).join(' ') }}</span>
+                      <q-badge v-if="miFichaJugador.esCapitan || equipo?.capitan === miFichaJugador.nombre" color="amber-9" text-color="white" class="text-weight-bold font-10">
+                        Ⓒ CAPITÁN
+                      </q-badge>
+                    </div>
+                    <div class="text-caption text-grey-8 font-mono">
+                      Posición: <strong>{{ miFichaJugador.posicion || 'Delantero' }}</strong> · Dorsal oficial: <strong>#{{ miFichaJugador.numero ?? miFichaJugador.dorsal ?? '—' }}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <q-btn
+                  unelevated
+                  color="indigo-7"
+                  text-color="white"
+                  no-caps
+                  :icon="matNumbers"
+                  label="Escoger / Cambiar Mi Dorsal"
+                  class="text-weight-bold shadow-1"
+                  @click="abrirDialogoCambioDorsal(miFichaJugador)"
+                />
+              </div>
+            </div>
+
             <!-- Tabla de Plantel -->
             <div class="q-pa-md">
               <div class="row items-center justify-between q-mb-sm">
@@ -212,13 +251,40 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="j in plantel" :key="j.id" class="roster-row">
+                    <tr
+                      v-for="j in plantel"
+                      :key="j.id"
+                      class="roster-row"
+                      :class="{ 'bg-indigo-50 border-l-4 border-indigo-7': esElMismoJugador(j) }"
+                    >
                       <td class="text-center font-mono text-weight-bold text-primary">
-                        #{{ j.dorsal ?? j.numero ?? '—' }}
+                        <div class="row items-center justify-center q-gutter-xs">
+                          <span class="dorsal-tag">#{{ j.dorsal ?? j.numero ?? '—' }}</span>
+                          <q-btn
+                            v-if="store.esJugador && esElMismoJugador(j)"
+                            flat
+                            round
+                            dense
+                            size="xs"
+                            color="indigo-7"
+                            :icon="matEdit"
+                            @click="abrirDialogoCambioDorsal(j)"
+                          >
+                            <q-tooltip>Cambiar tu número de camiseta</q-tooltip>
+                          </q-btn>
+                        </div>
                       </td>
                       <td class="text-weight-bold text-dark">
                         <div class="row items-center no-wrap q-gutter-xs">
                           <span>{{ [j.nombre, j.apellido].filter(Boolean).join(' ') }}</span>
+                          <q-badge
+                            v-if="esElMismoJugador(j)"
+                            color="indigo-7"
+                            text-color="white"
+                            class="text-weight-bolder font-10 q-px-xs"
+                          >
+                            TÚ
+                          </q-badge>
                           <q-badge
                             v-if="j.esCapitan || equipo?.capitan === j.nombre"
                             color="amber-9"
@@ -274,6 +340,141 @@
 
     <!-- Modales -->
     <EquipoDialog v-model="modalEquipo" />
+
+    <!-- DIÁLOGO OFICIAL: ESCOGER / CAMBIAR DORSAL SIN REPETICIONES -->
+    <q-dialog v-model="mostrarModalDorsal" persistent>
+      <q-card style="min-width: 440px; max-width: 95vw;" class="rounded-borders bg-white shadow-10 overflow-hidden">
+        <div class="bg-indigo-9 text-white q-pa-md row items-center justify-between">
+          <div class="row items-center q-gutter-sm">
+            <q-avatar size="36px" color="indigo-7" text-color="white" class="text-weight-bold">
+              👕
+            </q-avatar>
+            <div>
+              <div class="text-subtitle1 text-weight-bold">Escoger Número de Camiseta (Dorsal)</div>
+              <div class="text-caption text-indigo-2">{{ equipo?.nombre }} · Ficha Oficial de Futbolista</div>
+            </div>
+          </div>
+          <q-btn flat round dense icon="close" color="white" v-close-popup />
+        </div>
+
+        <q-card-section class="q-pa-md">
+          <div class="text-body2 text-grey-8 q-mb-md">
+            Hola <strong>{{ [jugadorEditandoDorsal?.nombre, jugadorEditandoDorsal?.apellido].filter(Boolean).join(' ') }}</strong>, elige tu número oficial de camiseta reglamentario (del <strong>1 al 99</strong>).
+            <div class="text-caption text-indigo-9 text-weight-bold q-mt-xs bg-indigo-50 q-pa-xs rounded-borders border border-indigo-2">
+              ⚠️ Regla Oficial de la Liga: Cada dorsal es exclusivo y <strong>no puede repetirse</strong> con otro jugador de tu equipo.
+            </div>
+          </div>
+
+          <!-- Dorsal actual y nuevo selector -->
+          <div class="row items-center justify-around bg-slate-50 q-pa-md rounded-borders border q-mb-md">
+            <div class="text-center">
+              <div class="text-caption text-grey-7 font-bold">DORSAL ACTUAL</div>
+              <div class="text-h4 font-mono text-weight-bolder text-grey-6">
+                #{{ jugadorEditandoDorsal?.numero ?? jugadorEditandoDorsal?.dorsal ?? '—' }}
+              </div>
+            </div>
+
+            <q-icon :name="matChevronRight" size="28px" color="grey-5" />
+
+            <div class="text-center">
+              <div class="text-caption text-indigo-9 font-bold">NUEVO DORSAL</div>
+              <div
+                class="text-h4 font-mono text-weight-bolder"
+                :class="errorDorsalRepetido ? 'text-negative' : 'text-positive'"
+              >
+                #{{ inputDorsal || '?' }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Input numérico -->
+          <div class="q-mb-md">
+            <div class="text-caption text-weight-bold text-dark q-mb-xs">Número deseado (1-99):</div>
+            <q-input
+              v-model.number="inputDorsal"
+              type="number"
+              outlined
+              dense
+              bg-color="white"
+              min="1"
+              max="99"
+              placeholder="Ej: 7, 9, 10, 14, 23..."
+              :error="!!errorDorsalRepetido"
+              :error-message="errorDorsalRepetido"
+              @update:model-value="validarDorsalEnVivo"
+            >
+              <template #prepend>
+                <q-icon :name="matNumbers" color="indigo-7" />
+              </template>
+            </q-input>
+          </div>
+
+          <!-- Alerta de disponibilidad en vivo -->
+          <div v-if="inputDorsal && !errorDorsalRepetido" class="q-mb-md">
+            <q-banner dense rounded class="bg-positive text-white q-py-xs q-px-sm text-caption">
+              ✅ ¡El dorsal #{{ inputDorsal }} está libre y disponible para tu camiseta!
+            </q-banner>
+          </div>
+
+          <!-- Números disponibles sugeridos para clic directo -->
+          <div class="q-mb-md">
+            <div class="text-caption text-weight-bold text-grey-8 q-mb-xs">
+              ⚡ Números libres disponibles (haz clic para asignar):
+            </div>
+            <div class="row q-gutter-xs items-center">
+              <q-btn
+                v-for="num in dorsalesDisponiblesSugeridos"
+                :key="num"
+                dense
+                unelevated
+                size="sm"
+                no-caps
+                :color="inputDorsal === num ? 'positive' : 'grey-3'"
+                :text-color="inputDorsal === num ? 'white' : 'dark'"
+                :label="`#${num}`"
+                class="text-weight-bold font-mono q-px-sm"
+                @click="seleccionarDorsalRapido(num)"
+              />
+            </div>
+          </div>
+
+          <!-- Dorsales ya ocupados por compañeros -->
+          <div class="bg-rose-50 q-pa-sm rounded-borders border border-rose-2">
+            <div class="text-caption text-weight-bold text-negative q-mb-xs">
+              ⛔ Números ya ocupados en tu equipo (no disponibles):
+            </div>
+            <div class="row q-gutter-xs items-center">
+              <q-badge
+                v-for="d in dorsalesOcupadosEquipo"
+                :key="d.numero"
+                color="rose-2"
+                text-color="rose-10"
+                class="text-weight-medium font-mono font-11"
+              >
+                #{{ d.numero }} ({{ d.nombre }})
+              </q-badge>
+            </div>
+          </div>
+        </q-card-section>
+
+        <q-separator />
+
+        <q-card-actions align="right" class="q-pa-md bg-slate-50">
+          <q-btn flat label="Cancelar" color="grey-7" v-close-popup no-caps />
+          <q-btn
+            unelevated
+            color="indigo-8"
+            label="Guardar Mi Dorsal"
+            icon="check"
+            no-caps
+            class="text-weight-bold shadow-1"
+            :loading="guardandoDorsal"
+            :disable="!inputDorsal || !!errorDorsalRepetido"
+            @click="ejecutarCambioDorsal"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
@@ -293,7 +494,9 @@ import {
   matPlace,
   matBadge,
   matSports,
-  matShield
+  matShield,
+  matNumbers,
+  matEdit
 } from '@quasar/extras/material-icons'
 
 const $q = useQuasar()
@@ -304,6 +507,132 @@ const router = useRouter()
 const seleccionId = ref(store.miEquipoId || null)
 const modalEquipo = ref(false)
 const completandoPlantel = ref(false)
+
+// Estado para Diálogo de Selección de Dorsal (Exclusivo por club)
+const mostrarModalDorsal = ref(false)
+const jugadorEditandoDorsal = ref(null)
+const inputDorsal = ref(null)
+const errorDorsalRepetido = ref('')
+const guardandoDorsal = ref(false)
+
+const esMiClub = computed(() => {
+  if (!equipo.value) return false
+  const miId = String(store.miEquipoId || '').trim()
+  const eqId = String(equipo.value.id || equipo.value._id || '').trim()
+  return miId && eqId && miId === eqId
+})
+
+const miFichaJugador = computed(() => store.miJugador)
+
+function esElMismoJugador(j) {
+  if (!j) return false
+  if (miFichaJugador.value) {
+    const miJId = String(miFichaJugador.value.id || miFichaJugador.value._id || '').trim()
+    const jId = String(j.id || j._id || '').trim()
+    if (miJId && jId && miJId === jId) return true
+  }
+  if (store.user) {
+    const uClean = String(store.user.usuario || '').toLowerCase().trim()
+    const uNom = String(store.user.nombre || '').toLowerCase().trim()
+    const jNom = String(j.nombre || '').toLowerCase().trim()
+    const jApe = String(j.apellido || '').toLowerCase().trim()
+    const jFull = `${jNom} ${jApe}`.trim()
+    if (jNom === uClean || jFull === uNom || jNom === uNom) return true
+    if (j.email && j.email.toLowerCase().includes(uClean)) return true
+  }
+  return false
+}
+
+// Dorsales ocupados por compañeros del equipo
+const dorsalesOcupadosEquipo = computed(() => {
+  if (!plantel.value || !plantel.value.length) return []
+  const jActualId = String(jugadorEditandoDorsal.value?.id || jugadorEditandoDorsal.value?._id || '').trim()
+  return plantel.value
+    .filter(j => String(j.id || j._id || '').trim() !== jActualId)
+    .map(j => ({
+      numero: Number(j.numero ?? j.dorsal),
+      nombre: [j.nombre, j.apellido && j.apellido !== '-' ? j.apellido : ''].filter(Boolean).join(' ')
+    }))
+    .filter(d => !isNaN(d.numero) && d.numero > 0)
+    .sort((a, b) => a.numero - b.numero)
+})
+
+// Números libres sugeridos (del 1 al 99 no tomados en el equipo)
+const dorsalesDisponiblesSugeridos = computed(() => {
+  const ocupadosSet = new Set(dorsalesOcupadosEquipo.value.map(d => d.numero))
+  const disponibles = []
+  for (let n = 1; n <= 99; n++) {
+    if (!ocupadosSet.has(n)) {
+      disponibles.push(n)
+      if (disponibles.length >= 16) break // Primeros 16 libres
+    }
+  }
+  return disponibles
+})
+
+function abrirDialogoCambioDorsal(j) {
+  jugadorEditandoDorsal.value = j || miFichaJugador.value
+  inputDorsal.value = Number(jugadorEditandoDorsal.value?.numero ?? jugadorEditandoDorsal.value?.dorsal ?? '') || null
+  errorDorsalRepetido.value = ''
+  mostrarModalDorsal.value = true
+}
+
+function validarDorsalEnVivo() {
+  if (!inputDorsal.value) {
+    errorDorsalRepetido.value = 'El número de dorsal es obligatorio'
+    return false
+  }
+  const num = Number(inputDorsal.value)
+  if (isNaN(num) || num < 1 || num > 99) {
+    errorDorsalRepetido.value = 'El dorsal debe ser un número entero entre 1 y 99'
+    return false
+  }
+  const ocupado = dorsalesOcupadosEquipo.value.find(d => d.numero === num)
+  if (ocupado) {
+    errorDorsalRepetido.value = `⛔ El dorsal #${num} ya está ocupado por ${ocupado.nombre} en tu equipo. Cada jugador debe tener un número único.`
+    return false
+  }
+  errorDorsalRepetido.value = ''
+  return true
+}
+
+function seleccionarDorsalRapido(num) {
+  inputDorsal.value = num
+  validarDorsalEnVivo()
+}
+
+async function ejecutarCambioDorsal() {
+  if (!validarDorsalEnVivo()) return
+  if (!jugadorEditandoDorsal.value) return
+
+  guardandoDorsal.value = true
+  const jId = jugadorEditandoDorsal.value.id || jugadorEditandoDorsal.value._id
+  const eqId = equipo.value?.id || equipo.value?._id
+  const nuevoNumero = Number(inputDorsal.value)
+
+  try {
+    await store.cambiarDorsalJugador(jId, nuevoNumero, eqId)
+    $q.notify({
+      type: 'positive',
+      icon: 'check_circle',
+      message: `¡Dorsal #${nuevoNumero} asignado exitosamente! Tu camiseta oficial ha sido actualizada.`,
+      position: 'top',
+      timeout: 3500
+    })
+    mostrarModalDorsal.value = false
+  } catch (err) {
+    errorDorsalRepetido.value = err.message || 'No se pudo actualizar el dorsal'
+    $q.notify({
+      type: 'negative',
+      icon: 'error',
+      message: err.message || 'Error al actualizar el dorsal',
+      position: 'top',
+      timeout: 4000
+    })
+  } finally {
+    guardandoDorsal.value = false
+  }
+}
 
 const clubesVisibles = computed(() => {
   if (store.esEntrenador || store.esJugador) {
@@ -457,5 +786,26 @@ const headerGradient = computed(() => {
   border-radius: 3px;
   font-size: 0.68rem;
   font-weight: 700;
+}
+.player-jersey-box {
+  width: 52px;
+  height: 52px;
+  background: #3730a3;
+  color: white;
+  border-radius: 10px;
+  font-weight: 800;
+  border: 2px solid #818cf8;
+}
+.jersey-number {
+  font-size: 1.35rem;
+  letter-spacing: -1px;
+}
+.dorsal-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: #e0e7ff;
+  color: #3730a3;
+  font-size: 0.85rem;
 }
 </style>
