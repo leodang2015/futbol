@@ -136,7 +136,7 @@
     <div class="row q-col-gutter-lg">
       <!-- Columna Principal: Tabla Oficial de Posiciones -->
       <div class="col-12 col-lg-8">
-        <!-- BANNER DE PRIVACIDAD: Modo Jugador o Entrenador (Solo ve las posiciones de su propio equipo) -->
+        <!-- BANNER DE PRIVACIDAD / VISTA: Modo Jugador o Entrenador -->
         <q-banner
           v-if="(store.esJugador || store.esEntrenador) && store.miEquipoId"
           dense
@@ -144,15 +144,33 @@
           class="bg-indigo-1 text-indigo-10 q-mb-md q-py-sm q-px-md border border-indigo-2 shadow-1"
         >
           <template #avatar>
-            <q-icon :name="matLock" size="24px" color="indigo-8" />
+            <q-icon :name="matSportsSoccer" size="24px" color="indigo-8" />
           </template>
-          <div>
-            <div class="text-caption text-weight-bolder">
-              🔒 Vista Oficial Restringida · Modo {{ store.esEntrenador ? 'Director Técnico' : 'Futbolista' }}
+          <div class="row items-center justify-between no-wrap">
+            <div>
+              <div class="text-caption text-weight-bolder">
+                ⚽ Tabla Oficial de Posiciones · {{ store.miEquipo?.nombre || 'Tu Club' }}
+              </div>
+              <div class="text-caption text-grey-8">
+                Tu club aparece destacado en la tabla. Puedes alternar entre ver todos los clubes o solo tu club.
+              </div>
             </div>
-            <div class="text-caption text-grey-8">
-              Por normativa de confidencialidad deportiva del torneo, los integrantes de club <strong>solo pueden visualizar la posición y estadísticas oficiales de su propio equipo ({{ store.miEquipo?.nombre || 'Tu Club' }})</strong>. La tabla de posiciones de los demás clubes no es visible para entrenadores ni jugadores.
-            </div>
+            <q-btn-toggle
+              v-model="filtroVistaTabla"
+              no-caps
+              dense
+              unelevated
+              size="xs"
+              color="white"
+              text-color="indigo-9"
+              toggle-color="indigo-9"
+              toggle-text-color="white"
+              class="q-ml-sm shadow-1"
+              :options="[
+                { label: 'Todos los Clubes', value: 'todos' },
+                { label: 'Solo Mi Club', value: 'mio' }
+              ]"
+            />
           </div>
         </q-banner>
 
@@ -317,7 +335,25 @@
               <q-icon :name="matCalendarMonth" size="18px" color="primary" class="q-mr-xs" />
               <span class="text-subtitle2 text-weight-bold text-dark">Partidos Recientes</span>
             </div>
-            <q-btn flat dense no-caps color="primary" label="Ver Fixture" to="/fixture" size="sm" :icon-right="matArrowForward" />
+            <div class="row items-center q-gutter-xs">
+              <q-btn-toggle
+                v-if="(store.esJugador || store.esEntrenador) && store.miEquipoId"
+                v-model="filtroVistaPartidos"
+                no-caps
+                dense
+                unelevated
+                size="xs"
+                color="grey-2"
+                text-color="grey-8"
+                toggle-color="primary"
+                toggle-text-color="white"
+                :options="[
+                  { label: 'Todos', value: 'todos' },
+                  { label: 'Mi Club', value: 'mio' }
+                ]"
+              />
+              <q-btn flat dense no-caps color="primary" label="Ver Fixture" to="/fixture" size="sm" :icon-right="matArrowForward" />
+            </div>
           </q-card-section>
 
           <q-list separator class="match-mini-list">
@@ -325,8 +361,8 @@
               <q-item-section>
                 <div class="row items-center justify-between text-caption text-grey-6 font-mono q-mb-xs">
                   <span>Jornada {{ p.fecha }}</span>
-                  <q-badge :color="p.estado === 'jugado' ? 'positive' : 'grey-7'" text-color="white" size="xs">
-                    {{ p.estado === 'jugado' ? 'Finalizado' : 'Pendiente' }}
+                  <q-badge :color="finalizado(p) ? 'positive' : 'amber-8'" text-color="white" size="xs">
+                    {{ finalizado(p) ? 'Finalizado' : 'En Preparación' }}
                   </q-badge>
                 </div>
                 <div class="row items-center justify-between no-wrap">
@@ -335,11 +371,27 @@
                     <span class="text-weight-medium ellipsis">{{ nombreEquipo(p.localId) }}</span>
                   </div>
                   <div class="font-mono text-weight-bolder text-dark q-px-sm">
-                    {{ p.estado === 'jugado' ? `${p.golesLocal} - ${p.golesVisitante}` : 'vs' }}
+                    {{ finalizado(p) ? `${p.golesLocal} - ${p.golesVisitante}` : 'vs' }}
                   </div>
                   <div class="row items-center justify-end no-wrap ellipsis" style="max-width: 140px">
                     <span class="text-weight-medium ellipsis text-right">{{ nombreEquipo(p.visitanteId) }}</span>
                     <span class="club-color-dot q-ml-xs" :style="{ background: colorEquipo(p.visitanteId) }" />
+                  </div>
+                </div>
+
+                <!-- Información de Goleadores y Asistencias del Partido -->
+                <div v-if="finalizado(p) && p.goleadores && p.goleadores.length" class="text-caption text-grey-8 font-mono font-10 q-mt-xs bg-slate-50 q-pa-xs rounded-borders border">
+                  <div class="row items-center q-gutter-xs">
+                    <span class="text-emerald-9 text-weight-bold">⚽ Goles:</span>
+                    <span class="text-dark">
+                      {{ p.goleadores.map(g => `${g.nombre}${g.dorsal ? ` (#${g.dorsal})` : ''}${g.minuto ? ` ${g.minuto}'` : ''}`).join(' · ') }}
+                    </span>
+                  </div>
+                  <div v-if="p.goleadores.some(g => g.asistenteNombre)" class="row items-center q-gutter-xs q-mt-xs">
+                    <span class="text-indigo-9 text-weight-bold">🎯 Asistencias:</span>
+                    <span class="text-dark">
+                      {{ p.goleadores.filter(g => g.asistenteNombre).map(g => `${g.asistenteNombre} ➔ ${g.nombre}`).join(' · ') }}
+                    </span>
                   </div>
                 </div>
               </q-item-section>
@@ -373,12 +425,12 @@
               <q-item-section>
                 <q-item-label class="text-weight-bold text-dark">{{ g.nombre }} {{ g.apellido || '' }}</q-item-label>
                 <q-item-label caption class="text-grey-6">
-                  Dorsal #{{ g.numero || g.dorsal || '-' }} · {{ g.posicion || 'Jugador' }}
+                  Dorsal #{{ g.numero || g.dorsal || '-' }} · {{ nombreEquipo(g.equipoId ?? g.equipo) }}
                 </q-item-label>
               </q-item-section>
               <q-item-section side>
-                <q-badge color="primary" text-color="white" class="font-mono text-weight-bold q-px-sm">
-                  {{ g.goles || 0 }} goles
+                <q-badge color="positive" text-color="white" class="font-mono text-weight-bold q-px-sm">
+                  {{ g.goles || 0 }} goles ⚽
                 </q-badge>
               </q-item-section>
             </q-item>
@@ -386,6 +438,44 @@
             <q-item v-if="!goleadoresResumen.length" class="q-py-md text-center text-grey-6">
               <q-item-section>
                 <div class="text-caption">Aún no hay goleadores registrados</div>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card>
+
+        <!-- Widget: Top Asistidores -->
+        <q-card flat bordered class="bg-white rounded-borders overflow-hidden q-mt-md">
+          <q-card-section class="row items-center justify-between q-py-sm bg-slate-50 border-b">
+            <div class="row items-center">
+              <q-icon :name="matAutoAwesome" size="18px" color="blue-9" class="q-mr-xs" />
+              <span class="text-subtitle2 text-weight-bold text-dark">Top Asistidores</span>
+            </div>
+            <q-btn flat dense no-caps color="primary" label="Ver Ranking" to="/ranking" size="sm" :icon-right="matArrowForward" />
+          </q-card-section>
+
+          <q-list separator>
+            <q-item v-for="(a, idx) in asistidoresResumen" :key="a.id" class="q-py-sm">
+              <q-item-section avatar style="min-width: 32px">
+                <span class="font-mono text-weight-bold" :class="idx === 0 ? 'text-blue-8 text-h6' : 'text-grey-7'">
+                  {{ idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.` }}
+                </span>
+              </q-item-section>
+              <q-item-section>
+                <q-item-label class="text-weight-bold text-dark">{{ a.nombre }} {{ a.apellido || '' }}</q-item-label>
+                <q-item-label caption class="text-grey-6">
+                  Dorsal #{{ a.numero || a.dorsal || '-' }} · {{ nombreEquipo(a.equipoId ?? a.equipo) }}
+                </q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-badge color="indigo-8" text-color="white" class="font-mono text-weight-bold q-px-sm">
+                  {{ a.asistencias || 0 }} asist. 🎯
+                </q-badge>
+              </q-item-section>
+            </q-item>
+
+            <q-item v-if="!asistidoresResumen.length" class="q-py-md text-center text-grey-6">
+              <q-item-section>
+                <div class="text-caption">Aún no hay asistencias registradas</div>
               </q-item-section>
             </q-item>
           </q-list>
@@ -410,12 +500,17 @@ import {
   matArrowForward,
   matShield,
   matSpeed,
-  matLock
+  matLock,
+  matAutoAwesome
 } from '@quasar/extras/material-icons'
 
 const store = useTorneo()
 const roleStore = store
 const buscar = ref('')
+const filtroVistaTabla = ref('todos')
+const filtroVistaPartidos = ref('todos')
+
+const finalizado = (p) => ['jugado', 'finalizado'].includes(String(p?.estado || '').toLowerCase())
 
 const metricas = computed(() => [
   { label: 'Clubes Inscriptos', value: store.stats.equipos, sub: 'Equipos en competencia', icon: matShield, bgClass: 'bg-emerald-50', iconClass: 'text-emerald-700' },
@@ -428,16 +523,15 @@ const filas = computed(() => {
   const todas = store.tabla.map((e, i) => ({
     ...e,
     pos: i + 1,
-    color: e.color || e.escudocolor || '#059669'
+    color: e.color || e.escudocolor || '#059669',
+    esMiClub: (store.esJugador || store.esEntrenador) && String(e.id || e._id || '').trim() === String(store.miEquipoId || '').trim()
   }))
 
-  // REGLA OFICIAL: Los entrenadores y jugadores solo ven la posición de su propio equipo
-  if (store.esJugador || store.esEntrenador) {
+  if ((store.esJugador || store.esEntrenador) && filtroVistaTabla.value === 'mio') {
     const miEqId = String(store.miEquipoId || '').trim()
     if (miEqId) {
       return todas.filter(e => String(e.id || e._id || '').trim() === miEqId)
     }
-    return []
   }
 
   return todas.filter(e =>
@@ -449,20 +543,21 @@ const filas = computed(() => {
 
 const partidosResumen = computed(() => {
   let list = [...store.partidos]
-  // REGLA OFICIAL: Si es jugador o entrenador, solo ve partidos en los que juega su equipo
-  if (store.esJugador || store.esEntrenador) {
+  if ((store.esJugador || store.esEntrenador) && filtroVistaPartidos.value === 'mio') {
     const miEqId = String(store.miEquipoId || '').trim()
     if (miEqId) {
       list = list.filter(p => String(p.localId || '').trim() === miEqId || String(p.visitanteId || '').trim() === miEqId)
-    } else {
-      list = []
     }
   }
-  return list.slice(-4).reverse()
+  return list.slice(-8).reverse()
 })
 
 const goleadoresResumen = computed(() =>
-  [...store.goleadores].slice(0, 4)
+  [...store.goleadores].slice(0, 5)
+)
+
+const asistidoresResumen = computed(() =>
+  [...store.asistidores].slice(0, 5)
 )
 
 function nombreEquipo(id) {
