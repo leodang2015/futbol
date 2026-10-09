@@ -68,12 +68,11 @@
           </div>
         </div>
 
-<!-- Enfrentamiento visual -->
-<div class="row q-col-gutter-lg items-center q-py-sm">
+<div class="row q-col-gutter-sm items-center q-py-xs">
   
   <!-- Local -->
   <div class="col-5">
-    <div class="text-caption text-weight-medium text-grey-8 q-mb-xs">Equipo Local *</div>
+    <div class="text-subtitle2 text-weight-bolder text-teal-9 q-mb-xs">Equipo Local *</div>
     <q-select
       v-model="form.local"
       :options="opciones"
@@ -81,6 +80,7 @@
       map-options
       outlined
       dense
+      bg-color="white"
       placeholder="Local"
     >
       <template #option="scope">
@@ -99,6 +99,7 @@
         </q-item>
       </template>
     </q-select>
+  </div>
     
     <!-- Estado de nómina local -->
     <div v-if="form.local" class="q-mt-xs">
@@ -121,13 +122,12 @@
   </div>
 
   <!-- Marcador VS -->
-  <div class="col-2 text-center">
-    <div class="text-caption text-weight-bold text-grey-5 uppercase">VS</div>
+ <div class="col-2 text-center q-pt-md">
+    <div class="text-weight-bold text-grey-5 uppercase font-12">VS</div>
   </div>
-
-  <!-- Visitante -->
+<!-- Visitante -->
   <div class="col-5">
-    <div class="text-caption text-weight-medium text-grey-8 q-mb-xs">Equipo Visitante *</div>
+    <div class="text-subtitle2 text-weight-bolder text-teal-9 q-mb-xs">Equipo Visitante *</div>
     <q-select
       v-model="form.visitante"
       :options="opciones"
@@ -135,6 +135,7 @@
       map-options
       outlined
       dense
+      bg-color="white"
       placeholder="Visitante"
     >
       <template #option="scope">
