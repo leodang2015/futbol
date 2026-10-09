@@ -1,6 +1,6 @@
 <template>
   <q-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)">
-    <q-card style="width: 500px; max-width: 95vw" class="rounded-borders">
+    <q-card style="width: 620px; max-width: 95vw" class="rounded-borders">
       <q-card-section class="bg-grey-10 text-white row items-center justify-between q-py-md">
         <div class="row items-center">
           <q-icon :name="matSportsScore" color="positive" size="24px" class="q-mr-sm" />
@@ -9,9 +9,9 @@
         <q-btn flat round dense :icon="matClose" v-close-popup text-color="grey-4" />
       </q-card-section>
 
-      <q-card-section class="q-gutter-md q-pt-md">
+      <q-card-section class="q-gutter-lg q-px-lg q-pb-lg q-pt-md">
         <!-- Selector de Jornada (Mínimo Fecha 1, Máximo Fecha 5) -->
-        <div class="row items-center justify-between bg-grey-2 q-pa-sm rounded-borders">
+        <div class="row items-center justify-between bg-grey-2 q-pa-md rounded-borders">
           <div>
             <div class="text-caption text-weight-bold text-grey-8">Jornada Oficial del Torneo</div>
             <div class="text-caption text-grey-6 font-10">Reglamento: Mínimo Fecha 1 · Máximo Fecha 5</div>
@@ -40,8 +40,8 @@
         </div>
 
         <!-- Selector de Fecha y Hora del Partido (En tiempo real, no puede ser posterior) -->
-        <div class="bg-slate-50 border q-pa-sm rounded-borders">
-          <div class="row items-center justify-between q-mb-xs">
+        <div class="bg-slate-50 border q-pa-md rounded-borders">
+          <div class="row items-center justify-between q-mb-sm">
             <div class="text-caption text-weight-bold text-slate-800">
               📅 Fecha y Hora del Partido (Tiempo Real) *
             </div>
@@ -70,7 +70,7 @@
         </div>
 
         <!-- Enfrentamiento visual -->
-        <div class="row q-col-gutter-md items-center">
+        <div class="row q-col-gutter-lg items-center q-py-sm">
           <!-- Local -->
           <div class="col-5">
             <div class="text-caption text-weight-medium text-grey-8 q-mb-xs">Equipo Local *</div>
@@ -208,7 +208,7 @@
         </div>
 
         <!-- Alerta Reglamentaria: Mínimo 11 personas -->
-        <div v-if="alertaReglamentaria" class="bg-amber-1 border border-amber-3 q-pa-sm rounded-borders text-amber-10 row items-center no-wrap">
+        <div v-if="alertaReglamentaria" class="bg-amber-1 border border-amber-3 q-pa-md rounded-borders text-amber-10 row items-center no-wrap">
           <q-icon name="warning" size="20px" class="q-mr-sm" color="amber-9" />
           <div class="text-caption text-weight-medium">
             {{ alertaReglamentaria }}
@@ -216,7 +216,7 @@
         </div>
 
         <!-- Goles -->
-        <div class="row q-col-gutter-md items-center justify-center q-my-xs">
+        <div class="row q-col-gutter-lg items-center justify-center q-my-md">
           <div class="col-5">
             <div class="text-caption text-center text-grey-7 q-mb-xs">Goles {{ nombreEquipo(form.local) || 'Local' }}</div>
             <div class="row items-center justify-center q-gutter-xs bg-grey-1 q-pa-xs rounded-borders">
@@ -244,7 +244,7 @@
         <div v-if="error" class="text-negative text-caption text-center q-mt-xs">{{ error }}</div>
       </q-card-section>
 
-      <q-card-actions align="right" class="q-pa-md bg-grey-1">
+      <q-card-actions align="right" class="q-px-lg q-py-md bg-grey-1">
         <q-btn flat no-caps label="Cancelar" v-close-popup color="grey-7" />
         <q-btn
           color="primary"
