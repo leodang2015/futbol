@@ -155,25 +155,37 @@
       </template>
     </q-select>
 
-    <!-- Estado de nómina visitante -->
-    <div v-if="form.visitante" class="q-mt-xs">
-      <span v-if="store.equipoHabilitadoParaJugar(form.visitante)" class="text-positive text-caption text-weight-bold font-11">
-        ✅ Habilitado ({{ store.cantidadEnCancha(form.visitante) }} en cancha · {{ store.cantidadEnBanca(form.visitante) }} en banca)
-      </span>
-      <div v-else-if="store.tieneExcesoEnCancha(form.visitante)" class="column items-start q-gutter-xs">
-        <span class="text-negative text-caption text-weight-bold font-11">
-          ⚠️ {{ store.cantidadEnCancha(form.visitante) }}/11 en cancha (Excedido en +{{ store.cantidadEnCancha(form.visitante) - 11 }})
-        </span>
-        <q-btn flat dense no-caps size="xs" color="negative" label="🪑 Enviar excedentes a banca" @click="store.enviarExcedentesABanca(form.visitante)" />
-      </div>
-      <div v-else class="column items-start q-gutter-xs">
-        <span class="text-negative text-caption text-weight-bold font-11">
-          ⚠️ Incompleto ({{ store.cantidadJugadoresEquipo(form.visitante) }}/11 jug.)
-        </span>
-        <q-btn flat dense no-caps size="xs" color="primary" label="+ Completar a 11" :loading="completando" @click="completarPlantel(form.visitante)" />
-      </div>
-    </div>
+<div class="col-5">
+    <div class="text-subtitle2 text-weight-bolder text-teal-9 q-mb-xs">Equipo Visitante *</div>
+    <q-select
+      v-model="form.visitante"
+      :options="opciones"
+      emit-value
+      map-options
+      outlined
+      dense
+      bg-color="white"
+      placeholder="Visitante"
+    >
+      <template #option="scope">
+        <q-item v-bind="scope.itemProps">
+          <q-item-section avatar>
+            <span class="dot" :style="{ background: colorEquipo(scope.opt.value) }" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label class="text-weight-bold">{{ scope.opt.label }}</q-item-label>
+            <q-item-label caption>
+              <span :class="scope.opt.habilitado ? 'text-positive text-weight-bold' : 'text-negative text-weight-bold'">
+                {{ scope.opt.badgeText }}
+              </span>
+            </q-item-label>
+          </q-item-section>
+        </q-item>
+      </template>
+    </q-select>
   </div>
+
+</div>
 
 
         <!-- Alerta Reglamentaria: Mínimo 11 personas -->
