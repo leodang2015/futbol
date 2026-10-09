@@ -750,7 +750,7 @@
                     :key="idx"
                     class="row items-center q-col-gutter-sm bg-white q-pa-xs rounded-borders border"
                   >
-                    <div class="col-12 col-sm-6">
+                    <div class="col-12 col-sm-4">
                       <q-select
                         v-model="fila.jugadorId"
                         :options="opcionesJugadoresClub"
@@ -758,11 +758,25 @@
                         map-options
                         outlined
                         dense
+                        label="Goleador (Autor)"
                         placeholder="Selecciona jugador"
                         style="font-size: 12px"
                       />
                     </div>
-                    <div class="col-6 col-sm-3">
+                    <div class="col-12 col-sm-4">
+                      <q-select
+                        v-model="fila.asistenteId"
+                        :options="[{ label: 'Sin Asistencia (Penal / Individual)', value: '' }, ...opcionesJugadoresClub]"
+                        emit-value
+                        map-options
+                        outlined
+                        dense
+                        label="Asistencia (Pase Gol)"
+                        placeholder="Quién asistió"
+                        style="font-size: 12px"
+                      />
+                    </div>
+                    <div class="col-6 col-sm-2">
                       <q-input
                         v-model.number="fila.goles"
                         type="number"
@@ -773,13 +787,13 @@
                         style="font-size: 12px"
                       />
                     </div>
-                    <div class="col-5 col-sm-2">
+                    <div class="col-5 col-sm-1">
                       <q-input
                         v-model="fila.minuto"
                         outlined
                         dense
-                        label="Minuto (opc.)"
-                        placeholder="Ej: 24'"
+                        label="Min."
+                        placeholder="24'"
                         style="font-size: 12px"
                       />
                     </div>
@@ -1269,6 +1283,7 @@ function agregarFilaGoleador() {
   const primerJugador = jugadoresDelEquipo.value[0]?.id || ''
   filasGoleadores.value.push({
     jugadorId: primerJugador,
+    asistenteId: '',
     goles: 1,
     minuto: ''
   })
@@ -1289,12 +1304,15 @@ async function enviarPlanillaGoleadores() {
   try {
     const listaReporte = filasGoleadores.value.filter(f => f.jugadorId).map(f => {
       const jug = jugadoresDelEquipo.value.find(j => (j.id || j._id) === f.jugadorId)
+      const asis = f.asistenteId ? jugadoresDelEquipo.value.find(j => (j.id || j._id) === f.asistenteId) : null
       return {
         jugadorId: f.jugadorId,
         nombre: jug ? `${jug.nombre} ${jug.apellido || ''}`.trim() : 'Jugador',
         dorsal: jug?.numero || jug?.dorsal || '-',
         goles: Number(f.goles) || 1,
-        minuto: f.minuto || ''
+        minuto: f.minuto || '',
+        asistenteId: f.asistenteId || '',
+        asistenteNombre: asis ? `${asis.nombre} ${asis.apellido || ''}`.trim() : ''
       }
     })
 
