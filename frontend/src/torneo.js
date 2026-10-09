@@ -144,6 +144,35 @@ async function actualizarJugador(id, datos) {
   await cargarTodo()
 }
 
+async function cambiarDorsalJugador(jugadorId, nuevoNumero, equipoId) {
+  const jId = idDe(jugadorId)
+  const eqId = idDe(equipoId)
+  const num = Number(nuevoNumero)
+
+  if (!num || num < 1 || num > 99) {
+    throw new Error('El dorsal debe ser un número entero entre 1 y 99.')
+  }
+
+  // Verificar si otro jugador del mismo club ya tiene este número
+  if (eqId) {
+    const delClub = jugadores.value.filter(j => idDe(j.equipoId ?? j.equipo) === eqId && idDe(j.id ?? j._id) !== jId)
+    const ocupado = delClub.find(j => Number(j.numero ?? j.dorsal) === num)
+    if (ocupado) {
+      const nombreOcupante = `${ocupado.nombre} ${ocupado.apellido && ocupado.apellido !== '-' ? ocupado.apellido : ''}`.trim()
+      throw new Error(`El dorsal #${num} ya está en uso por ${nombreOcupante} en tu equipo. Cada jugador debe tener un número único que no se repita.`)
+    }
+  }
+
+  try {
+    const res = await axios.put(`${API_URL}/jugadores/${jId}`, { numero: num }, { headers: authHeaders() })
+    await cargarTodo()
+    return res.data
+  } catch (err) {
+    const msg = err.response?.data?.msg || err.response?.data?.errores?.[0]?.msg || err.message || 'Error al cambiar dorsal'
+    throw new Error(msg)
+  }
+}
+
 async function crearTorneo(datos) {
   await axios.post(`${API_URL}/torneos`, datos, { headers: authHeaders() })
   await cargarTodo()
@@ -629,6 +658,35 @@ const miEquipoId = computed(() => {
 
 const miEquipo = computed(() => equipoPorId(miEquipoId.value))
 
+const miJugador = computed(() => {
+  if (!user.value) return null
+  const uClean = String(user.value.usuario || '').toLowerCase().trim()
+  const uNombre = String(user.value.nombre || '').toLowerCase().trim()
+  const eqId = miEquipoId.value
+  
+  const delClub = eqId ? jugadores.value.filter(j => idDe(j.equipoId ?? j.equipo) === eqId) : jugadores.value
+  if (!delClub.length) return null
+
+  // 1. Coincidencia por jugadorId guardado
+  if (user.value.jugadorId) {
+    const porId = delClub.find(j => idDe(j.id ?? j._id) === String(user.value.jugadorId).trim())
+    if (porId) return porId
+  }
+
+  // 2. Coincidencia por nombre o usuario
+  const encontrado = delClub.find(j => {
+    const jNom = String(j.nombre || '').toLowerCase().trim()
+    const jApe = String(j.apellido || '').toLowerCase().trim()
+    const jFull = `${jNom} ${jApe}`.trim()
+    const jClean = `${jNom}_${jApe}`.trim()
+    if (jClean === uClean || jNom === uClean || jFull === uNombre || jNom === uNombre) return true
+    if (j.email && j.email.toLowerCase().includes(uClean)) return true
+    return false
+  })
+
+  return encontrado || (esJugador.value ? delClub[0] : null)
+})
+
 async function actualizarEscudoEquipo(equipoId, { escudoFigura, escudoUrl, escudocolor }) {
   const eqId = idDe(equipoId)
   if (!eqId) return
@@ -802,11 +860,11 @@ const state = reactive({
   torneo, equipos, jugadores, partidos, notificaciones, notificacionesNoLeidas,
   cargando, error, tabla, stats, fechas,
   goleadores, asistidores, equipoPorId, cantidadJugadoresEquipo, equipoHabilitadoParaJugar,
-  tieneCapitan, capitanDelEquipo, designarCapitan, miEquipoId, miEquipo,
+  tieneCapitan, capitanDelEquipo, designarCapitan, miEquipoId, miEquipo, miJugador,
   normalizarPosicion, jugadoresEnCanchaEquipo, jugadoresEnBancaEquipo,
   cantidadEnCancha, cantidadEnBanca, tieneExcesoEnCancha, enviarExcedentesABanca,
   // Acciones torneo y goleadores
-  cargarTodo, agregarEquipo, agregarJugador, actualizarPosicionJugador, actualizarJugador,
+  cargarTodo, agregarEquipo, agregarJugador, actualizarPosicionJugador, actualizarJugador, cambiarDorsalJugador,
   actualizarEscudoEquipo,
   crearTorneo, guardarPartido, confirmarPartidoDT, fijarMarcadorOrganizador, completarPlantelEquipo,
   registrarGoleadoresDT, marcarNotificacionLeida, marcarTodasNotificacionesLeidas,
