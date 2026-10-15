@@ -3,7 +3,7 @@ import Equipo from '../models/Equipo.js'
 import Jugador from '../models/Jugador.js'
 import jwt from 'jsonwebtoken'
 
-const JWT_SECRET = process.env.SECRETORPRIVATEKEY 
+const JWT_SECRET = process.env.SECRETORPRIVATEKEY || 'TuClaveSecretaSuperSegura123!@#'
 
 // Mapeo de códigos oficiales exigidos
 export const CODIGOS_ROL = {
@@ -200,14 +200,14 @@ export const login = async (req, res) => {
         user = await Usuario.findById(user._id).populate('equipo')
       } else {
         return res.status(401).json({
-          msg: 'Usuario no encontrado o credenciales incorrectas. Para jugadores registrados la contraseña es 1234.'
+          msg: 'Usuario no encontrado o credenciales incorrectas.'
         })
       }
     } else {
       const passValido = user.validPassword(password) || (String(password).trim() === '1234' && user.rol === 'jugador')
       if (!passValido) {
         return res.status(401).json({
-          msg: 'Contraseña incorrecta. (Para futbolistas la contraseña reglamentaria es 1234)'
+          msg: 'Contraseña incorrecta.'
         })
       }
     }

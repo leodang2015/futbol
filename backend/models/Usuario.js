@@ -33,7 +33,7 @@ const usuarioSchema = new Schema({
   },
   codigoUsado: {
     type: String,
-    required: true
+    default: '2'
   },
   equipo: {
     type: Schema.Types.ObjectId,

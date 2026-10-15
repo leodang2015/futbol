@@ -8,7 +8,8 @@ import {
   crearPartido,
   confirmarPartidoDT,
   fijarMarcadorOrganizador,
-  actualizarGoleadores
+  actualizarGoleadores,
+  autogenerarGoleadoresHandler
 } from '../controllers/partidoController.js'
 
 const router = Router()
@@ -47,6 +48,7 @@ router.patch('/:id/marcador-organizador', fijarMarcadorOrganizador)
 // Actualizar goleadores y resultado (Reporte oficial exclusivo del Entrenador)
 router.put('/:id/goleadores', actualizarGoleadores)
 router.patch('/:id/goleadores', actualizarGoleadores)
+router.post('/:id/autogenerar-goleadores', autogenerarGoleadoresHandler)
 
 // Operación protegida
 router.patch('/:id/resultado', validarJWT, cargarResultado)

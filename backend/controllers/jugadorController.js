@@ -8,7 +8,7 @@ export const generarJWT = (uid) => {
 
     jwt.sign(
       payload,
-      process.env.SECRETORPRIVATEKEY ,
+      process.env.SECRETORPRIVATEKEY || 'TuClaveSecretaSuperSegura123!@#',
       { expiresIn: "4h" },
       (err, token) => {
         if (err) {
@@ -216,6 +216,23 @@ export const editarJugador = async (req, res) => {
         return res.status(400).json({
           msg: `El dorsal #${numeroDestino} ya está en uso por ${nombreJugador} en este equipo. Cada jugador debe tener un dorsal único.`
         });
+      }
+    }
+
+    // Regla Oficial: En el fútbol solo se permite 1 arquero titular en cancha por equipo
+    if (resto.posicion) {
+      const pNorm = String(resto.posicion).toLowerCase();
+      if ((pNorm.includes('arquero') || pNorm.includes('portero')) && !pNorm.includes('banc')) {
+        const arqueroExistente = await Jugador.findOne({
+          _id: { $ne: id },
+          equipo: equipoDestino,
+          posicion: { $regex: /arquero|portero/i }
+        });
+        if (arqueroExistente && !String(arqueroExistente.posicion).toLowerCase().includes('banc')) {
+          return res.status(400).json({
+            msg: `Solo se permite 1 arquero titular en cancha. ${arqueroExistente.nombre} ${arqueroExistente.apellido || ''} ya es el arquero titular. Para ingresar otro arquero, debes enviar al titular a la banca.`
+          });
+        }
       }
     }
 

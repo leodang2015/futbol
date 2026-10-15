@@ -76,11 +76,19 @@ export const cargarResultado = async (req, res) => {
 
     partido.golesLocal = golesLocal;
     partido.golesVisitante = golesVisitante;
-    partido.goleadores = goleadores || [];
     partido.tarjetas = tarjetas || [];
     partido.estado = 'Finalizado';
 
+    if (Array.isArray(goleadores) && goleadores.length) {
+      partido.goleadores = goleadores;
+    } else if (Number(golesLocal) > 0 || Number(golesVisitante) > 0) {
+      partido.goleadores = await autoGenerarGoleadoresParaEquipos(partido);
+    } else {
+      partido.goleadores = [];
+    }
+
     await partido.save();
+    await recalcularEstadisticasJugadores();
 
     res.json({
       msg: "Resultado cargado exitosamente",
@@ -316,13 +324,24 @@ export const crearPartido = async (req, res) => {
       golesVisitante: Number(golesVisitante) || 0,
       asistenciasLocal: Number(req.body.asistenciasLocal) || 0,
       asistenciasVisitante: Number(req.body.asistenciasVisitante) || 0,
-      estado: req.body.estado || 'Por Confirmar',
+      estado: req.body.estado || (Number(golesLocal) > 0 || Number(golesVisitante) > 0 ? 'Finalizado' : 'Por Confirmar'),
       confirmacionLocal: req.body.confirmacionLocal || false,
       confirmacionVisitante: req.body.confirmacionVisitante || false,
       confirmadoPorDTs: Boolean(req.body.confirmacionLocal && req.body.confirmacionVisitante)
     });
 
+    if (Array.isArray(req.body.goleadores) && req.body.goleadores.length) {
+      nuevoPartido.goleadores = req.body.goleadores;
+      nuevoPartido.estado = 'Finalizado';
+    } else if (Number(golesLocal) > 0 || Number(golesVisitante) > 0) {
+      nuevoPartido.goleadores = await autoGenerarGoleadoresParaEquipos(nuevoPartido);
+      nuevoPartido.estado = 'Finalizado';
+    }
+
     await nuevoPartido.save();
+    if (nuevoPartido.estado === 'Finalizado') {
+      await recalcularEstadisticasJugadores();
+    }
 
     // Notificaciones oficiales automáticas para que los dos entrenadores confirmen que van a jugar
     try {
@@ -445,19 +464,24 @@ export const fijarMarcadorOrganizador = async (req, res) => {
       return res.status(404).json({ msg: 'El partido no existe en la base de datos' });
     }
 
-    if (!partido.confirmacionLocal || !partido.confirmacionVisitante) {
-      return res.status(400).json({
-        msg: 'Ambos entrenadores deben confirmar que van a jugar antes de que el organizador pueda fijar el marcador y las asistencias.'
-      });
-    }
+    // Permitir fijar el marcador oficial; si no habían confirmado, se auto-valida al fijar la puntuación final
+    partido.confirmacionLocal = true;
+    partido.confirmacionVisitante = true;
+    partido.confirmadoPorDTs = true;
 
     partido.golesLocal = Number(golesLocal) || 0;
     partido.golesVisitante = Number(golesVisitante) || 0;
     partido.asistenciasLocal = Number(asistenciasLocal) || 0;
     partido.asistenciasVisitante = Number(asistenciasVisitante) || 0;
-    partido.estado = 'En Preparación';
+    partido.estado = 'Finalizado';
+
+    // Selección automática de goleadores y asistencias de cada equipo
+    if (partido.golesLocal > 0 || partido.golesVisitante > 0) {
+      partido.goleadores = await autoGenerarGoleadoresParaEquipos(partido);
+    }
 
     await partido.save();
+    await recalcularEstadisticasJugadores();
 
     // Notificar a los entrenadores
     try {
@@ -521,11 +545,26 @@ export const actualizarGoleadores = async (req, res) => {
         const gEq = String(g.equipo || g.equipoId || '');
         return targetEqId && gEq && gEq !== targetEqId;
       });
-      partido.goleadores = [...otrosClubes, ...goleadores];
+      const goleadoresSanitizados = goleadores.map(g => {
+        let min = g.minuto;
+        if (typeof min === 'string') {
+          const parsed = parseInt(min.replace(/[^0-9]/g, ''), 10);
+          min = isNaN(parsed) ? 45 : parsed;
+        } else if (typeof min !== 'number') {
+          min = 45;
+        }
+        return {
+          ...g,
+          minuto: min,
+          goles: Number(g.goles) || 1
+        };
+      });
+      partido.goleadores = [...otrosClubes, ...goleadoresSanitizados];
     }
     partido.estado = 'Finalizado';
 
     await partido.save();
+    await recalcularEstadisticasJugadores();
     const partidoPoblado = await Partido.findById(partido._id).populate('local visitante');
 
     res.json({
@@ -538,6 +577,143 @@ export const actualizarGoleadores = async (req, res) => {
   }
 };
 
+export const autoGenerarGoleadoresParaEquipos = async (partido) => {
+  try {
+    const localId = partido.local?._id || partido.local;
+    const visId = partido.visitante?._id || partido.visitante;
+
+    const [eqLocal, eqVis, jugsLocal, jugsVis] = await Promise.all([
+      Equipo.findById(localId),
+      Equipo.findById(visId),
+      Jugador.find({ equipo: localId }),
+      Jugador.find({ equipo: visId })
+    ]);
+
+    const totalGolesLocal = Number(partido.golesLocal) || 0;
+    const totalGolesVis = Number(partido.golesVisitante) || 0;
+
+    const listaGoleadores = [];
+
+    const distribuirGoles = (jugadores, totalGoles, eqNombre, eqId) => {
+      if (!jugadores || !jugadores.length || totalGoles <= 0) return [];
+
+      const outfield = jugadores.filter(j => {
+        const p = String(j.posicion || '').toLowerCase();
+        return !p.includes('porter') && !p.includes('arqu') && !p.includes('banc');
+      });
+      const pool = outfield.length >= 2 ? outfield : jugadores;
+
+      const asignaciones = [];
+      let golesRestantes = totalGoles;
+      const minutosBase = [14, 28, 37, 49, 58, 67, 76, 84, 89];
+
+      // Barajar aleatoriamente
+      const shuffled = [...pool].sort(() => 0.5 - Math.random());
+      let idx = 0;
+
+      while (golesRestantes > 0) {
+        const jugador = shuffled[idx % shuffled.length];
+        golesRestantes -= 1;
+
+        const posiblesAsistentes = jugadores.filter(j => String(j._id) !== String(jugador._id));
+        const tieneAsistencia = posiblesAsistentes.length > 0 && Math.random() > 0.35;
+        const asistente = tieneAsistencia ? posiblesAsistentes[Math.floor(Math.random() * posiblesAsistentes.length)] : null;
+        const baseMin = minutosBase[idx % minutosBase.length] || 15;
+        const minNum = Math.min(90, Math.max(1, baseMin + (idx * 7) % 15));
+
+        asignaciones.push({
+          jugador: jugador._id,
+          jugadorId: String(jugador._id),
+          nombre: `${jugador.nombre} ${jugador.apellido && jugador.apellido !== '-' ? jugador.apellido : ''}`.trim(),
+          dorsal: jugador.numero ?? jugador.dorsal ?? 10,
+          goles: 1,
+          minuto: minNum,
+          asistente: asistente ? asistente._id : null,
+          asistenteId: asistente ? String(asistente._id) : '',
+          asistenteNombre: asistente ? `${asistente.nombre} ${asistente.apellido && asistente.apellido !== '-' ? asistente.apellido : ''}`.trim() : '',
+          equipo: eqId,
+          equipoId: String(eqId),
+          equipoNombre: eqNombre || ''
+        });
+        idx++;
+      }
+      return asignaciones;
+    };
+
+    if (totalGolesLocal > 0) {
+      listaGoleadores.push(...distribuirGoles(jugsLocal, totalGolesLocal, eqLocal?.nombre, localId));
+    }
+    if (totalGolesVis > 0) {
+      listaGoleadores.push(...distribuirGoles(jugsVis, totalGolesVis, eqVis?.nombre, visId));
+    }
+
+    return listaGoleadores;
+  } catch (err) {
+    console.error('Error al autogenerar goleadores:', err);
+    return [];
+  }
+};
+
+export const autogenerarGoleadoresHandler = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const partido = await Partido.findById(id).populate('local visitante');
+    if (!partido) {
+      return res.status(404).json({ msg: 'Partido no encontrado' });
+    }
+
+    partido.goleadores = await autoGenerarGoleadoresParaEquipos(partido);
+    partido.estado = 'Finalizado';
+    await partido.save();
+    await recalcularEstadisticasJugadores();
+
+    const actualizado = await Partido.findById(partido._id).populate('local visitante');
+    res.json({
+      msg: 'Goleadores y asistencias escogidos automáticamente con éxito.',
+      partido: actualizado
+    });
+  } catch (error) {
+    console.error('Error en autogenerarGoleadoresHandler:', error);
+    res.status(400).json({ msg: error.message || 'Error al autogenerar goleadores' });
+  }
+};
+
+async function recalcularEstadisticasJugadores() {
+  try {
+    const partidos = await Partido.find({ estado: 'Finalizado' });
+    const golesPorJugador = {};
+    const asistenciasPorJugador = {};
+
+    for (const p of partidos) {
+      if (Array.isArray(p.goleadores)) {
+        for (const g of p.goleadores) {
+          const jId = g.jugadorId ? String(g.jugadorId) : '';
+          const aId = g.asistenteId ? String(g.asistenteId) : '';
+          if (jId) {
+            golesPorJugador[jId] = (golesPorJugador[jId] || 0) + (Number(g.goles) || 1);
+          }
+          if (aId) {
+            asistenciasPorJugador[aId] = (asistenciasPorJugador[aId] || 0) + 1;
+          }
+        }
+      }
+    }
+
+    const updates = [];
+    for (const [id, goles] of Object.entries(golesPorJugador)) {
+      updates.push(Jugador.findByIdAndUpdate(id, { $set: { goles } }));
+    }
+    for (const [id, asistencias] of Object.entries(asistenciasPorJugador)) {
+      updates.push(Jugador.findByIdAndUpdate(id, { $set: { asistencias } }));
+    }
+    if (updates.length) {
+      await Promise.all(updates);
+    }
+  } catch (err) {
+    console.error('Error en recalcularEstadisticasJugadores:', err);
+  }
+}
+
 export default { 
   listarPartidos, 
   cargarResultado, 
@@ -545,5 +721,7 @@ export default {
   crearPartido, 
   confirmarPartidoDT, 
   fijarMarcadorOrganizador, 
-  actualizarGoleadores 
+  actualizarGoleadores,
+  autogenerarGoleadoresHandler,
+  autoGenerarGoleadoresParaEquipos
 };
