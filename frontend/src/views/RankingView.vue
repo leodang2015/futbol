@@ -14,7 +14,7 @@
                 <div class="text-caption text-grey-6">{{ t.subtitulo }}</div>
               </div>
             </div>
-            <span class="text-caption text-weight-bold text-grey-5 uppercase font-mono">TOP 5</span>
+            <span class="text-caption text-weight-bold text-grey-5 uppercase font-mono">TOP 10</span>
           </q-card-section>
 
           <!-- Tabla de Jugadores -->
@@ -69,8 +69,13 @@
                   </td>
 
                   <!-- Cifra Oficial -->
-                  <td class="text-right font-mono td-score text-weight-bolder" :class="t.scoreColor">
-                    {{ j[t.campo] ?? 0 }}
+                  <td class="text-right font-mono td-score text-weight-bolder">
+                    <span
+                      class="q-px-sm q-py-xs rounded-borders text-weight-bolder text-subtitle2 shadow-xs"
+                      :class="t.campo === 'goles' ? 'bg-orange-1 text-orange-9 border border-orange-3' : 'bg-blue-1 text-blue-9 border border-blue-3'"
+                    >
+                      {{ j[t.campo] ?? 0 }} {{ t.campo === 'goles' ? '⚽' : '🎯' }}
+                    </span>
                   </td>
                 </tr>
 
@@ -99,28 +104,46 @@ import { matLocalFireDepartment, matAutoAwesome } from '@quasar/extras/material-
 
 const store = useTorneo()
 
+const goleadoresFiltrados = computed(() => {
+  let list = store.goleadores
+  if (store.esJugador || store.esEntrenador) {
+    const miId = String(store.miEquipoId || '').trim()
+    list = list.filter(g => String((g.equipoId || g.equipo || '')).trim() === miId)
+  }
+  return list
+})
+
+const asistidoresFiltrados = computed(() => {
+  let list = store.asistidores
+  if (store.esJugador || store.esEntrenador) {
+    const miId = String(store.miEquipoId || '').trim()
+    list = list.filter(a => String((a.equipoId || a.equipo || '')).trim() === miId)
+  }
+  return list
+})
+
 const tablas = computed(() => [
   {
-    titulo: 'Tabla de Goleadores',
-    subtitulo: 'Máximos artilleros del torneo',
+    titulo: (store.esJugador || store.esEntrenador) ? `Goleadores de tu Club (${store.miEquipo?.nombre || 'Mi Equipo'})` : 'Tabla de Goleadores',
+    subtitulo: (store.esJugador || store.esEntrenador) ? 'Anotadores oficiales de tu plantel' : 'Máximos artilleros del torneo',
     icon: matLocalFireDepartment,
     avatarBg: 'orange-1',
     avatarColor: 'orange-9',
     scoreColor: 'text-emerald-700',
     campo: 'goles',
     label: 'Goles',
-    datos: store.goleadores
+    datos: goleadoresFiltrados.value
   },
   {
-    titulo: 'Máximos Asistidores',
-    subtitulo: 'Líderes en pases gol y juego colectivo',
+    titulo: (store.esJugador || store.esEntrenador) ? `Asistidores de tu Club (${store.miEquipo?.nombre || 'Mi Equipo'})` : 'Máximos Asistidores',
+    subtitulo: (store.esJugador || store.esEntrenador) ? 'Líderes en pases gol de tu plantel' : 'Líderes en pases gol y juego colectivo',
     icon: matAutoAwesome,
     avatarBg: 'blue-1',
     avatarColor: 'blue-9',
     scoreColor: 'text-blue-700',
     campo: 'asistencias',
     label: 'Asistencias',
-    datos: store.asistidores
+    datos: asistidoresFiltrados.value
   }
 ])
 

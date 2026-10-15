@@ -215,8 +215,13 @@
             <div class="q-pa-md">
               <div class="row items-center justify-between q-mb-sm">
                 <div>
-                  <div class="text-subtitle2 text-weight-bold text-dark">Plantel Oficial del Club</div>
-                  <div class="text-caption text-grey-7 font-mono">
+                  <div class="text-subtitle2 text-weight-bold text-dark row items-center q-gutter-xs">
+                    <span>{{ store.esJugador ? 'Tu Ficha en el Plantel Oficial' : 'Plantel Oficial del Club' }}</span>
+                    <q-badge v-if="store.esJugador" color="indigo-7" text-color="white" class="font-10 text-weight-bold">
+                      🔒 Privacidad Protegida
+                    </q-badge>
+                  </div>
+                  <div v-if="!store.esJugador" class="text-caption text-grey-7 font-mono">
                     {{ plantel.length }} en nómina ·
                     <span :class="store.cantidadEnCancha(equipoSeleccionado?.id) > 11 ? 'text-negative text-weight-bolder' : 'text-emerald-8 text-weight-bold'">
                       {{ store.cantidadEnCancha(equipoSeleccionado?.id) }}/11 en cancha
@@ -226,9 +231,12 @@
                     </span>
                     · {{ store.cantidadEnBanca(equipoSeleccionado?.id) }} en banca
                   </div>
+                  <div v-else class="text-caption text-indigo-9 font-medium q-mt-xs">
+                    🔒 Por privacidad reglamentaria, solo tienes acceso a ver tu propia información deportiva. La información y estadísticas de otros futbolistas están protegidas.
+                  </div>
                 </div>
                 <q-btn
-                  v-if="store.cantidadEnCancha(equipoSeleccionado?.id) > 11"
+                  v-if="!store.esJugador && store.cantidadEnCancha(equipoSeleccionado?.id) > 11"
                   unelevated
                   dense
                   size="sm"
@@ -319,7 +327,7 @@
                           <q-icon :name="matPersonOutline" size="32px" color="grey-4" class="q-mb-xs" />
                           <div class="text-body2 text-weight-medium">Aún no hay jugadores registrados en este club.</div>
                           <div class="text-caption text-grey-6 q-mt-xs">
-                            Los futbolistas se incorporan al registrarse con rol jugador (contraseña: 1234) o mediante la nómina completada por el organizador.
+                            Los futbolistas se incorporan al registrarse con rol jugador (con su clave de acceso) o mediante la nómina completada por el organizador.
                           </div>
                         </div>
                       </td>
@@ -545,9 +553,9 @@ function esElMismoJugador(j) {
 
 // Dorsales ocupados por compañeros del equipo
 const dorsalesOcupadosEquipo = computed(() => {
-  if (!plantel.value || !plantel.value.length) return []
+  if (!todosLosJugadoresDelClub.value || !todosLosJugadoresDelClub.value.length) return []
   const jActualId = String(jugadorEditandoDorsal.value?.id || jugadorEditandoDorsal.value?._id || '').trim()
-  return plantel.value
+  return todosLosJugadoresDelClub.value
     .filter(j => String(j.id || j._id || '').trim() !== jActualId)
     .map(j => ({
       numero: Number(j.numero ?? j.dorsal),
@@ -694,9 +702,23 @@ const equipo = computed(() => {
   return clubesVisibles.value[0] || store.equipos[0] || null
 })
 
-const plantel = computed(() => {
+const todosLosJugadoresDelClub = computed(() => {
   if (!equipo.value) return []
   return store.jugadores.filter(j => j.equipoId === equipo.value.id || j.equipo === equipo.value.id)
+})
+
+const plantel = computed(() => {
+  if (!equipo.value) return []
+  const todos = todosLosJugadoresDelClub.value
+  if (store.esJugador) {
+    // Aca en la ultima imagen no quiero que el jugador vea la informacion de otros
+    const soloMio = todos.filter(j => esElMismoJugador(j))
+    if (!soloMio.length && miFichaJugador.value) {
+      return [miFichaJugador.value]
+    }
+    return soloMio
+  }
+  return todos
 })
 
 const headerGradient = computed(() => {

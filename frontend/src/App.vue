@@ -7,7 +7,7 @@
         <div class="login-card-header q-pa-lg text-center">
           <div class="brand-crest-wrapper q-mx-auto q-mb-sm">
             <img
-              src="../assets/images/league_crest_badge_1790957070182.jpg"
+              :src="logoCrest"
               alt="Logo"
               class="brand-crest-img"
               referrerPolicy="no-referrer"
@@ -67,7 +67,7 @@
               <div>
                 <div class="row items-center justify-between q-mb-xs">
                   <div class="text-caption text-weight-bold text-grey-8">Contraseña</div>
-                  <div class="text-caption text-indigo-8 font-10">Futbolistas registrados: clave 1234</div>
+                  <div class="text-caption text-indigo-8 font-10">Acceso oficial para futbolistas y cuerpo técnico</div>
                 </div>
                 <q-input
                   v-model="loginForm.password"
@@ -75,7 +75,7 @@
                   outlined
                   dense
                   bg-color="white"
-                  placeholder="Tu contraseña (para futbolistas: 1234)"
+                  placeholder="Ingresa tu contraseña"
                   :rules="[val => !!val || 'La contraseña es obligatoria']"
                 >
                   <template #prepend>
@@ -514,7 +514,7 @@
             <div class="row items-center no-wrap brand-zone">
               <div class="brand-crest-wrapper q-mr-sm">
                 <img
-                  src="../assets/images/league_crest_badge_1790957070182.jpg"
+                  :src="logoCrest"
                   alt="Logo"
                   class="brand-crest-img"
                   referrerPolicy="no-referrer"
@@ -605,8 +605,8 @@
                 <q-avatar size="24px" color="positive" text-color="white" class="q-mr-xs">
                   <span class="text-weight-bold font-mono">{{ ((store.nombreDisplay || 'U').charAt ? store.nombreDisplay.charAt(0) : 'U').toUpperCase() }}</span>
                 </q-avatar>
-                <span class="text-caption text-weight-bold ellipsis" style="max-width: 90px">
-                  {{ store.user?.usuario }}
+                <span class="text-caption text-weight-bold ellipsis" style="max-width: 130px" :title="store.nombreDisplay">
+                  {{ store.nombreDisplay }}
                 </span>
               </div>
 
@@ -843,6 +843,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import logoCrest from './assets/images/league_crest_badge_1790957070182.jpg'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useTorneo, ROLES } from './torneo.js'
@@ -966,8 +967,9 @@ function seleccionarRolRegistro(nuevoRol) {
   else if (nuevoRol === 'entrenador') registroForm.value.codigo = '2'
   else if (nuevoRol === 'jugador') {
     registroForm.value.codigo = '3'
+    // No auto-rellenar contraseñas
     if (!registroForm.value.password) {
-      registroForm.value.password = '1234'
+      registroForm.value.password = ''
     }
   }
 }

@@ -137,47 +137,35 @@
       <!-- Columna Principal: Tabla Oficial de Posiciones -->
       <div class="col-12 col-lg-8">
         <!-- BANNER DE PRIVACIDAD / VISTA: Modo Jugador o Entrenador -->
+        <!-- BANNER DE INFORMACIÓN EXCLUSIVA DEL CLUB (Jugador / Entrenador) -->
         <q-banner
-          v-if="(store.esJugador || store.esEntrenador) && store.miEquipoId"
+          v-if="store.esJugador || store.esEntrenador"
           dense
           rounded
           class="bg-indigo-1 text-indigo-10 q-mb-md q-py-sm q-px-md border border-indigo-2 shadow-1"
         >
           <template #avatar>
-            <q-icon :name="matSportsSoccer" size="24px" color="indigo-8" />
+            <q-icon :name="matSportsSoccer" size="26px" color="indigo-8" />
           </template>
           <div class="row items-center justify-between no-wrap">
             <div>
-              <div class="text-caption text-weight-bolder">
-                ⚽ Tabla Oficial de Posiciones · {{ store.miEquipo?.nombre || 'Tu Club' }}
+              <div class="text-subtitle2 text-weight-bolder">
+                ⚽ Información de tu Club: {{ miClubEnTabla?.nombre || store.miEquipo?.nombre || 'Tu Equipo' }}
               </div>
-              <div class="text-caption text-grey-8">
-                Tu club aparece destacado en la tabla. Puedes alternar entre ver todos los clubes o solo tu club.
+              <div class="text-caption text-indigo-9">
+                Tu club se ubica en el <strong>Puesto {{ miClubEnTabla?.pos ? `${miClubEnTabla.pos}°` : '—' }}</strong> con <strong>{{ miClubEnTabla?.pts || 0 }} pts</strong> oficiales ({{ miClubEnTabla?.pj || 0 }} PJ, {{ miClubEnTabla?.pg || 0 }} PG, {{ miClubEnTabla?.pe || 0 }} PE, {{ miClubEnTabla?.pp || 0 }} PP). Como {{ store.esEntrenador ? 'director técnico' : 'jugador' }}, solo tienes acceso a la información y posición de tu propio equipo.
               </div>
             </div>
-            <q-btn-toggle
-              v-model="filtroVistaTabla"
-              no-caps
-              dense
-              unelevated
-              size="xs"
-              color="white"
-              text-color="indigo-9"
-              toggle-color="indigo-9"
-              toggle-text-color="white"
-              class="q-ml-sm shadow-1"
-              :options="[
-                { label: 'Todos los Clubes', value: 'todos' },
-                { label: 'Solo Mi Club', value: 'mio' }
-              ]"
-            />
+            <q-badge color="indigo-8" text-color="white" class="text-weight-bolder q-px-sm q-py-xs font-12 shadow-1">
+              {{ miClubEnTabla?.pos ? `Puesto #${miClubEnTabla.pos}` : 'Sin posición' }}
+            </q-badge>
           </div>
         </q-banner>
 
         <q-card flat bordered class="main-table-card bg-white rounded-borders overflow-hidden">
           <!-- Toolbar Superior: Filtro y Leyenda -->
           <q-card-section class="table-toolbar row items-center justify-between q-col-gutter-sm bg-slate-50 border-b">
-            <div class="row items-center q-gutter-sm">
+            <div v-if="store.esOrganizador" class="row items-center q-gutter-sm">
               <q-input
                 v-model="buscar"
                 dense
@@ -194,6 +182,15 @@
               <span v-if="buscar" class="text-caption text-grey-6 font-mono">
                 {{ filas.length }} resultado(s)
               </span>
+            </div>
+            <div v-else class="row items-center q-gutter-xs">
+              <q-icon :name="matLock" size="18px" color="indigo-8" class="q-mr-xs" />
+              <span class="text-subtitle2 text-weight-bold text-slate-800">
+                Información de tu Grupo/Club: {{ miClubEnTabla?.nombre || store.miEquipo?.nombre || 'Tu Equipo' }}
+              </span>
+              <q-badge color="indigo-8" text-color="white" class="text-weight-bolder font-11 q-ml-xs shadow-1">
+                Puesto Oficial: {{ miClubEnTabla?.pos ? ('#' + miClubEnTabla.pos) : '—' }}
+              </q-badge>
             </div>
 
             <div class="row items-center q-gutter-md text-caption text-grey-7">
@@ -317,7 +314,8 @@
           <q-card-section class="table-footer row items-center justify-between text-caption text-grey-7 bg-slate-50 border-t">
             <div class="row items-center q-gutter-xs">
               <span class="zone-marker bg-primary" />
-              <span>Zona de clasificación a fase final (puestos 1 a 4)</span>
+              <span v-if="store.esOrganizador">Zona de clasificación a fase final (puestos 1 a 4)</span>
+              <span v-else>Tu club ocupa el puesto {{ miClubEnTabla?.pos ? `${miClubEnTabla.pos}°` : '—' }} en la competencia oficial</span>
             </div>
             <div class="font-mono text-grey-8">
               Promedio del torneo: <strong class="text-dark">{{ store.stats.promedio }}</strong> goles/partido
@@ -333,27 +331,11 @@
           <q-card-section class="row items-center justify-between q-py-sm bg-slate-50 border-b">
             <div class="row items-center">
               <q-icon :name="matCalendarMonth" size="18px" color="primary" class="q-mr-xs" />
-              <span class="text-subtitle2 text-weight-bold text-dark">Partidos Recientes</span>
+              <span class="text-subtitle2 text-weight-bold text-dark">
+                {{ store.esOrganizador ? 'Partidos Recientes' : 'Partidos de tu Club' }}
+              </span>
             </div>
-            <div class="row items-center q-gutter-xs">
-              <q-btn-toggle
-                v-if="(store.esJugador || store.esEntrenador) && store.miEquipoId"
-                v-model="filtroVistaPartidos"
-                no-caps
-                dense
-                unelevated
-                size="xs"
-                color="grey-2"
-                text-color="grey-8"
-                toggle-color="primary"
-                toggle-text-color="white"
-                :options="[
-                  { label: 'Todos', value: 'todos' },
-                  { label: 'Mi Club', value: 'mio' }
-                ]"
-              />
-              <q-btn flat dense no-caps color="primary" label="Ver Fixture" to="/fixture" size="sm" :icon-right="matArrowForward" />
-            </div>
+            <q-btn flat dense no-caps color="primary" label="Ver Fixture" to="/fixture" size="sm" :icon-right="matArrowForward" />
           </q-card-section>
 
           <q-list separator class="match-mini-list">
@@ -519,15 +501,27 @@ const metricas = computed(() => [
   { label: 'Promedio de Gol', value: store.stats.promedio, sub: 'Por encuentro oficial', icon: matMilitaryTech, bgClass: 'bg-teal-50', iconClass: 'text-teal-700' }
 ])
 
-const filas = computed(() => {
-  const todas = store.tabla.map((e, i) => ({
+const tablaConPosiciones = computed(() => {
+  return store.tabla.map((e, i) => ({
     ...e,
     pos: i + 1,
     color: e.color || e.escudocolor || '#059669',
     esMiClub: (store.esJugador || store.esEntrenador) && String(e.id || e._id || '').trim() === String(store.miEquipoId || '').trim()
   }))
+})
 
-  if ((store.esJugador || store.esEntrenador) && filtroVistaTabla.value === 'mio') {
+const miClubEnTabla = computed(() => {
+  const miEqId = String(store.miEquipoId || '').trim()
+  if (!miEqId) return null
+  return tablaConPosiciones.value.find(e => String(e.id || e._id || '').trim() === miEqId) || null
+})
+
+const filas = computed(() => {
+  const todas = tablaConPosiciones.value
+
+  // Para jugador y entrenador: RESTRICCIÓN ESTRICTA: NO ven la tabla general de posiciones de los demás clubes,
+  // únicamente ven la información y rendimiento de su propio equipo/grupo y su puesto actual en el torneo.
+  if (store.esJugador || store.esEntrenador) {
     const miEqId = String(store.miEquipoId || '').trim()
     if (miEqId) {
       return todas.filter(e => String(e.id || e._id || '').trim() === miEqId)
@@ -543,7 +537,7 @@ const filas = computed(() => {
 
 const partidosResumen = computed(() => {
   let list = [...store.partidos]
-  if ((store.esJugador || store.esEntrenador) && filtroVistaPartidos.value === 'mio') {
+  if (store.esJugador || store.esEntrenador) {
     const miEqId = String(store.miEquipoId || '').trim()
     if (miEqId) {
       list = list.filter(p => String(p.localId || '').trim() === miEqId || String(p.visitanteId || '').trim() === miEqId)
@@ -552,13 +546,23 @@ const partidosResumen = computed(() => {
   return list.slice(-8).reverse()
 })
 
-const goleadoresResumen = computed(() =>
-  [...store.goleadores].slice(0, 5)
-)
+const goleadoresResumen = computed(() => {
+  let list = store.goleadores
+  if (store.esJugador || store.esEntrenador) {
+    const miId = String(store.miEquipoId || '').trim()
+    list = list.filter(g => String((g.equipoId || g.equipo || '')).trim() === miId)
+  }
+  return [...list].slice(0, 5)
+})
 
-const asistidoresResumen = computed(() =>
-  [...store.asistidores].slice(0, 5)
-)
+const asistidoresResumen = computed(() => {
+  let list = store.asistidores
+  if (store.esJugador || store.esEntrenador) {
+    const miId = String(store.miEquipoId || '').trim()
+    list = list.filter(a => String((a.equipoId || a.equipo || '')).trim() === miId)
+  }
+  return [...list].slice(0, 5)
+})
 
 function nombreEquipo(id) {
   const eq = store.equipoPorId(id)

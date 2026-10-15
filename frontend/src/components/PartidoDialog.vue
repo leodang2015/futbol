@@ -1,203 +1,274 @@
 <template>
   <q-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)">
-    <q-card style="width: 480px; max-width: 95vw" class="rounded-borders">
-      <q-card-section class="bg-grey-10 text-white row items-center justify-between q-py-md">
-        <div class="row items-center">
-          <q-icon :name="matSportsScore" color="positive" size="24px" class="q-mr-sm" />
-          <div class="text-subtitle1 text-weight-bold">Registrar Partido / Marcador</div>
+    <q-card style="width: 640px; max-width: 95vw; max-height: 90vh" class="rounded-borders column no-wrap overflow-hidden shadow-10">
+      <!-- Encabezado Pinned -->
+      <q-card-section class="bg-grey-10 text-white row items-center justify-between q-py-sm q-px-md shrink-0">
+        <div class="row items-center q-gutter-xs">
+          <q-icon :name="matSportsScore" color="positive" size="22px" />
+          <div class="text-subtitle1 text-weight-bold">Registrar Partido / Marcador Oficial</div>
         </div>
-        <q-btn flat round dense :icon="matClose" v-close-popup text-color="grey-4" />
+        <q-btn flat round dense :icon="matClose" v-close-popup text-color="grey-4" size="sm" />
       </q-card-section>
 
-      <q-card-section class="q-gutter-md q-pa-md">        <!-- Selector de Jornada (Mínimo Fecha 1, Máximo Fecha 5) -->
-        <div class="row items-center justify-between bg-grey-2 q-pa-md rounded-borders">
-          <div>
-            <div class="text-caption text-weight-bold text-grey-8">Jornada Oficial del Torneo</div>
-            <div class="text-caption text-grey-6 font-10">Reglamento: Mínimo Fecha 1 · Máximo Fecha 5</div>
-          </div>
-          <div class="row items-center q-gutter-xs">
-            <q-btn
-              flat
-              dense
-              round
-              :icon="matRemove"
-              size="sm"
-              :disable="form.fecha <= 1"
-              @click="form.fecha = Math.max(1, form.fecha - 1)"
-            />
-            <span class="text-weight-bold font-mono text-subtitle2 q-px-sm">Fecha {{ form.fecha }} / 5</span>
-            <q-btn
-              flat
-              dense
-              round
-              :icon="matAdd"
-              size="sm"
-              :disable="form.fecha >= 5"
-              @click="form.fecha = Math.min(5, form.fecha + 1)"
-            />
-          </div>
-        </div>
-
-        <!-- Selector de Fecha y Hora del Partido (En tiempo real, no puede ser posterior) -->
-        <div class="bg-slate-50 border q-pa-md rounded-borders">
-          <div class="row items-center justify-between q-mb-sm">
-            <div class="text-caption text-weight-bold text-slate-800">
-              📅 Fecha y Hora del Partido (Tiempo Real) *
+      <!-- Cuerpo Scrolleable Cómodo -->
+      <q-card-section class="scroll q-pa-md q-gutter-y-sm col">
+        <!-- Fila 1: Jornada Oficial y Fecha/Hora del Partido -->
+        <div class="row q-col-gutter-sm items-stretch">
+          <div class="col-12 col-sm-5">
+            <div class="bg-slate-50 border q-pa-sm rounded-borders full-height column justify-between">
+              <div>
+                <div class="text-caption text-weight-bold text-slate-800">Jornada del Torneo</div>
+                <div class="text-caption text-grey-6 font-10">Fecha 1 a 5 reglamentaria</div>
+              </div>
+              <div class="row items-center justify-between bg-white q-px-xs q-py-none rounded border q-mt-xs">
+                <q-btn
+                  flat
+                  dense
+                  round
+                  :icon="matRemove"
+                  size="sm"
+                  :disable="form.fecha <= 1"
+                  @click="form.fecha = Math.max(1, form.fecha - 1)"
+                />
+                <span class="text-weight-bolder font-mono text-subtitle2">Fecha {{ form.fecha }} / 5</span>
+                <q-btn
+                  flat
+                  dense
+                  round
+                  :icon="matAdd"
+                  size="sm"
+                  :disable="form.fecha >= 5"
+                  @click="form.fecha = Math.min(5, form.fecha + 1)"
+                />
+              </div>
             </div>
-            <q-btn
-              flat
-              dense
-              no-caps
-              size="xs"
-              color="primary"
-              label="⏱️ Fijar Hora Actual"
-              @click="fijarHoraActual"
-            />
           </div>
-          <q-input
-            v-model="form.fechaHora"
-            type="datetime-local"
-            outlined
-            dense
-            bg-color="white"
-            class="font-mono text-caption"
-            :max="maxFechaHoraActual"
-          />
-          <div class="text-caption text-grey-7 font-10 q-mt-xs">
-            Por reglamento, la fecha del partido debe fijarse en tiempo real y no puede ser posterior a la fecha y hora actual.
+
+          <div class="col-12 col-sm-7">
+            <div class="bg-slate-50 border q-pa-sm rounded-borders full-height column justify-between">
+              <div class="row items-center justify-between no-wrap q-mb-xs">
+                <span class="text-caption text-weight-bold text-slate-800 ellipsis">📅 Fecha y Hora Oficial *</span>
+                <q-btn
+                  flat
+                  dense
+                  no-caps
+                  size="xs"
+                  color="primary"
+                  label="⏱️ Fijar Actual"
+                  class="font-10 text-weight-bold"
+                  @click="fijarHoraActual"
+                />
+              </div>
+              <q-input
+                v-model="form.fechaHora"
+                type="datetime-local"
+                outlined
+                dense
+                bg-color="white"
+                class="font-mono text-caption"
+                :max="maxFechaHoraActual"
+              />
+            </div>
           </div>
         </div>
 
-<div class="row q-col-gutter-sm items-center q-py-xs">
-  
-  <!-- Local -->
-  <div class="col-5">
-    <div class="text-subtitle2 text-weight-bolder text-teal-9 q-mb-xs">Equipo Local *</div>
-    <q-select
-      v-model="form.local"
-      :options="opciones"
-      emit-value
-      map-options
-      outlined
-      dense
-      bg-color="white"
-      placeholder="Local"
-    >
-      <template #option="scope">
-        <q-item v-bind="scope.itemProps">
-          <q-item-section avatar>
-            <span class="dot" :style="{ background: colorEquipo(scope.opt.value) }" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label class="text-weight-bold">{{ scope.opt.label }}</q-item-label>
-            <q-item-label caption>
-              <span :class="scope.opt.habilitado ? 'text-positive text-weight-bold' : 'text-negative text-weight-bold'">
-                {{ scope.opt.badgeText }}
-              </span>
-            </q-item-label>
-          </q-item-section>
-        </q-item>
-      </template>
-    </q-select>
-  </div>
-    
-    <!-- Estado de nómina local -->
-    <div v-if="form.local" class="q-mt-xs">
-      <span v-if="store.equipoHabilitadoParaJugar(form.local)" class="text-positive text-caption text-weight-bold font-11">
-        ✅ Habilitado ({{ store.cantidadEnCancha(form.local) }} en cancha · {{ store.cantidadEnBanca(form.local) }} en banca)
-      </span>
-      <div v-else-if="store.tieneExcesoEnCancha(form.local)" class="column items-start q-gutter-xs">
-        <span class="text-negative text-caption text-weight-bold font-11">
-          ⚠️ {{ store.cantidadEnCancha(form.local) }}/11 en cancha (Excedido en +{{ store.cantidadEnCancha(form.local) - 11 }})
-        </span>
-        <q-btn flat dense no-caps size="xs" color="negative" label="🪑 Enviar excedentes a banca" @click="store.enviarExcedentesABanca(form.local)" />
-      </div>
-      <div v-else class="column items-start q-gutter-xs">
-        <span class="text-negative text-caption text-weight-bold font-11">
-          ⚠️ Incompleto ({{ store.cantidadJugadoresEquipo(form.local) }}/11 jug.)
-        </span>
-        <q-btn flat dense no-caps size="xs" color="primary" label="+ Completar a 11" :loading="completando" @click="completarPlantel(form.local)" />
-      </div>
-    </div>
+        <!-- Fila 2: Selección de Equipos -->
+        <div class="bg-slate-50 border q-pa-sm rounded-borders">
+          <div class="row q-col-gutter-sm items-start">
+            <!-- Local -->
+            <div class="col-12 col-sm-6">
+              <div class="text-caption text-weight-bold text-slate-800 q-mb-xs row items-center justify-between">
+                <span>🏠 Equipo Local *</span>
+                <span v-if="form.local" class="text-caption text-weight-bold font-11" :style="{ color: colorEquipo(form.local) }">
+                  ● {{ nombreEquipo(form.local) }}
+                </span>
+              </div>
+              <q-select
+                v-model="form.local"
+                :options="opciones"
+                emit-value
+                map-options
+                outlined
+                dense
+                bg-color="white"
+                placeholder="Elige club local"
+              >
+                <template #option="scope">
+                  <q-item v-bind="scope.itemProps" dense>
+                    <q-item-section avatar style="min-width: 22px">
+                      <span class="dot" :style="{ background: colorEquipo(scope.opt.value) }" />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label class="text-weight-bold font-12">{{ scope.opt.label }}</q-item-label>
+                      <q-item-label caption class="font-10">
+                        <span :class="scope.opt.habilitado ? 'text-positive text-weight-bold' : 'text-negative text-weight-bold'">
+                          {{ scope.opt.badgeText }}
+                        </span>
+                      </q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </template>
+              </q-select>
 
-<!-- Marcador VS -->
-<div class="col-2 text-center q-pt-md">
-  <div class="text-weight-bold text-grey-5 uppercase font-12">VS</div>
-</div>
+              <!-- Estado de nómina local -->
+              <div v-if="form.local" class="q-mt-xs font-11">
+                <span v-if="store.equipoHabilitadoParaJugar(form.local)" class="text-positive text-weight-bold">
+                  ✅ Habilitado ({{ store.cantidadEnCancha(form.local) }} en cancha)
+                </span>
+                <div v-else-if="store.tieneExcesoEnCancha(form.local)" class="row items-center q-gutter-xs">
+                  <span class="text-negative text-weight-bold font-10">
+                    ⚠️ {{ store.cantidadEnCancha(form.local) }}/11 en cancha
+                  </span>
+                  <q-btn
+                    flat
+                    dense
+                    no-caps
+                    size="xs"
+                    color="negative"
+                    label="🪑 A banca"
+                    @click="store.enviarExcedentesABanca(form.local)"
+                  />
+                </div>
+                <div v-else class="row items-center q-gutter-xs">
+                  <span class="text-negative text-weight-bold font-10">
+                    ⚠️ {{ store.cantidadJugadoresEquipo(form.local) }}/11 jug.
+                  </span>
+                  <q-btn
+                    flat
+                    dense
+                    no-caps
+                    size="xs"
+                    color="primary"
+                    label="+ Completar a 11"
+                    :loading="completando"
+                    @click="completarPlantel(form.local)"
+                  />
+                </div>
+              </div>
+            </div>
 
-<!-- Equipo Visitante -->
-<div class="col-5">
-  <div class="text-subtitle2 text-weight-bolder text-teal-9 q-mb-xs">Equipo Visitante *</div>
-  <q-select
-    v-model="form.visitante"
-    :options="opciones"
-    emit-value
-    map-options
-    outlined
-    dense
-    bg-color="white"
-    placeholder="Visitante"
-  >
-    <template #option="scope">
-      <q-item v-bind="scope.itemProps">
-        <q-item-section avatar>
-          <span class="dot" :style="{ background: colorEquipo(scope.opt.value) }" />
-        </q-item-section>
-        <q-item-section>
-          <q-item-label class="text-weight-bold">{{ scope.opt.label }}</q-item-label>
-          <q-item-label caption>
-            <span :class="scope.opt.habilitado ? 'text-positive text-weight-bold' : 'text-negative text-weight-bold'">
-              {{ scope.opt.badgeText }}
-            </span>
-          </q-item-label>
-        </q-item-section>
-      </q-item>
-    </template>
-  </q-select>
-</div>
+            <!-- Visitante -->
+            <div class="col-12 col-sm-6">
+              <div class="text-caption text-weight-bold text-slate-800 q-mb-xs row items-center justify-between">
+                <span>✈️ Equipo Visitante *</span>
+                <span v-if="form.visitante" class="text-caption text-weight-bold font-11" :style="{ color: colorEquipo(form.visitante) }">
+                  ● {{ nombreEquipo(form.visitante) }}
+                </span>
+              </div>
+              <q-select
+                v-model="form.visitante"
+                :options="opciones"
+                emit-value
+                map-options
+                outlined
+                dense
+                bg-color="white"
+                placeholder="Elige club visitante"
+              >
+                <template #option="scope">
+                  <q-item v-bind="scope.itemProps" dense>
+                    <q-item-section avatar style="min-width: 22px">
+                      <span class="dot" :style="{ background: colorEquipo(scope.opt.value) }" />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label class="text-weight-bold font-12">{{ scope.opt.label }}</q-item-label>
+                      <q-item-label caption class="font-10">
+                        <span :class="scope.opt.habilitado ? 'text-positive text-weight-bold' : 'text-negative text-weight-bold'">
+                          {{ scope.opt.badgeText }}
+                        </span>
+                      </q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </template>
+              </q-select>
 
-</div>
-
-
+              <!-- Estado de nómina visitante -->
+              <div v-if="form.visitante" class="q-mt-xs font-11">
+                <span v-if="store.equipoHabilitadoParaJugar(form.visitante)" class="text-positive text-weight-bold">
+                  ✅ Habilitado ({{ store.cantidadEnCancha(form.visitante) }} en cancha)
+                </span>
+                <div v-else-if="store.tieneExcesoEnCancha(form.visitante)" class="row items-center q-gutter-xs">
+                  <span class="text-negative text-weight-bold font-10">
+                    ⚠️ {{ store.cantidadEnCancha(form.visitante) }}/11 en cancha
+                  </span>
+                  <q-btn
+                    flat
+                    dense
+                    no-caps
+                    size="xs"
+                    color="negative"
+                    label="🪑 A banca"
+                    @click="store.enviarExcedentesABanca(form.visitante)"
+                  />
+                </div>
+                <div v-else class="row items-center q-gutter-xs">
+                  <span class="text-negative text-weight-bold font-10">
+                    ⚠️ {{ store.cantidadJugadoresEquipo(form.visitante) }}/11 jug.
+                  </span>
+                  <q-btn
+                    flat
+                    dense
+                    no-caps
+                    size="xs"
+                    color="primary"
+                    label="+ Completar a 11"
+                    :loading="completando"
+                    @click="completarPlantel(form.visitante)"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <!-- Alerta Reglamentaria: Mínimo 11 personas -->
-        <div v-if="alertaReglamentaria" class="bg-amber-1 border border-amber-3 q-pa-md rounded-borders text-amber-10 row items-center no-wrap">
-          <q-icon name="warning" size="20px" class="q-mr-sm" color="amber-9" />
+        <div v-if="alertaReglamentaria" class="bg-amber-1 border border-amber-3 q-pa-xs rounded-borders text-amber-10 row items-center no-wrap font-11">
+          <q-icon name="warning" size="18px" class="q-mr-xs shrink-0" color="amber-9" />
           <div class="text-caption text-weight-medium">
             {{ alertaReglamentaria }}
           </div>
         </div>
 
-        <!-- Goles -->
-        <div class="row q-col-gutter-lg items-center justify-center q-my-md">
-          <div class="col-5">
-            <div class="text-caption text-center text-grey-7 q-mb-xs">Goles {{ nombreEquipo(form.local) || 'Local' }}</div>
-            <div class="row items-center justify-center q-gutter-xs bg-grey-1 q-pa-xs rounded-borders">
-              <q-btn flat round dense :icon="matRemove" size="sm" :disable="form.golesLocal <= 0" @click="form.golesLocal--" />
-              <span class="text-h6 text-weight-bold font-mono q-px-md">{{ form.golesLocal }}</span>
-              <q-btn flat round dense :icon="matAdd" size="sm" @click="form.golesLocal++" />
+        <!-- Fila 3: Marcador de Goles -->
+        <div class="bg-slate-50 border q-pa-sm rounded-borders">
+          <div class="text-caption text-weight-bold text-center text-slate-800 q-mb-xs">
+            ⚽ Marcador Oficial del Encuentro
+          </div>
+          <div class="row q-col-gutter-sm items-center justify-center">
+            <div class="col-5 text-center">
+              <div class="text-caption text-weight-medium text-grey-8 ellipsis font-11 q-mb-xs">
+                {{ nombreEquipo(form.local) || 'Local' }}
+              </div>
+              <div class="row items-center justify-center q-gutter-xs bg-white border q-py-xs rounded-borders shadow-xs">
+                <q-btn flat round dense :icon="matRemove" size="sm" :disable="form.golesLocal <= 0" @click="form.golesLocal--" />
+                <span class="text-h5 text-weight-bolder font-mono q-px-sm text-slate-900">{{ form.golesLocal }}</span>
+                <q-btn flat round dense :icon="matAdd" size="sm" @click="form.golesLocal++" />
+              </div>
+            </div>
+
+            <div class="col-2 text-center text-h5 text-grey-5 font-mono font-bold">:</div>
+
+            <div class="col-5 text-center">
+              <div class="text-caption text-weight-medium text-grey-8 ellipsis font-11 q-mb-xs">
+                {{ nombreEquipo(form.visitante) || 'Visitante' }}
+              </div>
+              <div class="row items-center justify-center q-gutter-xs bg-white border q-py-xs rounded-borders shadow-xs">
+                <q-btn flat round dense :icon="matRemove" size="sm" :disable="form.golesVisitante <= 0" @click="form.golesVisitante--" />
+                <span class="text-h5 text-weight-bolder font-mono q-px-sm text-slate-900">{{ form.golesVisitante }}</span>
+                <q-btn flat round dense :icon="matAdd" size="sm" @click="form.golesVisitante++" />
+              </div>
             </div>
           </div>
-
-          <div class="col-2 text-center text-h5 text-grey-5 font-mono">:</div>
-
-          <div class="col-5">
-            <div class="text-caption text-center text-grey-7 q-mb-xs">Goles {{ nombreEquipo(form.visitante) || 'Visitante' }}</div>
-            <div class="row items-center justify-center q-gutter-xs bg-grey-1 q-pa-xs rounded-borders">
-              <q-btn flat round dense :icon="matRemove" size="sm" :disable="form.golesVisitante <= 0" @click="form.golesVisitante--" />
-              <span class="text-h6 text-weight-bold font-mono q-px-md">{{ form.golesVisitante }}</span>
-              <q-btn flat round dense :icon="matAdd" size="sm" @click="form.golesVisitante++" />
-            </div>
+          <div class="text-caption text-grey-7 text-center font-10 q-mt-xs">
+            El resultado se computará de inmediato en MongoDB Atlas y la tabla oficial.
           </div>
         </div>
 
-        <div class="text-caption text-grey-7 text-center">
-          El resultado se computará de inmediato en la tabla de posiciones oficial.
-        </div>
         <div v-if="error" class="text-negative text-caption text-center q-mt-xs">{{ error }}</div>
       </q-card-section>
 
-      <q-card-actions align="right" class="q-px-lg q-py-md bg-grey-1">
+      <!-- Pie Pinned de Acciones -->
+      <q-card-actions align="right" class="q-py-sm q-px-md bg-grey-1 border-t shrink-0">
         <q-btn flat no-caps label="Cancelar" v-close-popup color="grey-7" />
         <q-btn
           color="primary"
@@ -207,6 +278,7 @@
           :icon="matCheck"
           :loading="guardando"
           :disable="!puedeGuardar"
+          class="text-weight-bold"
           @click="guardar"
         >
           <q-tooltip v-if="!puedeGuardar">

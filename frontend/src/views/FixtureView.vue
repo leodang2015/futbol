@@ -30,7 +30,7 @@
       </q-card-section>
     </q-card>
 
-    <!-- BANNER DE PRIVACIDAD / VISTA: Modo Jugador o Entrenador -->
+    <!-- BANNER DE PRIVACIDAD: Modo Jugador o Entrenador (Solo partidos de su propio club) -->
     <q-banner
       v-if="(store.esJugador || store.esEntrenador) && store.miEquipoId"
       dense
@@ -42,29 +42,16 @@
       </template>
       <div class="row items-center justify-between no-wrap">
         <div>
-          <div class="text-caption text-weight-bolder">
-            ⚽ Calendario Oficial · {{ store.miEquipo?.nombre || 'Tu Club' }}
+          <div class="text-subtitle2 text-weight-bolder">
+            ⚽ Calendario Oficial Exclusivo · {{ store.miEquipo?.nombre || 'Tu Club' }}
           </div>
-          <div class="text-caption text-grey-8">
-            Puedes consultar todos los partidos del campeonato o alternar para ver solo los de tu equipo.
+          <div class="text-caption text-indigo-9">
+            Como {{ store.esEntrenador ? 'director técnico' : 'jugador' }}, solo tienes acceso al calendario y fixture de partidos de tu propio club.
           </div>
         </div>
-        <q-btn-toggle
-          v-model="filtroVistaFixture"
-          no-caps
-          dense
-          unelevated
-          size="xs"
-          color="white"
-          text-color="indigo-9"
-          toggle-color="indigo-9"
-          toggle-text-color="white"
-          class="q-ml-sm shadow-1"
-          :options="[
-            { label: 'Todos los Partidos', value: 'todos' },
-            { label: 'Solo Mi Club', value: 'mio' }
-          ]"
-        />
+        <q-badge color="indigo-8" text-color="white" class="text-weight-bolder q-px-sm q-py-xs font-11 shadow-1">
+          🔒 Partidos de tu Club
+        </q-badge>
       </div>
     </q-banner>
 
@@ -116,6 +103,25 @@
               </span>
             </div>
             <div class="row items-center q-gutter-xs">
+              <!-- Botón para Agregar / Editar Puntuación del Partido cuando ya llegó el día -->
+              <q-btn
+                v-if="store.esOrganizador && esDiaDelPartido(p)"
+                dense
+                unelevated
+                no-caps
+                size="sm"
+                :color="finalizado(p) ? 'blue-grey-8' : 'positive'"
+                text-color="white"
+                :icon="finalizado(p) ? matEdit : matSportsScore"
+                :label="finalizado(p) ? 'Editar Marcador' : 'Cargar Puntuación'"
+                class="q-px-sm text-weight-bold shadow-1 animate-pulse-gentle"
+                @click="abrirModalPuntuacion(p)"
+              >
+                <q-tooltip>
+                  {{ finalizado(p) ? 'Modificar marcador oficial del partido' : 'El día del partido llegó: Cargar marcador y resultado final oficial' }}
+                </q-tooltip>
+              </q-btn>
+
               <span
                 class="status-badge"
                 :class="statusBadgeClass(p)"
@@ -175,16 +181,32 @@
           </q-card-section>
 
           <!-- Detalle de Goleadores y Asistencias (Solo en Finalizados) -->
-          <div v-if="finalizado(p) && p.goleadores && p.goleadores.length" class="q-px-md q-py-xs bg-slate-50 border-t border-slate-200">
+          <div v-if="finalizado(p) && (p.golesLocal > 0 || p.golesVisitante > 0)" class="q-px-md q-py-xs bg-slate-50 border-t border-slate-200">
             <div class="row items-center justify-between no-wrap q-mb-xs">
               <span class="text-caption text-weight-bolder text-emerald-9 font-11">
                 ⚽ Goleadores y Asistencias Oficiales
               </span>
-              <span class="text-caption text-grey-6 font-mono font-10">Acta Final</span>
+              <div class="row items-center q-gutter-xs">
+                <q-btn
+                  v-if="store.esOrganizador || store.esEntrenador"
+                  flat
+                  dense
+                  no-caps
+                  size="xs"
+                  color="emerald-9"
+                  :icon="matBolt"
+                  label="⚡ Auto-asignar Goleadores"
+                  :loading="generandoGoleadoresId === (p.id || p._id)"
+                  @click="generarGoleadoresPartido(p.id || p._id)"
+                >
+                  <q-tooltip>Asignar automáticamente quiénes hicieron los goles de cada equipo y cuántos hicieron</q-tooltip>
+                </q-btn>
+                <span class="text-caption text-grey-6 font-mono font-10">Acta Oficial</span>
+              </div>
             </div>
-            <div class="row q-col-gutter-xs">
+            <div v-if="goleadoresDelPartido(p).length" class="row q-col-gutter-xs">
               <div
-                v-for="(g, gIdx) in p.goleadores"
+                v-for="(g, gIdx) in goleadoresDelPartido(p)"
                 :key="gIdx"
                 class="col-12 col-sm-6"
               >
@@ -195,7 +217,7 @@
                       <span v-if="g.dorsal" class="text-grey-6 font-mono font-10">#{{ g.dorsal }}</span>
                     </div>
                     <span class="text-positive text-weight-bolder font-mono font-11 q-ml-xs">
-                      {{ g.minuto ? `${g.minuto}'` : 'Gol' }}
+                      {{ g.goles > 1 ? `${g.goles} goles (${g.minuto ? g.minuto : ''})` : (g.minuto ? `${g.minuto}` : 'Gol') }}
                     </span>
                   </div>
                   <div v-if="g.asistenteNombre" class="text-grey-7 font-mono font-10 row items-center q-gutter-xs q-mt-xs">
@@ -204,6 +226,9 @@
                   </div>
                 </div>
               </div>
+            </div>
+            <div v-else class="text-center q-pa-xs text-caption text-grey-6 font-11">
+              Goles registrados. Haz clic en "⚡ Auto-asignar Goleadores" para asignar automáticamente autores y asistencias.
             </div>
           </div>
         </q-card>
@@ -220,17 +245,116 @@
         </q-card>
       </div>
     </div>
+    <!-- DIÁLOGO PARA CARGAR / MODIFICAR PUNTUACIÓN DEL PARTIDO (El día del partido) -->
+    <q-dialog v-model="modalPuntuacionAbierto" persistent>
+      <q-card style="width: 480px; max-width: 95vw;" class="rounded-borders overflow-hidden shadow-10">
+        <q-card-section class="bg-slate-900 text-white row items-center justify-between q-py-sm q-px-md">
+          <div class="row items-center q-gutter-xs">
+            <q-icon :name="matSportsScore" color="positive" size="22px" />
+            <div class="text-subtitle1 text-weight-bold">Cargar Puntuación Oficial del Partido</div>
+          </div>
+          <q-btn flat round dense :icon="matClose" v-close-popup text-color="grey-4" size="sm" />
+        </q-card-section>
+
+        <q-card-section v-if="partidoEditandoPuntuacion" class="q-pa-md q-gutter-y-md bg-slate-50">
+          <!-- Encabezado con Jornada y Fecha -->
+          <div class="text-center bg-white q-pa-xs rounded border text-caption text-grey-8 font-mono">
+            Jornada {{ partidoEditandoPuntuacion.fecha }} · {{ formatearFecha(partidoEditandoPuntuacion.fechaHora) }}
+          </div>
+
+          <!-- Marcador Frente a Frente -->
+          <div class="row q-col-gutter-sm items-center justify-center bg-white q-pa-md rounded-borders border shadow-xs">
+            <!-- Local -->
+            <div class="col-5 text-center">
+              <div class="text-caption text-weight-bold text-dark ellipsis q-mb-xs" :title="nombre(partidoEditandoPuntuacion.localId)">
+                {{ nombre(partidoEditandoPuntuacion.localId) }}
+              </div>
+              <q-badge color="emerald-1" text-color="emerald-9" class="text-weight-bolder font-10 q-mb-xs">Local</q-badge>
+              <div class="row items-center justify-center q-gutter-xs q-mt-xs">
+                <q-btn round dense flat size="sm" :icon="matRemove" :disable="golesLocalInput <= 0" @click="golesLocalInput = Math.max(0, golesLocalInput - 1)" />
+                <span class="font-mono text-h4 text-weight-bolder text-primary q-px-xs">{{ golesLocalInput }}</span>
+                <q-btn round dense flat size="sm" :icon="matAdd" @click="golesLocalInput++" />
+              </div>
+            </div>
+
+            <!-- VS -->
+            <div class="col-2 text-center text-weight-bolder text-grey-4 text-h5">
+              VS
+            </div>
+
+            <!-- Visitante -->
+            <div class="col-5 text-center">
+              <div class="text-caption text-weight-bold text-dark ellipsis q-mb-xs" :title="nombre(partidoEditandoPuntuacion.visitanteId)">
+                {{ nombre(partidoEditandoPuntuacion.visitanteId) }}
+              </div>
+              <q-badge color="indigo-1" text-color="indigo-9" class="text-weight-bolder font-10 q-mb-xs">Visitante</q-badge>
+              <div class="row items-center justify-center q-gutter-xs q-mt-xs">
+                <q-btn round dense flat size="sm" :icon="matRemove" :disable="golesVisInput <= 0" @click="golesVisInput = Math.max(0, golesVisInput - 1)" />
+                <span class="font-mono text-h4 text-weight-bolder text-indigo-9 q-px-xs">{{ golesVisInput }}</span>
+                <q-btn round dense flat size="sm" :icon="matAdd" @click="golesVisInput++" />
+              </div>
+            </div>
+          </div>
+
+          <div class="text-caption text-grey-7 bg-emerald-50 q-pa-sm rounded border border-emerald-2 row items-center no-wrap">
+            <q-icon :name="matCheckCircle" color="positive" size="18px" class="q-mr-xs shrink-0" />
+            <span>Al guardar la puntuación, el partido quedará oficializado en la Tabla de Posiciones y se auto-asignarán los goleadores correspondientes.</span>
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right" class="bg-white q-pa-md border-t">
+          <q-btn flat no-caps label="Cancelar" color="grey-7" v-close-popup />
+          <q-btn
+            unelevated
+            no-caps
+            color="positive"
+            :icon="matCheckCircle"
+            label="Guardar Puntuación Oficial"
+            class="text-weight-bold q-px-md"
+            :loading="guardandoPuntuacion"
+            @click="guardarPuntuacionPartido"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
+import { useQuasar } from 'quasar'
 import { useTorneo } from '../torneo.js'
-import { matCalendarMonth, matEvent, matEventBusy, matSportsSoccer } from '@quasar/extras/material-icons'
+import { matCalendarMonth, matEvent, matEventBusy, matSportsSoccer, matBolt, matSportsScore, matEdit, matCheckCircle, matClose, matAdd, matRemove } from '@quasar/extras/material-icons'
 
+const $q = useQuasar()
 const store = useTorneo()
 const fecha = ref('todos')
 const filtroVistaFixture = ref('todos')
+const generandoGoleadoresId = ref(null)
+
+async function generarGoleadoresPartido(partidoId) {
+  generandoGoleadoresId.value = partidoId
+  try {
+    await store.autogenerarGoleadoresPartido(partidoId)
+    $q.notify({
+      type: 'positive',
+      icon: 'check_circle',
+      message: '⚽ Goleadores y cantidad de goles asignados automáticamente para ambos equipos.',
+      position: 'top',
+      timeout: 3500
+    })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      icon: 'error',
+      message: err.message || 'Error al asignar goleadores automáticamente',
+      position: 'top',
+      timeout: 3500
+    })
+  } finally {
+    generandoGoleadoresId.value = null
+  }
+}
 
 const opciones = computed(() => [
   { label: 'Todas las jornadas', value: 'todos' },
@@ -262,7 +386,9 @@ const crestFigura = (id) => store.equipoPorId(id)?.escudoFigura
 const lista = computed(() => {
   let list = store.partidos.filter(p => fecha.value === 'todos' || p.fecha === fecha.value)
 
-  if ((store.esJugador || store.esEntrenador) && filtroVistaFixture.value === 'mio') {
+  // Para jugador y entrenador: RESTRICCIÓN ESTRICTA: NO ven los partidos de otros clubes,
+  // únicamente ven los partidos programados y disputados de su propio grupo/equipo.
+  if (store.esJugador || store.esEntrenador) {
     const miId = String(store.miEquipoId || '').trim()
     if (miId) {
       list = list.filter(p => String(p.localId || '').trim() === miId || String(p.visitanteId || '').trim() === miId)
@@ -287,6 +413,107 @@ const rivalProximo = computed(() => {
   const rivalId = esLocal ? proximoPartido.value.visitanteId : proximoPartido.value.localId
   return store.equipoPorId(rivalId)
 })
+
+// Control de puntuación del partido (habilitado cuando es el día)
+const modalPuntuacionAbierto = ref(false)
+const partidoEditandoPuntuacion = ref(null)
+const golesLocalInput = ref(0)
+const golesVisInput = ref(0)
+const guardandoPuntuacion = ref(false)
+
+function esDiaDelPartido(p) {
+  if (!p) return false
+  // Si no tiene fechaHora, permitimos cargar resultado
+  if (!p.fechaHora) return true
+  try {
+    const fechaP = new Date(p.fechaHora)
+    const hoy = new Date()
+    // Comparar fecha: Si hoy es mayor o igual al día del partido
+    const hoyStr = hoy.toISOString().slice(0, 10)
+    const fechaPStr = fechaP.toISOString().slice(0, 10)
+    return hoyStr >= fechaPStr || hoy >= fechaP
+  } catch (_) {
+    return true
+  }
+}
+
+function abrirModalPuntuacion(p) {
+  partidoEditandoPuntuacion.value = p
+  golesLocalInput.value = Number(p.golesLocal ?? 0)
+  golesVisInput.value = Number(p.golesVisitante ?? 0)
+  modalPuntuacionAbierto.value = true
+}
+
+async function guardarPuntuacionPartido() {
+  if (!partidoEditandoPuntuacion.value) return
+  guardandoPuntuacion.value = true
+  const p = partidoEditandoPuntuacion.value
+  const pId = p.id || p._id
+  try {
+    await store.fijarMarcadorOrganizador(pId, {
+      golesLocal: Number(golesLocalInput.value) || 0,
+      golesVisitante: Number(golesVisInput.value) || 0,
+      asistenciasLocal: Math.min(Number(golesLocalInput.value) || 0, 2),
+      asistenciasVisitante: Math.min(Number(golesVisInput.value) || 0, 2)
+    })
+    modalPuntuacionAbierto.value = false
+    $q.notify({
+      type: 'positive',
+      icon: 'check_circle',
+      message: `⚽ Puntuación guardada: ${nombre(p.localId)} ${golesLocalInput.value} - ${golesVisInput.value} ${nombre(p.visitanteId)}`,
+      position: 'top',
+      timeout: 3500
+    })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      icon: 'error',
+      message: err.message || 'Error al guardar puntuación',
+      position: 'top',
+      timeout: 3500
+    })
+  } finally {
+    guardandoPuntuacion.value = false
+  }
+}
+
+function goleadoresDelPartido(p) {
+  if (!p || !Array.isArray(p.goleadores)) return []
+  let list = p.goleadores
+
+  // Si es jugador o entrenador, solo ver los goles/asistencias de su propio club
+  if (store.esJugador || store.esEntrenador) {
+    const miId = String(store.miEquipoId || '').trim()
+    const miClubNom = String(store.miEquipo?.nombre || '').trim().toLowerCase()
+    list = list.filter(g => {
+      const gEqId = String(g.equipoId || g.equipo || '').trim()
+      const gEqNom = String(g.equipoNombre || '').trim().toLowerCase()
+      if (miId && gEqId && miId === gEqId) return true
+      if (miClubNom && gEqNom && miClubNom === gEqNom) return true
+      if (!gEqId && !gEqNom) {
+        // En caso de que no tenga equipo en el registro, verificar si el jugador pertenece al club del usuario
+        const matchJ = store.jugadores.find(j => 
+          String(j.id || j._id) === String(g.jugadorId || g.jugador) ||
+          `${j.nombre} ${j.apellido || ''}`.trim().toLowerCase() === String(g.nombre || '').trim().toLowerCase()
+        )
+        if (matchJ && String(matchJ.equipoId || matchJ.equipo || '').trim() === miId) return true
+      }
+      return false
+    })
+  }
+
+  // Deduplicar para garantizar que no se repitan goles por error de captura
+  const vistos = new Set()
+  const unicos = []
+  for (const g of list) {
+    const key = `${g.jugadorId || g.nombre}_${g.minuto || ''}`
+    if (!vistos.has(key)) {
+      vistos.add(key)
+      unicos.push(g)
+    }
+  }
+  return unicos
+}
 
 function formatearFecha(f) {
   if (!f) return ''
