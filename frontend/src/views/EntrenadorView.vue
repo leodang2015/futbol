@@ -147,6 +147,32 @@
         </div>
       </q-banner>
 
+      <!-- ADVERTENCIA REGLAMENTARIA: Falta el Arquero en Cancha -->
+      <q-banner
+        v-if="!arqueros.length && jugadoresDelEquipo.length"
+        dense
+        rounded
+        class="bg-amber-1 text-amber-10 q-mb-md q-pa-md shadow-2 border border-amber-5 animate-pulse-gentle"
+      >
+        <template #avatar>
+          <q-icon :name="matWarning" size="36px" color="amber-9" />
+        </template>
+        <div class="row items-center justify-between no-wrap q-gutter-md">
+          <div>
+            <div class="text-subtitle2 text-weight-bolder text-amber-10 row items-center q-gutter-xs">
+              <span>🧤 ¡ATENCIÓN: FALTA UN ARQUERO EN CANCHA!</span>
+              <q-badge color="negative" text-color="white" class="text-weight-bolder font-11">
+                0 / 1 Arquero
+              </q-badge>
+            </div>
+            <div class="text-caption text-slate-800 q-mt-xs">
+              Por reglamento oficial del fútbol, todo club debe contar con <strong>1 arquero titular en el arco</strong> para disputar un partido.
+              Actualmente no tienes ningún arquero designado en la cancha. Elige a uno de tus futbolistas en la lista y asígnale la posición <strong>"Arquero"</strong>.
+            </div>
+          </div>
+        </div>
+      </q-banner>
+
       <!-- ANUNCIO DE ADVERTENCIA REGLAMENTARIA: Más de 11 jugadores en cancha -->
       <q-banner
         v-if="hayExcesoEnCancha"
@@ -262,8 +288,12 @@
                 />
               </div>
               <div class="row items-center q-gutter-xs">
-                <q-badge color="emerald-9" text-color="white" class="text-weight-bold font-11 q-px-sm q-py-xs">
-                  🧤 1 Arquero Oficial en Cancha
+                <q-badge
+                  :color="arqueros.length === 1 ? 'emerald-9' : 'amber-9'"
+                  text-color="white"
+                  class="text-weight-bold font-11 q-px-sm q-py-xs"
+                >
+                  {{ arqueros.length === 1 ? '🧤 1 Arquero Oficial en Cancha' : '⚠️ ¡FALTA UN ARQUERO EN CANCHA! (0/1)' }}
                 </q-badge>
               </div>
             </q-card-section>
@@ -368,11 +398,14 @@
                         <span v-if="esElCapitan(j)" class="text-amber-4 text-weight-bolder"> Ⓒ</span>
                       </div>
                     </div>
-                    <div v-if="!arqueros.length" class="empty-zone-hint">
-                      Sin arquero asignado
+                    <!-- Aviso visual destacado si falta arquero -->
+                    <div v-if="!arqueros.length" class="empty-zone-hint bg-amber-9 text-white q-px-sm q-py-xs rounded-borders text-weight-bolder shadow-2 border border-white">
+                      ⚠️ ¡Falta un arquero! (0/1)
                     </div>
                   </div>
-                  <div class="zone-label text-caption text-weight-bolder text-center q-mt-xs">PORTERO ({{ arqueros.length }})</div>
+                  <div class="zone-label text-caption text-weight-bolder text-center q-mt-xs" :class="!arqueros.length ? 'text-amber-3' : ''">
+                    PORTERO ({{ arqueros.length }}/1) <span v-if="!arqueros.length" class="text-amber-3 text-weight-bolder">· ¡FALTA 1!</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -421,7 +454,9 @@
             <q-card-section class="bg-grey-1 row items-center justify-around q-py-sm border-top text-center">
               <div>
                 <div class="text-caption text-grey-6">Arqueros</div>
-                <div class="text-subtitle2 text-weight-bold text-emerald-8">{{ arqueros.length }}</div>
+                <div class="text-subtitle2 text-weight-bold" :class="arqueros.length === 1 ? 'text-emerald-8' : 'text-negative'">
+                  {{ arqueros.length }} <span v-if="!arqueros.length" class="text-caption text-negative font-10 text-weight-bolder">(¡Falta 1!)</span>
+                </div>
               </div>
               <div>
                 <div class="text-caption text-grey-6">Defensores</div>
