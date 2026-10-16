@@ -103,22 +103,22 @@
               </span>
             </div>
             <div class="row items-center q-gutter-xs">
-              <!-- Botón para Agregar / Editar Puntuación del Partido cuando ya llegó el día -->
+              <!-- Botón para Cargar Puntuación Oficial del Partido cuando ya llegó el día (Solo mientras NO esté finalizado) -->
               <q-btn
-                v-if="store.esOrganizador && esDiaDelPartido(p)"
+                v-if="store.esOrganizador && esDiaDelPartido(p) && !finalizado(p)"
                 dense
                 unelevated
                 no-caps
                 size="sm"
-                :color="finalizado(p) ? 'blue-grey-8' : 'positive'"
+                color="positive"
                 text-color="white"
-                :icon="finalizado(p) ? matEdit : matSportsScore"
-                :label="finalizado(p) ? 'Editar Marcador' : 'Cargar Puntuación'"
+                :icon="matSportsScore"
+                label="Cargar Puntuación"
                 class="q-px-sm text-weight-bold shadow-1 animate-pulse-gentle"
                 @click="abrirModalPuntuacion(p)"
               >
                 <q-tooltip>
-                  {{ finalizado(p) ? 'Modificar marcador oficial del partido' : 'El día del partido llegó: Cargar marcador y resultado final oficial' }}
+                  El día del partido llegó: Cargar marcador y oficializar resultado final
                 </q-tooltip>
               </q-btn>
 
@@ -188,7 +188,7 @@
               </span>
               <div class="row items-center q-gutter-xs">
                 <q-btn
-                  v-if="store.esOrganizador || store.esEntrenador"
+                  v-if="(store.esOrganizador || store.esEntrenador) && (!p.goleadores || !p.goleadores.length)"
                   flat
                   dense
                   no-caps
@@ -201,6 +201,9 @@
                 >
                   <q-tooltip>Asignar automáticamente quiénes hicieron los goles de cada equipo y cuántos hicieron</q-tooltip>
                 </q-btn>
+                <span v-else class="text-caption text-positive font-mono font-10 text-weight-bold">
+                  🔒 Acta Cerrada
+                </span>
                 <span class="text-caption text-grey-6 font-mono font-10">Acta Oficial</span>
               </div>
             </div>
