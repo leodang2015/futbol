@@ -46,13 +46,15 @@
         <div class="row items-center q-gutter-sm">
           <!-- Escudo del Club Seleccionado -->
           <div class="row items-center no-wrap bg-slate-50 q-px-sm q-py-xs rounded-borders border cursor-pointer" @click="abrirEditorEscudo" title="Clic para personalizar el escudo">
-            <img
-              v-if="equipoActual?.escudoUrl"
-              :src="equipoActual.escudoUrl"
-              alt="Escudo"
-              class="club-crest-image q-mr-xs"
-            />
-            <span v-else class="text-subtitle1 q-mr-xs">{{ equipoActual?.escudoFigura || '🛡️' }}</span>
+            <div class="club-badge-entrenador-box q-mr-xs" :style="{ backgroundColor: equipoActual?.escudocolor || '#059669' }">
+              <img
+                v-if="equipoActual?.escudoUrl"
+                :src="equipoActual.escudoUrl"
+                alt="Escudo"
+                class="club-badge-entrenador-img"
+              />
+              <span v-else class="club-badge-entrenador-emoji">{{ equipoActual?.escudoFigura || '🛡️' }}</span>
+            </div>
             <span class="text-caption text-weight-bolder text-slate-900 q-mr-xs">{{ equipoActual?.nombre }}</span>
             <q-btn
               v-if="!store.esJugador"
@@ -771,8 +773,20 @@
                 </div>
               </div>
 
+              <!-- Si el partido ya está Finalizado con acta cerrada -->
+              <div v-if="esPartidoFinalizadoCerrado" class="bg-slate-100 q-pa-md rounded-borders border border-slate-300 q-my-sm">
+                <div class="row items-center q-gutter-xs text-weight-bold text-slate-800">
+                  <q-icon :name="matLock" size="20px" color="primary" />
+                  <span>Acta Oficial Cerrada: Partido Finalizado</span>
+                  <q-badge color="emerald-9" text-color="white" class="font-10 text-weight-bold">Oficial e Inmodificable</q-badge>
+                </div>
+                <div class="text-caption text-grey-7 q-mt-xs">
+                  Por reglamento oficial de la liga, una vez que un partido ha finalizado y cuenta con su resultado y acta registrada, no se pueden modificar ni reescribir sus anotaciones.
+                </div>
+              </div>
+
               <!-- Goleadores de tu equipo -->
-              <div class="q-pt-sm border-t">
+              <div v-else class="q-pt-sm border-t">
                 <div class="row items-center justify-between q-mb-sm">
                   <div>
                     <div class="text-subtitle2 text-weight-bold text-slate-800 row items-center q-gutter-xs">
@@ -896,8 +910,8 @@
                 </div>
               </div>
 
-              <!-- Botón Enviar Planilla -->
-              <div class="row items-center justify-between q-pt-md border-t">
+              <!-- Botón Enviar Planilla (Solo si el partido no está cerrado) -->
+              <div v-if="!esPartidoFinalizadoCerrado" class="row items-center justify-between q-pt-md border-t">
                 <div class="text-caption text-grey-7">
                   ℹ️ Al confirmar, los goles se registrarán en la tabla y se enviará la alerta oficial al Administrador.
                 </div>
@@ -1312,6 +1326,12 @@ const partidosDelClub = computed(() => {
   })
 })
 
+const esPartidoFinalizadoCerrado = computed(() => {
+  if (!partidoSeleccionado.value) return false
+  const est = String(partidoSeleccionado.value.estado || '').toLowerCase()
+  return (est === 'finalizado' || est === 'jugado') && Array.isArray(partidoSeleccionado.value.goleadores) && partidoSeleccionado.value.goleadores.length > 0
+})
+
 const opcionesPartidosReporte = computed(() =>
   partidosDelClub.value.map(p => {
     const locNom = store.equipoPorId(p.localId)?.nombre || 'Local'
@@ -1500,6 +1520,16 @@ function quitarFilaGoleador(idx) {
 
 async function enviarPlanillaGoleadores() {
   if (!partidoSeleccionado.value) return
+  if (esPartidoFinalizadoCerrado.value) {
+    $q.notify({
+      type: 'warning',
+      icon: 'lock',
+      message: 'Este partido ya está Finalizado oficialmente. No se pueden modificar sus registros.',
+      position: 'top',
+      timeout: 4000
+    })
+    return
+  }
   if (!tieneCapitanAsignado.value) {
     mensajeExito.value = '⚠️ No se puede enviar la planilla: El club debe tener un Capitán oficial designado.'
     return
@@ -1897,4 +1927,51 @@ onMounted(() => {
 .color-dot.ring-active {
   outline: 2px solid #0f172a;
 }
+
+.club-badge-entrenador-box {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  max-width: 28px;
+  max-height: 28px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+}
+.club-badge-entrenador-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.club-badge-entrenador-emoji {
+  font-size: 16px;
+  line-height: 1;
+}
+.escudo-preview-box {
+  width: 56px !important;
+  height: 56px !important;
+  min-width: 56px !important;
+  min-height: 56px !important;
+  max-width: 56px !important;
+  max-height: 56px !important;
+  border-radius: 10px;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.escudo-preview-img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block;
+}
+
 </style>
