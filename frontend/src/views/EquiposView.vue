@@ -22,14 +22,16 @@
               @click="seleccionId = e.id"
             >
               <q-item-section avatar>
-                <img
-                  v-if="e.escudoUrl"
-                  :src="e.escudoUrl"
-                  alt="Escudo"
-                  class="club-list-crest shadow-sm"
-                />
-                <span v-else-if="e.escudoFigura" class="font-18 q-mr-xs">{{ e.escudoFigura }}</span>
-                <span v-else class="club-avatar-dot shadow-sm" :style="{ background: e.color || e.escudocolor || '#059669' }" />
+                <div class="club-list-badge-box" :style="{ backgroundColor: e.escudocolor || e.color || '#059669' }">
+                  <img
+                    v-if="e.escudoUrl"
+                    :src="e.escudoUrl"
+                    alt="Escudo"
+                    class="club-list-badge-img"
+                  />
+                  <span v-else-if="e.escudoFigura" class="club-list-badge-emoji">{{ e.escudoFigura }}</span>
+                  <span v-else class="club-list-badge-dot" />
+                </div>
               </q-item-section>
 
               <q-item-section>
@@ -89,7 +91,7 @@
                     :style="{ background: equipo.escudocolor || '#059669' }"
                   >
                     <img v-if="equipo.escudoUrl" :src="equipo.escudoUrl" class="escudo-view-img" />
-                    <span v-else class="text-h4">{{ equipo.escudoFigura || '🛡️' }}</span>
+                    <span v-else class="escudo-view-emoji">{{ equipo.escudoFigura || '🛡️' }}</span>
                   </div>
                   <div>
                     <div class="text-caption text-uppercase text-weight-bold opacity-80">Ficha de Club</div>
@@ -830,4 +832,62 @@ const headerGradient = computed(() => {
   color: #3730a3;
   font-size: 0.85rem;
 }
+
+.club-list-badge-box {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  max-width: 32px;
+  max-height: 32px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+}
+.club-list-badge-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.club-list-badge-emoji {
+  font-size: 18px;
+  line-height: 1;
+}
+.club-list-badge-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: white;
+}
+.escudo-view-box {
+  width: 64px;
+  height: 64px;
+  min-width: 64px;
+  min-height: 64px;
+  max-width: 64px;
+  max-height: 64px;
+  border-radius: 12px;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  flex-shrink: 0;
+}
+.escudo-view-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.escudo-view-emoji {
+  font-size: 34px;
+  line-height: 1;
+}
+
 </style>
