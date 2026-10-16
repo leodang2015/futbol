@@ -393,6 +393,13 @@ export const confirmarPartidoDT = async (req, res) => {
       return res.status(404).json({ msg: 'El partido no existe en la base de datos' });
     }
 
+    // Regla Oficial: Cuando un partido está finalizado, el marcador queda cerrado y no se puede modificar
+    if (['finalizado', 'jugado'].includes(String(partido.estado || '').toLowerCase())) {
+      return res.status(400).json({
+        msg: 'Este partido ya está FINALIZADO oficialmente. Por reglamento, los partidos finalizados quedan cerrados y no pueden modificarse.'
+      });
+    }
+
     const eqIdStr = String(equipoId || '').trim();
     const locIdStr = String(partido.local._id || partido.local);
     const visIdStr = String(partido.visitante._id || partido.visitante);
@@ -464,6 +471,13 @@ export const fijarMarcadorOrganizador = async (req, res) => {
       return res.status(404).json({ msg: 'El partido no existe en la base de datos' });
     }
 
+    // Regla Oficial: Cuando un partido está finalizado, el marcador queda cerrado y no se puede modificar
+    if (['finalizado', 'jugado'].includes(String(partido.estado || '').toLowerCase())) {
+      return res.status(400).json({
+        msg: 'Este partido ya está FINALIZADO oficialmente. Por reglamento, los partidos finalizados quedan cerrados y no pueden modificarse.'
+      });
+    }
+
     // Permitir fijar el marcador oficial; si no habían confirmado, se auto-valida al fijar la puntuación final
     partido.confirmacionLocal = true;
     partido.confirmacionVisitante = true;
@@ -521,6 +535,13 @@ export const actualizarGoleadores = async (req, res) => {
     const partido = await Partido.findById(id);
     if (!partido) {
       return res.status(404).json({ msg: 'El partido no existe en la base de datos' });
+    }
+
+    // Regla Oficial: Bloquear modificación si el partido ya está cerrado y finalizado
+    if (['finalizado', 'jugado'].includes(String(partido.estado || '').toLowerCase()) && Array.isArray(partido.goleadores) && partido.goleadores.length > 0) {
+      return res.status(400).json({
+        msg: 'El partido ya se encuentra Finalizado con su acta oficial registrada. No se permite modificar los registros de un partido cerrado.'
+      });
     }
 
     const eqLocal = await Equipo.findById(partido.local);
@@ -660,6 +681,12 @@ export const autogenerarGoleadoresHandler = async (req, res) => {
     const partido = await Partido.findById(id).populate('local visitante');
     if (!partido) {
       return res.status(404).json({ msg: 'Partido no encontrado' });
+    }
+    // No permitir modificar goleadores si el partido ya está finalizado con acta oficial registrada
+    if (['finalizado', 'jugado'].includes(String(partido.estado || '').toLowerCase()) && Array.isArray(partido.goleadores) && partido.goleadores.length > 0) {
+      return res.status(400).json({
+        msg: 'El partido ya está Finalizado con acta oficial registrada. No se puede modificar.'
+      });
     }
 
     partido.goleadores = await autoGenerarGoleadoresParaEquipos(partido);
