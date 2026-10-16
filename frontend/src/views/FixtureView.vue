@@ -136,14 +136,16 @@
             <div class="row items-center justify-between no-wrap">
               <!-- Equipo Local -->
               <div class="team-side col-5 row items-center no-wrap">
-                <img
-                  v-if="crestUrl(p.localId)"
-                  :src="crestUrl(p.localId)"
-                  alt="Escudo"
-                  class="club-fixture-crest q-mr-xs"
-                />
-                <span v-else-if="crestFigura(p.localId)" class="q-mr-xs font-14">{{ crestFigura(p.localId) }}</span>
-                <span v-else class="club-crest-dot q-mr-sm" :style="{ background: color(p.localId) }" />
+                <div class="club-badge-container q-mr-xs" :style="{ backgroundColor: color(p.localId) }">
+                  <img
+                    v-if="crestUrl(p.localId)"
+                    :src="crestUrl(p.localId)"
+                    alt="Escudo"
+                    class="club-badge-img"
+                  />
+                  <span v-else-if="crestFigura(p.localId)" class="club-badge-emoji">{{ crestFigura(p.localId) }}</span>
+                  <span v-else class="club-badge-dot" />
+                </div>
                 <span class="team-name text-weight-bold text-dark ellipsis" :title="nombre(p.localId)">
                   {{ nombre(p.localId) }}
                 </span>
@@ -168,14 +170,16 @@
                 <span class="team-name text-weight-bold text-dark ellipsis" :title="nombre(p.visitanteId)">
                   {{ nombre(p.visitanteId) }}
                 </span>
-                <img
-                  v-if="crestUrl(p.visitanteId)"
-                  :src="crestUrl(p.visitanteId)"
-                  alt="Escudo"
-                  class="club-fixture-crest q-ml-xs"
-                />
-                <span v-else-if="crestFigura(p.visitanteId)" class="q-ml-xs font-14">{{ crestFigura(p.visitanteId) }}</span>
-                <span v-else class="club-crest-dot q-ml-sm" :style="{ background: color(p.visitanteId) }" />
+                <div class="club-badge-container q-ml-xs" :style="{ backgroundColor: color(p.visitanteId) }">
+                  <img
+                    v-if="crestUrl(p.visitanteId)"
+                    :src="crestUrl(p.visitanteId)"
+                    alt="Escudo"
+                    class="club-badge-img"
+                  />
+                  <span v-else-if="crestFigura(p.visitanteId)" class="club-badge-emoji">{{ crestFigura(p.visitanteId) }}</span>
+                  <span v-else class="club-badge-dot" />
+                </div>
               </div>
             </div>
           </q-card-section>
@@ -597,4 +601,37 @@ function formatearFecha(f) {
 .max-w-md {
   max-width: 28rem;
 }
+
+.club-badge-container {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  max-width: 26px;
+  max-height: 26px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
+}
+.club-badge-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.club-badge-emoji {
+  font-size: 14px;
+  line-height: 1;
+}
+.club-badge-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: white;
+}
+
 </style>
