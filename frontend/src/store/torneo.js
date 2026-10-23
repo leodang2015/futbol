@@ -54,6 +54,7 @@ const dialogoPartido = ref(false)
 const dialogoEquipo = ref(false)
 const mostrarAuthModal = ref(false)
 const errorAuth = ref('')
+const codigoOrganizadorActivo = ref(localStorage.getItem('futbolito_codigo_omar') || '')
 
 // Notificaciones Oficiales para el Administrador
 const notificacionesGuardadas = (() => {
@@ -142,6 +143,17 @@ async function cargarTodo() {
   cargando.value = true
   error.value = ''
   try {
+    // Si es Omar, sincronizar su código dinámico de Organizador
+    if (token.value) {
+      try {
+        const cRes = await axios.get(`${API_URL}/auth/codigo-omar`, { headers: authHeaders() })
+        if (cRes.data?.codigo) {
+          codigoOrganizadorActivo.value = cRes.data.codigo
+          localStorage.setItem('futbolito_codigo_omar', cRes.data.codigo)
+        }
+      } catch (_) {}
+    }
+
     const [tRes, eRes, jRes, pRes, nRes] = await Promise.all([
       axios.get(`${API_URL}/torneos`).catch(() => ({ data: [] })),
       axios.get(`${API_URL}/equipos`).catch(() => ({ data: [] })),
@@ -333,6 +345,13 @@ async function login(credenciales) {
     localStorage.setItem('futbolito_auth_token', data.token)
     localStorage.setItem('futbolito_user', JSON.stringify(data.usuario))
     localStorage.setItem('futbolito_rol', rolActual.value)
+    if (data.codigoOrganizadorDinamico) {
+      codigoOrganizadorActivo.value = data.codigoOrganizadorDinamico
+      localStorage.setItem('futbolito_codigo_omar', data.codigoOrganizadorDinamico)
+    } else {
+      codigoOrganizadorActivo.value = ''
+      localStorage.removeItem('futbolito_codigo_omar')
+    }
     if (data.usuario.equipo) {
       const eqIdStr = idDe(data.usuario.equipo)
       localStorage.setItem('futbolito_dt_equipo', eqIdStr)
@@ -389,6 +408,13 @@ async function registro(datos) {
     localStorage.setItem('futbolito_auth_token', data.token)
     localStorage.setItem('futbolito_user', JSON.stringify(data.usuario))
     localStorage.setItem('futbolito_rol', rolActual.value)
+    if (data.codigoOrganizadorDinamico) {
+      codigoOrganizadorActivo.value = data.codigoOrganizadorDinamico
+      localStorage.setItem('futbolito_codigo_omar', data.codigoOrganizadorDinamico)
+    } else {
+      codigoOrganizadorActivo.value = ''
+      localStorage.removeItem('futbolito_codigo_omar')
+    }
     if (data.usuario.equipo) {
       localStorage.setItem('futbolito_dt_equipo', data.usuario.equipo)
     }
@@ -416,6 +442,13 @@ async function registro(datos) {
       localStorage.setItem('futbolito_auth_token', fakeToken)
       localStorage.setItem('futbolito_user', JSON.stringify(localUser))
       localStorage.setItem('futbolito_rol', rolActual.value)
+    if (data.codigoOrganizadorDinamico) {
+      codigoOrganizadorActivo.value = data.codigoOrganizadorDinamico
+      localStorage.setItem('futbolito_codigo_omar', data.codigoOrganizadorDinamico)
+    } else {
+      codigoOrganizadorActivo.value = ''
+      localStorage.removeItem('futbolito_codigo_omar')
+    }
 
       // Si es entrenador y creó club, intentar guardarlo en la API o localmente
       if (datos.rol === 'entrenador' && datos.nombreEquipo) {
@@ -465,6 +498,8 @@ async function registro(datos) {
 function logout() {
   user.value = null
   token.value = ''
+  codigoOrganizadorActivo.value = ''
+  localStorage.removeItem('futbolito_codigo_omar')
   rolActual.value = ROLES.ORGANIZADOR
   equipoEntrenadorId.value = ''
   localStorage.removeItem('futbolito_auth_token')
@@ -515,6 +550,14 @@ function cerrarModal() {
 // Propiedades computadas
 const isAuthenticated = computed(() => !!user.value && !!token.value)
 const esOrganizador = computed(() => rolActual.value === ROLES.ORGANIZADOR)
+
+const esOrganizadorOmar = computed(() => {
+  if (rolActual.value !== ROLES.ORGANIZADOR) return false
+  const u = String(user.value?.usuario || '').toLowerCase().trim()
+  const n = String(user.value?.nombre || '').toLowerCase().trim()
+  return u === 'omar' || n.includes('omar') || u.includes('omar')
+})
+
 const esEntrenador = computed(() => rolActual.value === ROLES.ENTRENADOR)
 const esJugador = computed(() => rolActual.value === ROLES.JUGADOR || rolActual.value === 'inscripcion')
 const esInscripcion = computed(() => rolActual.value === ROLES.JUGADOR || rolActual.value === 'inscripcion')
@@ -1040,7 +1083,7 @@ const state = reactive({
   dialogoPartido, dialogoEquipo, abrirDialogoPartido, abrirDialogoEquipo,
   // Auth y Roles
   user, token, rolActual, equipoEntrenadorId, isAuthenticated,
-  esOrganizador, esEntrenador, esJugador, esInscripcion, nombreDisplay, rolInfo,
+  esOrganizador, esOrganizadorOmar, esEntrenador, esJugador, esInscripcion, nombreDisplay, rolInfo,
   mostrarAuthModal, errorAuth,
   login, registro, logout, cambiarRol, setEquipoEntrenador, abrirLogin, abrirRegistro, cerrarModal
 })
