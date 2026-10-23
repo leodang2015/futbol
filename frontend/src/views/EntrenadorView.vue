@@ -1014,7 +1014,7 @@ const jugadoresDelEquipo = computed(() => {
   if (!targetId) return []
   return store.jugadores.filter(j => {
     const eqId = j.equipoId || (j.equipo && typeof j.equipo === 'object' ? (j.equipo._id || j.equipo.id) : j.equipo)
-    return String(eqId || '').trim() === targetId
+    return String(eqId || '').trim() === targetId && j.estadoAprobacion !== 'Rechazado'
   })
 })
 
