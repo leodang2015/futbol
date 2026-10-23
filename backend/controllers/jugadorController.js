@@ -172,7 +172,13 @@ export const crearJugador = async (req, res) => {
 export const listarJugadores = async (req, res) => {
   try {
     const { equipo } = req.query;
-    const filtro = equipo ? { equipo } : {};
+    // Jugadores con estadoAprobacion: 'Rechazado' fueron denegados/eliminados del equipo y no deben figurar en la nómina
+    const filtro = {
+      estadoAprobacion: { $ne: 'Rechazado' }
+    };
+    if (equipo) {
+      filtro.equipo = equipo;
+    }
 
     const jugadores = await Jugador.find(filtro).populate('equipo');
 
