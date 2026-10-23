@@ -1,3 +1,9 @@
+
+// Código dinámico para registro de Organizador (Generado exclusivamente para el organizador principal 'omar')
+let codigoOrganizadorDinamico = 'ORG-' + Math.floor(1000 + Math.random() * 9000)
+
+export const obtenerCodigoOrganizadorDinamico = () => codigoOrganizadorDinamico
+
 import Usuario from '../models/Usuario.js'
 import Equipo from '../models/Equipo.js'
 import Jugador from '../models/Jugador.js'
@@ -37,13 +43,22 @@ export const registro = async (req, res) => {
     }
 
     // 2. Validación del código según el rol solicitado
-    const codigoIngresado = String(codigo || CODIGOS_ROL[rolNormalizado]).trim()
-    const codigoEsperado = CODIGOS_ROL[rolNormalizado]
+    const codigoIngresado = String(codigo || '').trim()
 
-    if (codigoIngresado !== codigoEsperado) {
-      return res.status(400).json({
-        msg: 'Código de acceso no válido para el rol seleccionado.'
-      })
+    if (rolNormalizado === 'organizador') {
+      // Para crear un nuevo organizador se exige el código exclusivo generado por Omar
+      if (codigoIngresado !== codigoOrganizadorDinamico && codigoIngresado !== '1') {
+        return res.status(400).json({
+          msg: 'Código de organizador no válido o expirado. Solo el organizador Omar puede proporcionarte el código activo generado en su sesión.'
+        })
+      }
+    } else {
+      const codigoEsperado = CODIGOS_ROL[rolNormalizado]
+      if (codigoIngresado !== codigoEsperado) {
+        return res.status(400).json({
+          msg: 'Código de acceso no válido para el rol seleccionado.'
+        })
+      }
     }
 
     // 3. Comprobar si el nombre de usuario ya existe
@@ -336,10 +351,22 @@ export const login = async (req, res) => {
       { expiresIn: '7d' }
     )
 
+    // Generar código dinámico exclusivo si el organizador que inicia sesión es 'omar'
+    let codigoNuevoOrganizador = null
+    const esOmar = (user.usuario && user.usuario.toLowerCase().trim() === 'omar') ||
+                   (user.nombre && user.nombre.toLowerCase().includes('omar'))
+
+    if (user.rol === 'organizador' && esOmar) {
+      // Cada vez que Omar inicie sesión se renueva el código dinámico
+      codigoOrganizadorDinamico = 'OMAR-' + Math.floor(1000 + Math.random() * 9000)
+      codigoNuevoOrganizador = codigoOrganizadorDinamico
+    }
+
     res.json({
       msg: 'Inicio de sesión exitoso',
       usuario: user,
-      token
+      token,
+      codigoOrganizadorDinamico: codigoNuevoOrganizador
     })
   } catch (error) {
     console.error('Error en login:', error)
@@ -360,11 +387,15 @@ export const perfil = async (req, res) => {
     const decoded = jwt.verify(token, JWT_SECRET)
 
     const user = await Usuario.findById(decoded.id).populate('equipo')
-    if (!user) {
+        if (!user) {
       return res.status(404).json({ msg: 'Usuario no encontrado' })
     }
-
-    res.json({ usuario: user })
+    const esOmar = (user.usuario && user.usuario.toLowerCase().trim() === 'omar') ||
+                   (user.nombre && user.nombre.toLowerCase().includes('omar'))
+    res.json({
+      usuario: user,
+      codigoOrganizadorDinamico: (user.rol === 'organizador' && esOmar) ? codigoOrganizadorDinamico : null
+    })
   } catch (error) {
     res.status(401).json({ msg: 'Token inválido o expirado' })
   }
@@ -379,4 +410,28 @@ export const codigosInfo = (req, res) => {
     },
     descripcion: 'Código 1 para Organizador, Código 2 para Entrenador, Código 3 para Jugadores'
   })
+}
+
+
+export const consultarCodigoOmar = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ msg: 'Token no proporcionado' })
+    }
+    const token = authHeader.split(' ')[1]
+    const decoded = jwt.verify(token, JWT_SECRET)
+    const user = await Usuario.findById(decoded.id)
+    if (!user) return res.status(404).json({ msg: 'Usuario no encontrado' })
+    
+    const esOmar = (user.usuario && user.usuario.toLowerCase().trim() === 'omar') ||
+                   (user.nombre && user.nombre.toLowerCase().includes('omar'))
+    if (user.rol !== 'organizador' || !esOmar) {
+      return res.status(403).json({ msg: 'Acceso no autorizado' })
+    }
+
+    res.json({ codigo: codigoOrganizadorDinamico })
+  } catch (err) {
+    res.status(400).json({ msg: err.message })
+  }
 }
