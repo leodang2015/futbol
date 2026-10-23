@@ -39,6 +39,14 @@
                   <div class="row items-center no-wrap ellipsis">
                     <q-item-label class="text-weight-bold text-dark ellipsis">{{ e.nombre }}</q-item-label>
                     <q-badge
+                      v-if="e.estadoAprobacion === 'Pendiente'"
+                      color="amber-9"
+                      text-color="white"
+                      class="q-ml-xs text-weight-bolder font-10"
+                    >
+                      Pendiente Autorización
+                    </q-badge>
+                    <q-badge
                       v-if="store.esJugador && (e.id === store.miEquipoId || e._id === store.miEquipoId)"
                       color="indigo-7"
                       text-color="white"
@@ -140,20 +148,44 @@
                 </div>
 
                 <div class="row items-center q-gutter-sm">
-                  <q-btn
-                    v-if="store.esOrganizador && plantel.length < 11"
-                    unelevated
-                    no-caps
-                    color="amber-4"
-                    text-color="dark"
-                    :icon="matPersonAdd"
-                    :label="`Completar a 11 (${plantel.length}/11)`"
-                    class="text-weight-bold shadow-1"
-                    :loading="completandoPlantel"
-                    @click="completarPlantelClub(equipo.id)"
+
+                  <!-- Botón de Autorización del Club para el Organizador -->
+                  <template v-if="store.esOrganizador && equipo.estadoAprobacion === 'Pendiente'">
+                    <q-btn
+                      unelevated
+                      no-caps
+                      color="amber-4"
+                      text-color="dark"
+                      :icon="matCheckCircle"
+                      label="Autorizar Club Oficialmente"
+                      class="text-weight-bolder shadow-2 animate-pulse-gentle"
+                      :loading="autorizandoClub"
+                      @click="autorizarClubActual(equipo.id)"
+                    >
+                      <q-tooltip>Autorizar la afiliación de este club para que pueda competir en el torneo e ingresar el DT</q-tooltip>
+                    </q-btn>
+                    <q-btn
+                      flat
+                      no-caps
+                      color="white"
+                      class="bg-white/20 text-weight-bold"
+                      :icon="matClose"
+                      label="Cancelar / Rechazar"
+                      :loading="rechazandoClub"
+                      @click="rechazarClubActual(equipo.id)"
+                    >
+                      <q-tooltip>Rechazar la solicitud de creación de este club</q-tooltip>
+                    </q-btn>
+                  </template>
+                  <q-badge
+                    v-else-if="equipo.estadoAprobacion === 'Pendiente'"
+                    color="amber-9"
+                    text-color="white"
+                    class="text-weight-bold q-px-sm q-py-xs font-11 shadow-1"
                   >
-                    <q-tooltip>Incorporar automáticamente los jugadores restantes para habilitar partidos oficiales</q-tooltip>
-                  </q-btn>
+                    ⏳ Club Pendiente de Autorización del Organizador
+                  </q-badge>
+
                   <q-btn
                     v-if="store.esEntrenador && store.miEquipoId === equipo.id"
                     outline
@@ -164,11 +196,11 @@
                     class="text-weight-bold"
                     @click="irAPizarraDT(equipo.id)"
                   />
-                  <q-badge v-else-if="store.esEntrenador" color="emerald-9" text-color="white" class="text-weight-bold q-px-sm q-py-xs">
-                    Modo DT · Nómina de {{ equipo?.nombre }}
+                  <q-badge v-if="esMiClub" color="positive" text-color="white" class="text-weight-bold q-px-sm q-py-xs">
+                    ⭐ Tu Club Afiliado
                   </q-badge>
-                  <q-badge v-else-if="store.esJugador" color="indigo-8" text-color="white" class="text-weight-bold q-px-sm q-py-xs">
-                    👁️ Modo Futbolista · Nómina Oficial
+                  <q-badge v-else color="slate-7" text-color="white" class="text-weight-bold q-px-sm q-py-xs">
+                    Club Participante
                   </q-badge>
                 </div>
               </div>
@@ -218,9 +250,9 @@
               <div class="row items-center justify-between q-mb-sm">
                 <div>
                   <div class="text-subtitle2 text-weight-bold text-dark row items-center q-gutter-xs">
-                    <span>{{ store.esJugador ? 'Tu Ficha en el Plantel Oficial' : 'Plantel Oficial del Club' }}</span>
-                    <q-badge v-if="store.esJugador" color="indigo-7" text-color="white" class="font-10 text-weight-bold">
-                      🔒 Privacidad Protegida
+                    <span>Plantel Oficial del Club</span>
+                    <q-badge v-if="esMiClub" color="indigo-7" text-color="white" class="font-10 text-weight-bold">
+                      ⭐ Tu Club
                     </q-badge>
                   </div>
                   <div v-if="!store.esJugador" class="text-caption text-grey-7 font-mono">
@@ -233,8 +265,8 @@
                     </span>
                     · {{ store.cantidadEnBanca(equipoSeleccionado?.id) }} en banca
                   </div>
-                  <div v-else class="text-caption text-indigo-9 font-medium q-mt-xs">
-                    🔒 Por privacidad reglamentaria, solo tienes acceso a ver tu propia información deportiva. La información y estadísticas de otros futbolistas están protegidas.
+                  <div v-else class="text-caption text-grey-7 font-mono">
+                    {{ plantel.length }} futbolistas inscritos · Plantel público oficial
                   </div>
                 </div>
                 <q-btn
@@ -270,6 +302,15 @@
                       <td class="text-center font-mono text-weight-bold text-primary">
                         <div class="row items-center justify-center q-gutter-xs">
                           <span class="dorsal-tag">#{{ j.dorsal ?? j.numero ?? '—' }}</span>
+                          <span v-if="j.expulsadoDelTorneo" class="text-negative text-weight-bolder font-10" title="Expulsado del equipo y torneo por 3 rojas">
+                            🚫 EXPULSADO
+                          </span>
+                          <span v-else-if="j.partidosSuspendidosRestantes > 0" class="text-amber-10 text-weight-bolder font-10 bg-amber-100 q-px-xs rounded" :title="j.motivoSancion">
+                            🛑 Suspendido ({{ j.partidosSuspendidosRestantes }} PJ)
+                          </span>
+                          <span v-else-if="j.tarjetasRojasAcumuladas > 0" class="text-negative font-10 font-bold">
+                            🟥 x{{ j.tarjetasRojasAcumuladas }}
+                          </span>
                           <q-btn
                             v-if="store.esJugador && esElMismoJugador(j)"
                             flat
@@ -492,7 +533,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import { useTorneo, ROLES } from '../torneo.js'
+import { useTorneo, ROLES } from '../store/torneo.js'
 import EquipoDialog from '../components/EquipoDialog.vue'
 import {
   matAdd,
@@ -510,6 +551,57 @@ import {
 } from '@quasar/extras/material-icons'
 
 const $q = useQuasar()
+const autorizandoClub = ref(false)
+
+const rechazandoClub = ref(false)
+
+async function autorizarClubActual(eqId) {
+  if (!eqId) return
+  autorizandoClub.value = true
+  try {
+    const res = await store.autorizarEquipo(eqId)
+    $q.notify({
+      type: 'positive',
+      icon: 'check_circle',
+      message: res?.msg || '¡Club autorizado exitosamente!',
+      position: 'top',
+      timeout: 3500
+    })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      icon: 'error',
+      message: err.message || 'Error al autorizar el club',
+      position: 'top'
+    })
+  } finally {
+    autorizandoClub.value = false
+  }
+}
+
+async function rechazarClubActual(eqId) {
+  if (!eqId) return
+  rechazandoClub.value = true
+  try {
+    const res = await store.rechazarEquipo(eqId)
+    $q.notify({
+      type: 'warning',
+      icon: 'cancel',
+      message: res?.msg || 'Solicitud de creación del club cancelada/rechazada.',
+      position: 'top',
+      timeout: 3500
+    })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      icon: 'error',
+      message: err.message || 'Error al cancelar club',
+      position: 'top'
+    })
+  } finally {
+    rechazandoClub.value = false
+  }
+}
 const store = useTorneo()
 const roleStore = store
 const router = useRouter()
@@ -645,14 +737,8 @@ async function ejecutarCambioDorsal() {
 }
 
 const clubesVisibles = computed(() => {
-  if (store.esEntrenador || store.esJugador) {
-    const miId = String(store.miEquipoId || '').trim()
-    if (miId) {
-      return store.equipos.filter(e => String(e.id || e._id || '').trim() === miId)
-    }
-    return []
-  }
-  return store.equipos
+  // Equipos cancelados / rechazados no deben figurar en la pestaña Clubes
+  return (store.equipos || []).filter(e => e.estadoAprobacion !== 'Rechazado')
 })
 
 watch(() => store.miEquipoId, (id) => {
@@ -690,16 +776,13 @@ function irAPizarraDT(equipoId) {
 }
 
 const equipo = computed(() => {
-  if (store.esEntrenador || store.esJugador) {
-    const miId = String(store.miEquipoId || '').trim()
-    if (miId) {
-      return store.equipoPorId(miId) || clubesVisibles.value[0] || null
-    }
-    return null
-  }
   if (seleccionId.value) {
     const e = store.equipoPorId(seleccionId.value)
     if (e) return e
+  }
+  if (store.miEquipoId) {
+    const miClub = store.equipoPorId(store.miEquipoId)
+    if (miClub) return miClub
   }
   return clubesVisibles.value[0] || store.equipos[0] || null
 })
@@ -711,16 +794,7 @@ const todosLosJugadoresDelClub = computed(() => {
 
 const plantel = computed(() => {
   if (!equipo.value) return []
-  const todos = todosLosJugadoresDelClub.value
-  if (store.esJugador) {
-    // Aca en la ultima imagen no quiero que el jugador vea la informacion de otros
-    const soloMio = todos.filter(j => esElMismoJugador(j))
-    if (!soloMio.length && miFichaJugador.value) {
-      return [miFichaJugador.value]
-    }
-    return soloMio
-  }
-  return todos
+  return todosLosJugadoresDelClub.value
 })
 
 const headerGradient = computed(() => {

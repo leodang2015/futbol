@@ -42,7 +42,8 @@ export const crearEquipo = async (req, res) => {
 
 export const listarEquipos = async (req, res) => {
   try {
-    const equipos = await Equipo.find();
+    // Los equipos con estadoAprobacion: 'Rechazado' fueron cancelados/denegados y no deben aparecer en la lista de clubes del torneo
+    const equipos = await Equipo.find({ estadoAprobacion: { $ne: 'Rechazado' } });
     res.json(equipos);
 
   } catch (error) {

@@ -5,7 +5,7 @@
       <q-card-section class="bg-grey-10 text-white row items-center justify-between q-py-sm q-px-md shrink-0">
         <div class="row items-center q-gutter-xs">
           <q-icon :name="matSportsScore" color="positive" size="22px" />
-          <div class="text-subtitle1 text-weight-bold">Registrar Partido / Marcador Oficial</div>
+          <div class="text-subtitle1 text-weight-bold">Programar Partido Oficial</div>
         </div>
         <q-btn flat round dense :icon="matClose" v-close-popup text-color="grey-4" size="sm" />
       </q-card-section>
@@ -17,29 +17,11 @@
           <div class="col-12 col-sm-5">
             <div class="bg-slate-50 border q-pa-sm rounded-borders full-height column justify-between">
               <div>
-                <div class="text-caption text-weight-bold text-slate-800">Jornada del Torneo</div>
-                <div class="text-caption text-grey-6 font-10">Fecha 1 a 5 reglamentaria</div>
+                <div class="text-caption text-weight-bold text-slate-800">Criterio de Paridad</div>
+                <div class="text-caption text-grey-6 font-10">Equipos con igual número de partidos</div>
               </div>
-              <div class="row items-center justify-between bg-white q-px-xs q-py-none rounded border q-mt-xs">
-                <q-btn
-                  flat
-                  dense
-                  round
-                  :icon="matRemove"
-                  size="sm"
-                  :disable="form.fecha <= 1"
-                  @click="form.fecha = Math.max(1, form.fecha - 1)"
-                />
-                <span class="text-weight-bolder font-mono text-subtitle2">Fecha {{ form.fecha }} / 5</span>
-                <q-btn
-                  flat
-                  dense
-                  round
-                  :icon="matAdd"
-                  size="sm"
-                  :disable="form.fecha >= 5"
-                  @click="form.fecha = Math.min(5, form.fecha + 1)"
-                />
+              <div class="bg-white q-pa-xs rounded border q-mt-xs text-caption font-mono text-center text-weight-bolder text-emerald-9">
+                ⚖️ Enfrentamiento entre Pares
               </div>
             </div>
           </div>
@@ -66,7 +48,7 @@
                 dense
                 bg-color="white"
                 class="font-mono text-caption"
-                :max="maxFechaHoraActual"
+                
               />
             </div>
           </div>
@@ -133,16 +115,7 @@
                   <span class="text-negative text-weight-bold font-10">
                     ⚠️ {{ store.cantidadJugadoresEquipo(form.local) }}/11 jug.
                   </span>
-                  <q-btn
-                    flat
-                    dense
-                    no-caps
-                    size="xs"
-                    color="primary"
-                    label="+ Completar a 11"
-                    :loading="completando"
-                    @click="completarPlantel(form.local)"
-                  />
+
                 </div>
               </div>
             </div>
@@ -205,16 +178,7 @@
                   <span class="text-negative text-weight-bold font-10">
                     ⚠️ {{ store.cantidadJugadoresEquipo(form.visitante) }}/11 jug.
                   </span>
-                  <q-btn
-                    flat
-                    dense
-                    no-caps
-                    size="xs"
-                    color="primary"
-                    label="+ Completar a 11"
-                    :loading="completando"
-                    @click="completarPlantel(form.visitante)"
-                  />
+
                 </div>
               </div>
             </div>
@@ -229,38 +193,11 @@
           </div>
         </div>
 
-        <!-- Fila 3: Marcador de Goles -->
-        <div class="bg-slate-50 border q-pa-sm rounded-borders">
-          <div class="text-caption text-weight-bold text-center text-slate-800 q-mb-xs">
-            ⚽ Marcador Oficial del Encuentro
-          </div>
-          <div class="row q-col-gutter-sm items-center justify-center">
-            <div class="col-5 text-center">
-              <div class="text-caption text-weight-medium text-grey-8 ellipsis font-11 q-mb-xs">
-                {{ nombreEquipo(form.local) || 'Local' }}
-              </div>
-              <div class="row items-center justify-center q-gutter-xs bg-white border q-py-xs rounded-borders shadow-xs">
-                <q-btn flat round dense :icon="matRemove" size="sm" :disable="form.golesLocal <= 0" @click="form.golesLocal--" />
-                <span class="text-h5 text-weight-bolder font-mono q-px-sm text-slate-900">{{ form.golesLocal }}</span>
-                <q-btn flat round dense :icon="matAdd" size="sm" @click="form.golesLocal++" />
-              </div>
-            </div>
-
-            <div class="col-2 text-center text-h5 text-grey-5 font-mono font-bold">:</div>
-
-            <div class="col-5 text-center">
-              <div class="text-caption text-weight-medium text-grey-8 ellipsis font-11 q-mb-xs">
-                {{ nombreEquipo(form.visitante) || 'Visitante' }}
-              </div>
-              <div class="row items-center justify-center q-gutter-xs bg-white border q-py-xs rounded-borders shadow-xs">
-                <q-btn flat round dense :icon="matRemove" size="sm" :disable="form.golesVisitante <= 0" @click="form.golesVisitante--" />
-                <span class="text-h5 text-weight-bolder font-mono q-px-sm text-slate-900">{{ form.golesVisitante }}</span>
-                <q-btn flat round dense :icon="matAdd" size="sm" @click="form.golesVisitante++" />
-              </div>
-            </div>
-          </div>
-          <div class="text-caption text-grey-7 text-center font-10 q-mt-xs">
-            El resultado se computará de inmediato en MongoDB Atlas y la tabla oficial.
+        <!-- Nota de Creación y Programación de Partido -->
+        <div class="bg-emerald-50 border border-emerald-2 q-pa-sm rounded-borders row items-center no-wrap">
+          <q-icon name="event" size="20px" color="positive" class="q-mr-xs shrink-0" />
+          <div class="text-caption text-emerald-10 font-11" style="line-height: 1.45;">
+            El encuentro se creará en el fixture oficial en estado <strong>Programado</strong>. Una vez transcurrido el tiempo del partido, la autoridad del torneo cargará el marcador y la planilla oficial.
           </div>
         </div>
 
@@ -274,7 +211,7 @@
           color="primary"
           unelevated
           no-caps
-          label="Guardar Partido"
+          label="Programar Partido"
           :icon="matCheck"
           :loading="guardando"
           :disable="!puedeGuardar"
@@ -292,7 +229,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { useTorneo } from '../torneo.js'
+import { useTorneo } from '../store/torneo.js'
 import { matSportsScore, matClose, matRemove, matAdd, matCheck } from '@quasar/extras/material-icons'
 
 const props = defineProps({ modelValue: Boolean })
@@ -337,7 +274,7 @@ const opciones = computed(() =>
     const tieneExceso = store.tieneExcesoEnCancha(id)
     const tieneCap = store.tieneCapitan(id)
     const habilitado = cant >= 11 && !tieneExceso && tieneCap
-    let badgeText = `${cant} jug. © ✅`
+    const pj = partidosJugadosDeEquipo(id); let badgeText = `${cant} jug. (${pj} PJ)`
     if (cant < 11) badgeText = `${cant}/11 jug. ⚠️`
     else if (tieneExceso) badgeText = `⚠️ ${enCancha}/11 en cancha`
     else if (!tieneCap) badgeText = `⚠️ Falta Capitán`
@@ -364,28 +301,58 @@ function colorEquipo(id) {
   return store.equipoPorId(id)?.color || store.equipoPorId(id)?.escudocolor || '#059669'
 }
 
+function partidosJugadosDeEquipo(eqId) {
+  if (!eqId) return 0
+  const target = String(eqId).trim()
+  return store.partidos.filter(p => {
+    const l = String(p.localId || (p.local && typeof p.local === 'object' ? (p.local._id || p.local.id) : p.local) || '').trim()
+    const v = String(p.visitanteId || (p.visitante && typeof p.visitante === 'object' ? (p.visitante._id || p.visitante.id) : p.visitante) || '').trim()
+    const fin = ['finalizado', 'jugado'].includes(String(p.estado || '').toLowerCase())
+    return fin && (l === target || v === target)
+  }).length
+}
+
 const conflictoDescanso = computed(() => {
-  if (!form.value.local && !form.value.visitante) return ''
-  const fNueva = Number(form.value.fecha || 1)
+  if (!form.value.local || !form.value.visitante) return ''
   const locTarget = String(form.value.local || '').trim()
   const visTarget = String(form.value.visitante || '').trim()
 
-  for (const p of store.partidos) {
-    const fExistente = Number(p.fecha || p.jornada || 1)
-    const locId = String(p.localId || (p.local && typeof p.local === 'object' ? (p.local._id || p.local.id) : p.local) || '').trim()
-    const visId = String(p.visitanteId || (p.visitante && typeof p.visitante === 'object' ? (p.visitante._id || p.visitante.id) : p.visitante) || '').trim()
+  const finalizadoFn = (p) => ['jugado', 'finalizado'].includes(String(p?.estado || '').toLowerCase())
 
-    if (locTarget && (locId === locTarget || visId === locTarget)) {
-      if (Math.abs(fNueva - fExistente) < 2) {
-        return `⚠️ Regla de descanso: El club "${nombreEquipo(form.value.local)}" ya tiene partido en la Fecha ${fExistente}. Por reglamento oficial debe tener mínimo 2 fechas después de ese partido para jugar de nuevo (próxima fecha habilitada: Fecha ${fExistente + 2} o superior).`
+  // REGLA 1: Solo se puede tener UN partido en estado Programado a la vez por club.
+  // Solo cuando dicho partido ya pase y se finalice, se podrá crear/programar otro.
+  for (const p of store.partidos) {
+    if (!finalizadoFn(p)) {
+      const locId = String(p.localId || (p.local && typeof p.local === 'object' ? (p.local._id || p.local.id) : p.local) || '').trim()
+      const visId = String(p.visitanteId || (p.visitante && typeof p.visitante === 'object' ? (p.visitante._id || p.visitante.id) : p.visitante) || '').trim()
+
+      if (locTarget && (locId === locTarget || visId === locTarget)) {
+        return `⚠️ REGLA OFICIAL: "${nombreEquipo(locTarget)}" ya tiene un partido pendiente o programado en el fixture. Solo se podrá programar un nuevo encuentro una vez que el partido actual se dispute y finalice.`
       }
-    }
-    if (visTarget && (locId === visTarget || visId === visTarget)) {
-      if (Math.abs(fNueva - fExistente) < 2) {
-        return `⚠️ Regla de descanso: El club "${nombreEquipo(form.value.visitante)}" ya tiene partido en la Fecha ${fExistente}. Por reglamento oficial debe tener mínimo 2 fechas después de ese partido para jugar de nuevo (próxima fecha habilitada: Fecha ${fExistente + 2} o superior).`
+      if (visTarget && (locId === visTarget || visId === visTarget)) {
+        return `⚠️ REGLA OFICIAL: "${nombreEquipo(visTarget)}" ya tiene un partido pendiente o programado en el fixture. Solo se podrá programar un nuevo encuentro una vez que el partido actual se dispute y finalice.`
       }
     }
   }
+
+  // REGLA 2: Cronología de fechas (no puede programarse con una fecha u hora anterior al último partido)
+  if (form.value.fechaHora) {
+    const tNueva = new Date(form.value.fechaHora).getTime()
+
+    for (const p of store.partidos) {
+      if (!p.fechaHora) continue
+      const tP = new Date(p.fechaHora).getTime()
+      const locId = String(p.localId || (p.local && typeof p.local === 'object' ? (p.local._id || p.local.id) : p.local) || '').trim()
+      const visId = String(p.visitanteId || (p.visitante && typeof p.visitante === 'object' ? (p.visitante._id || p.visitante.id) : p.visitante) || '').trim()
+
+      const involucraClub = (locTarget && (locId === locTarget || visId === locTarget)) || (visTarget && (locId === visTarget || visId === visTarget))
+      if (involucraClub && tNueva <= tP) {
+        const fechaExistenteStr = new Date(p.fechaHora).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+        return `⚠️ REGLA CRONOLÓGICA: La fecha y hora de este nuevo partido no puede ser anterior ni igual a un encuentro previo del club (Encuentro previo: ${fechaExistenteStr}). Debe programarse posterior al último partido.`
+      }
+    }
+  }
+
   return ''
 })
 
@@ -393,9 +360,7 @@ const alertaReglamentaria = computed(() => {
   if (conflictoDescanso.value) {
     return conflictoDescanso.value
   }
-  if (form.value.fechaHora && new Date(form.value.fechaHora).getTime() > Date.now() + 65000) {
-    return '⚠️ La fecha y hora del encuentro debe colocarse en tiempo real y no puede ser posterior al momento actual.'
-  }
+
   if (form.value.local) {
     const cant = store.cantidadJugadoresEquipo(form.value.local)
     const nom = nombreEquipo(form.value.local)
@@ -428,7 +393,7 @@ const alertaReglamentaria = computed(() => {
 })
 
 const puedeGuardar = computed(() => {
-  const esFechaHoraValida = Boolean(form.value.fechaHora) && new Date(form.value.fechaHora).getTime() <= (Date.now() + 65000)
+  const esFechaHoraValida = Boolean(form.value.fechaHora)
   return Boolean(
     form.value.local &&
     form.value.visitante &&
@@ -468,10 +433,7 @@ async function guardar() {
     return
   }
 
-  if (form.value.fechaHora && new Date(form.value.fechaHora).getTime() > Date.now() + 65000) {
-    error.value = 'La fecha y hora del encuentro debe colocarse en tiempo real y no puede ser posterior al momento actual.'
-    return
-  }
+
 
   const cantLocal = store.cantidadJugadoresEquipo(form.value.local)
   if (cantLocal < 11) {
@@ -502,8 +464,9 @@ async function guardar() {
       fechaHora: form.value.fechaHora || new Date().toISOString(),
       local: form.value.local,
       visitante: form.value.visitante,
-      golesLocal: Number(form.value.golesLocal) || 0,
-      golesVisitante: Number(form.value.golesVisitante) || 0
+      golesLocal: 0,
+      golesVisitante: 0,
+      estado: 'Programado'
     })
     form.value = vacio()
     emit('update:modelValue', false)

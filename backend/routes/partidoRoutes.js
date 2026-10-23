@@ -7,6 +7,7 @@ import {
   obtenerTablaPosiciones,
   crearPartido,
   confirmarPartidoDT,
+  reportarGolesDT,
   fijarMarcadorOrganizador,
   actualizarGoleadores,
   autogenerarGoleadoresHandler
@@ -40,6 +41,7 @@ router.post('/', crearPartido)
 
 // Confirmación de DTs (Ambos entrenadores deben confirmar que van a jugar)
 router.post('/:id/confirmar', confirmarPartidoDT)
+router.post('/:id/reportar-goles-dt', reportarGolesDT)
 
 // Fijar marcador y asistencias oficiales por el Organizador
 router.put('/:id/marcador-organizador', fijarMarcadorOrganizador)

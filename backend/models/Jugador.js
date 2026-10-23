@@ -11,7 +11,19 @@ const jugadorSchema = new Schema({
   goles: { type: Number, default: 0, min: 0 },
   asistencias: { type: Number, default: 0, min: 0 },
   esCapitan: { type: Boolean, default: false },
-  estado: { type: Number, default: 1 } // 1: Activo, 0: Inactivo
+  estado: { type: Number, default: 1 }, // 1: Activo, 0: Inactivo
+  estadoAprobacion: {
+    type: String,
+    enum: ['Pendiente', 'Aprobado', 'Rechazado'],
+    default: 'Aprobado'
+  },
+  usuarioAsociado: { type: String, default: '' },
+  // Historial de sanciones y tarjetas acumuladas
+  tarjetasRojasAcumuladas: { type: Number, default: 0 },
+  tarjetasAmarillasAcumuladas: { type: Number, default: 0 },
+  partidosSuspendidosRestantes: { type: Number, default: 0 },
+  expulsadoDelTorneo: { type: Boolean, default: false },
+  motivoSancion: { type: String, default: '' }
 }, { timestamps: true })
 
 export default model('Jugador', jugadorSchema)

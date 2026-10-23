@@ -58,26 +58,27 @@ export const registro = async (req, res) => {
     let equipoAsignadoId = null
     let nuevoEquipoCreado = null
 
-    // 4. Regla: Entrenador debe obligatoriamente crear un equipo propio único (solo 1 entrenador por equipo)
+    // 4. Regla: El entrenador propone un nuevo club, el cual queda en estado "Pendiente" hasta que el Organizador lo autorice
     if (rolNormalizado === 'entrenador') {
       const nombreClub = (nombreEquipo || '').trim()
       if (!nombreClub || nombreClub.length < 3) {
         return res.status(400).json({
-          msg: 'Como entrenador debes obligatoriamente crear un equipo propio (mínimo 3 caracteres).'
+          msg: 'Como entrenador debes ingresar el nombre del club propuesto para autorización (mínimo 3 caracteres).'
         })
       }
 
       // Validar que no exista ya un equipo con ese nombre
       const equipoExistente = await Equipo.findOne({
-        nombre: { $regex: new RegExp(`^${nombreClub}$`, 'i') }
+        nombre: { $regex: new RegExp('^' + nombreClub + '$', 'i') }
       })
+
       if (equipoExistente) {
         return res.status(400).json({
-          msg: `El club "${nombreClub}" ya existe en el torneo. Cada entrenador debe fundar su equipo propio único.`
+          msg: 'El club "' + nombreClub + '" ya existe o está registrado en el torneo. Por favor propone otro nombre.'
         })
       }
 
-      // Crear el nuevo equipo propio para este entrenador
+      // Crear el equipo en estado 'Pendiente' para aprobación del Organizador
       nuevoEquipoCreado = new Equipo({
         nombre: nombreClub,
         tecnico: (nombre || usernameClean).trim(),
@@ -85,10 +86,31 @@ export const registro = async (req, res) => {
         barriada: (barriada || 'Barrio Central').trim(),
         escudocolor: escudocolor || '#059669',
         escudoUrl: req.body.escudoUrl || '',
-        escudoFigura: req.body.escudoFigura || '🛡️'
+        escudoFigura: req.body.escudoFigura || '🛡️',
+        estadoAprobacion: 'Pendiente',
+        solicitadoPor: usernameClean
       })
+
       await nuevoEquipoCreado.save()
       equipoAsignadoId = nuevoEquipoCreado._id
+
+      // Notificación oficial obligatoria para el Organizador del Torneo
+      try {
+        const Notificacion = (await import('../models/Notificacion.js')).default
+        await Notificacion.create({
+          tipo: 'solicitud_club',
+          titulo: '📋 Solicitud de Nuevo Club: ' + nombreClub,
+          mensaje: 'El DT ' + (nombre || usernameClean) + ' (@' + usernameClean + ') ha propuesto el nuevo club "' + nombreClub + '". Por reglamento oficial, se requiere tu autorización como Organizador para habilitar el club y permitir su participación oficial.',
+          remitente: 'DT ' + (nombre || usernameClean),
+          equipo: nuevoEquipoCreado._id,
+          equipoNombre: nombreClub,
+          destinatarioRol: 'organizador',
+          datos: { equipoId: String(nuevoEquipoCreado._id), dt: usernameClean, nombreClub, tecnico: (nombre || usernameClean).trim() },
+          leida: false
+        })
+      } catch (errNotif) {
+        console.error('Error al emitir notificacion de nuevo club al organizador:', errNotif)
+      }
     }
 
     // 5. Regla: Jugador debe obligatoriamente escoger un equipo existente y su posición táctica
@@ -114,7 +136,7 @@ export const registro = async (req, res) => {
       }
       equipoAsignadoId = equipoExistente._id
 
-      // Registrar al jugador en la nómina oficial del equipo con su posición elegida
+      // Registrar al jugador en estado "Pendiente" de aprobación para ingresar al equipo
       const emailFicha = `${usernameClean}@futbolito.local`
       const fichaExistente = await Jugador.findOne({ email: emailFicha })
       if (!fichaExistente) {
@@ -123,11 +145,27 @@ export const registro = async (req, res) => {
           nombre: (nombre || usernameClean).trim(),
           apellido: '-',
           numero: countJugadores + 1,
-          posicion: posLimpia,
+          posicion: 'En Banca',
           equipo: equipoExistente._id,
           email: emailFicha,
-          password: password
+          password: password,
+          estadoAprobacion: 'Pendiente',
+          usuarioAsociado: usernameClean
         })
+
+        // Notificación de solicitud para ingresar al equipo
+        try {
+          const Notificacion = (await import('../models/Notificacion.js')).default
+          await Notificacion.create({
+            tipo: 'solicitud_jugador',
+            titulo: `👤 Solicitud de Fichaje: ${nombre || usernameClean}`,
+            mensaje: `El futbolista ${nombre || usernameClean} solicita ingresar a tu club ${equipoExistente.nombre} (iniciará como suplente en la banca). Como Entrenador eres el encargado de decidir si lo aceptas y en qué posición jugará.`,
+            remitente: 'Sistema de Fichajes',
+            equipo: equipoExistente._id,
+            equipoNombre: equipoExistente.nombre,
+            datos: { club: equipoExistente.nombre, clubId: equipoExistente._id, jugador: usernameClean, posicion: 'En Banca' }
+          })
+        } catch (_) {}
       }
     }
 
@@ -138,7 +176,7 @@ export const registro = async (req, res) => {
       rol: rolNormalizado,
       codigoUsado: codigoIngresado,
       equipo: equipoAsignadoId,
-      posicion: rolNormalizado === 'jugador' ? (posicion || '').trim() : ''
+      posicion: rolNormalizado === 'jugador' ? 'En Banca' : ''
     })
 
     nuevoUsuario.setPassword(password)
@@ -219,6 +257,51 @@ export const login = async (req, res) => {
     }
 
     // Vincular equipo si el entrenador o jugador aún no lo tiene enlazado
+    // Validar si el entrenador tiene su club en estado Pendiente o Rechazado
+    if (user.rol === 'entrenador' && user.equipo) {
+      const eqEstado = user.equipo.estadoAprobacion || 'Aprobado'
+      if (eqEstado === 'Pendiente') {
+        return res.status(403).json({
+          msg: 'Tu club propuesto "' + (user.equipo.nombre || 'Club') + '" se encuentra en revisión. El Administrador/Organizador debe autorizar la creación del equipo para habilitar el acceso oficial.',
+          estadoClub: 'Pendiente'
+        })
+      } else if (eqEstado === 'Rechazado') {
+        return res.status(403).json({
+          msg: 'Equipo cancelado / denegado por el Organizador. Debes crear otro equipo para que el Organizador lo evalúe y lo acepte.',
+          estadoClub: 'Rechazado',
+          clubRechazado: user.equipo.nombre || 'Club',
+          permitirCrearNuevoEquipo: true
+        })
+      }
+    }
+
+    // Validar si el jugador fue rechazado o está pendiente de autorización por parte de su Entrenador
+    if (user.rol === 'jugador') {
+      const JugadorModel = (await import('../models/Jugador.js')).default;
+      const jFicha = await JugadorModel.findOne({
+        $or: [
+          { usuarioAsociado: user.usuario },
+          { email: new RegExp(`^${user.usuario}@`, 'i') },
+          { nombre: new RegExp(`^${user.nombre}$`, 'i') }
+        ]
+      }).populate('equipo');
+
+      if (jFicha) {
+        if (jFicha.estadoAprobacion === 'Rechazado') {
+          return res.status(403).json({
+            msg: `Solicitud de ingreso al equipo ${jFicha.equipo?.nombre || 'club'} denegada por el Entrenador. Puedes solicitar ingreso a otro equipo registrándote nuevamente.`,
+            estadoJugador: 'Rechazado',
+            permitirCrearNuevoEquipo: true
+          });
+        } else if (jFicha.estadoAprobacion === 'Pendiente') {
+          return res.status(403).json({
+            msg: `Tu solicitud de ingreso al club ${jFicha.equipo?.nombre || 'club'} está en revisión. El Entrenador de tu equipo debe aceptarte para que puedas ingresar.`,
+            estadoJugador: 'Pendiente'
+          });
+        }
+      }
+    }
+
     if (user.rol === 'entrenador' && !user.equipo) {
       const eq = await Equipo.findOne({
         $or: [

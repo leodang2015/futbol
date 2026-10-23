@@ -94,19 +94,77 @@
       </q-card-section>
     </q-card>
 
-    <!-- Selector de Modo: Pizarra Táctica / Reporte de Goleadores -->
-    <q-tabs
-      v-model="tabVista"
-      dense
-      no-caps
-      class="bg-white rounded-borders shadow-1 q-mb-md"
-      active-color="positive"
-      indicator-color="positive"
-      align="left"
-    >
-      <q-tab name="pizarra" :icon="matStadium" label="Pizarra Táctica & Alineación (11 en Cancha)" class="text-weight-bold" />
-      <q-tab name="goleadores" :icon="matSportsSoccer" label="Reportar Goleadores del Partido (Notificar al Admin)" class="text-weight-bold text-amber-10" />
-    </q-tabs>
+    <!-- Solicitudes de Jugadores Pendientes de Autorización por el DT -->
+    <div v-if="jugadoresPendientesDeAprobacion.length" class="bg-amber-50 border-2 border-amber-4 rounded-borders q-pa-md q-mb-md shadow-2">
+      <div class="row items-center justify-between q-mb-sm">
+        <div class="row items-center q-gutter-xs">
+          <q-icon :name="matPersonAdd" color="amber-10" size="24px" />
+          <span class="text-subtitle1 text-weight-bolder text-amber-10">
+            Solicitudes de Jugadores para Ingresar a tu Equipo ({{ jugadoresPendientesDeAprobacion.length }})
+          </span>
+        </div>
+        <q-badge color="amber-9" text-color="white" class="text-weight-bold">
+          Decisión exclusiva del Entrenador
+        </q-badge>
+      </div>
+      <div class="text-caption text-slate-700 q-mb-sm">
+        Como Director Técnico, tienes la potestad exclusiva de decidir qué futbolistas entran a tu plantel. El Organizador no interviene en estas solicitudes para garantizar imparcialidad deportiva.
+      </div>
+      <div class="row q-col-gutter-sm">
+        <div
+          v-for="j in jugadoresPendientesDeAprobacion"
+          :key="j._id || j.id"
+          class="col-12 col-md-6"
+        >
+          <div class="bg-white q-pa-sm rounded border border-amber-3 row items-center justify-between">
+            <div class="row items-center q-gutter-xs">
+              <q-avatar size="32px" color="emerald-1" text-color="positive" class="text-weight-bold font-mono">
+                {{ (j.nombre ? j.nombre[0] : 'J').toUpperCase() }}
+              </q-avatar>
+              <div>
+                <div class="text-weight-bold text-slate-900 font-12">{{ j.nombre }} {{ j.apellido && j.apellido !== '-' ? j.apellido : '' }}</div>
+                <div class="text-caption text-grey-6 font-10">Posición solicitada: <strong class="text-emerald-8">{{ j.posicion || 'Delantero' }}</strong> · #{{ j.numero || j.dorsal || '-' }}</div>
+              </div>
+            </div>
+            <div class="row items-center q-gutter-xs">
+              <q-btn
+                dense
+                unelevated
+                no-caps
+                size="sm"
+                color="positive"
+                label="✅ Aceptar"
+                class="text-weight-bold q-px-xs"
+                :loading="procesandoJugadorId === (j._id || j.id)"
+                @click="aceptarJugadorEnClub(j)"
+              />
+              <q-btn
+                dense
+                flat
+                no-caps
+                size="sm"
+                color="negative"
+                label="❌ Rechazar"
+                class="text-weight-bold q-px-xs"
+                :loading="procesandoJugadorId === (j._id || j.id)"
+                @click="rechazarJugadorEnClub(j)"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Barra Informativa de Pizarra Táctica Oficial -->
+    <div class="row items-center justify-between bg-white q-pa-sm rounded-borders shadow-1 q-mb-md border">
+      <div class="row items-center q-gutter-xs text-weight-bold text-slate-800">
+        <q-icon :name="matStadium" size="20px" color="positive" />
+        <span>Pizarra Táctica & Alineación Oficial (11 Titulares en Cancha)</span>
+      </div>
+      <div class="text-caption text-grey-7">
+        ℹ️ Como Entrenador eres el encargado oficial de autorizar qué jugadores ingresan a tu equipo y armar tu formación.
+      </div>
+    </div>
 
     <!-- Si no hay equipos -->
     <q-card v-if="!store.equipos.length" flat bordered class="bg-white rounded-borders q-pa-xl text-center">
@@ -645,292 +703,6 @@
           </q-card>
         </div>
       </div>
-
-      <!-- TAB 2: REPORTAR GOLEADORES DEL PARTIDO (Notificar al Administrador) -->
-      <div v-else-if="tabVista === 'goleadores'" class="q-gutter-y-md">
-        <q-card flat bordered class="bg-white rounded-borders q-pa-lg">
-          <div class="row items-center justify-between q-mb-md">
-            <div class="row items-center q-gutter-sm">
-              <q-avatar size="44px" color="amber-1" text-color="amber-9">
-                <q-icon :name="matSportsSoccer" size="26px" />
-              </q-avatar>
-              <div>
-                <div class="text-h6 text-weight-bold text-slate-900">
-                  Planilla Oficial de Goleadores · DT {{ equipoActual?.nombre }}
-                </div>
-                <div class="text-caption text-grey-6">
-                  Registra quiénes anotaron los goles de tu equipo en un partido oficial. Al terminar la selección, se enviará una notificación oficial con la planilla al Administrador.
-                </div>
-              </div>
-            </div>
-            <q-badge color="positive" text-color="white" class="text-weight-bold q-px-sm q-py-xs">
-              Notificación Directa al Organizador
-            </q-badge>
-          </div>
-
-          <div v-if="!partidosDelClub.length" class="text-center q-pa-xl text-grey-6 bg-slate-50 rounded-borders border">
-            <q-icon :name="matCalendarMonth" size="48px" color="grey-4" class="q-mb-sm" />
-            <div class="text-subtitle1 text-weight-bold">No hay partidos registrados para tu club todavía</div>
-            <div class="text-caption text-grey-6 q-mt-xs">
-              Cuando se programen partidos o se carguen fechas en el torneo, podrás seleccionar el partido aquí para registrar los goles.
-            </div>
-          </div>
-
-          <div v-else class="q-gutter-y-md">
-            <!-- Selección del Partido -->
-            <div class="bg-slate-50 q-pa-md rounded-borders border">
-              <div class="text-subtitle2 text-weight-bold text-slate-800 q-mb-xs">1. Selecciona el Partido Oficial a Reportar:</div>
-              <q-select
-                v-model="partidoReporteId"
-                :options="opcionesPartidosReporte"
-                emit-value
-                map-options
-                outlined
-                dense
-                bg-color="white"
-                placeholder="Elige el partido a reportar"
-              >
-                <template #option="scope">
-                  <q-item v-bind="scope.itemProps">
-                    <q-item-section>
-                      <q-item-label class="text-weight-bold">{{ scope.opt.label }}</q-item-label>
-                      <q-item-label caption class="text-grey-6 font-mono">
-                        Jornada {{ scope.opt.jornada }} · Estado: {{ scope.opt.estado }}
-                      </q-item-label>
-                    </q-item-section>
-                  </q-item>
-                </template>
-              </q-select>
-            </div>
-
-            <!-- Datos del Encuentro y Marcador Fijado por el Organizador -->
-            <div v-if="partidoSeleccionado" class="bg-slate-50 q-pa-md rounded-borders border q-gutter-y-md">
-              <div class="row items-center justify-between">
-                <div>
-                  <div class="text-subtitle2 text-weight-bold text-slate-800">2. Marcador Oficial Fijado por el Organizador:</div>
-                  <div class="text-caption text-grey-7">La cantidad de goles del partido solo puede ser definida por el Organizador. El DT únicamente selecciona los autores de los goles.</div>
-                </div>
-                <q-badge color="primary" text-color="white" class="text-weight-bold q-px-sm q-py-xs">
-                  Oficial Organizador
-                </q-badge>
-              </div>
-
-              <div class="row q-col-gutter-md items-center justify-center">
-                <div class="col-12 col-sm-5 text-center">
-                  <div class="text-caption text-weight-bold text-positive q-mb-xs">
-                    {{ esLocal ? equipoActual?.nombre : rivalDelPartido?.nombre }} (Local)
-                  </div>
-                  <div class="bg-white border rounded-borders q-pa-sm text-center font-mono text-h4 text-weight-bolder text-slate-900 shadow-sm">
-                    {{ marcadorLocal }}
-                  </div>
-                </div>
-                <div class="col-12 col-sm-2 text-center text-weight-bolder text-grey-5 text-h5">
-                  VS
-                </div>
-                <div class="col-12 col-sm-5 text-center">
-                  <div class="text-caption text-weight-bold text-indigo-8 q-mb-xs">
-                    {{ esLocal ? rivalDelPartido?.nombre : equipoActual?.nombre }} (Visitante)
-                  </div>
-                  <div class="bg-white border rounded-borders q-pa-sm text-center font-mono text-h4 text-weight-bolder text-slate-900 shadow-sm">
-                    {{ marcadorVisitante }}
-                  </div>
-                </div>
-              </div>
-
-              <div class="text-caption text-slate-800 bg-emerald-50 q-pa-sm rounded-borders border border-emerald-3 text-center">
-                ⚽ Goles oficiales registrados para tu club ({{ equipoActual?.nombre }}): <strong>{{ golesMiEquipoOficial }} gol(es)</strong>. Asigna a continuación quiénes fueron los autores y quiénes dieron las asistencias.
-              </div>
-
-              <!-- Registro Actual Oficial de Goles y Asistencias del Partido -->
-              <div v-if="partidoSeleccionado.goleadores && partidoSeleccionado.goleadores.length" class="bg-white q-pa-sm rounded-borders border border-amber-3">
-                <div class="row items-center justify-between q-mb-xs">
-                  <span class="text-caption text-weight-bold text-amber-9 font-11">
-                    📋 Acta Oficial de Goles y Asistencias del Partido
-                  </span>
-                  <q-badge color="positive" size="xs">Oficial</q-badge>
-                </div>
-                <div class="row q-col-gutter-xs">
-                  <div
-                    v-for="(g, gIdx) in partidoSeleccionado.goleadores"
-                    :key="gIdx"
-                    class="col-12 col-sm-6"
-                  >
-                    <div class="bg-slate-50 q-pa-xs rounded border text-caption font-11">
-                      <div class="row items-center justify-between no-wrap">
-                        <span class="text-weight-bold text-slate-900 ellipsis">
-                          ⚽ {{ g.nombre }} <span v-if="g.dorsal" class="text-grey-6 font-mono font-10">#{{ g.dorsal }}</span>
-                        </span>
-                        <span class="text-positive text-weight-bold font-mono font-10">
-                          {{ g.minuto ? `${g.minuto}'` : 'Gol' }}
-                        </span>
-                      </div>
-                      <div v-if="g.asistenteNombre" class="text-grey-7 font-mono font-10 row items-center q-gutter-xs q-mt-xs">
-                        <span class="text-indigo-8">🎯 Asistencia:</span>
-                        <span class="text-weight-bold text-slate-900">{{ g.asistenteNombre }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Si el partido ya está Finalizado con acta cerrada -->
-              <div v-if="esPartidoFinalizadoCerrado" class="bg-slate-100 q-pa-md rounded-borders border border-slate-300 q-my-sm">
-                <div class="row items-center q-gutter-xs text-weight-bold text-slate-800">
-                  <q-icon :name="matLock" size="20px" color="primary" />
-                  <span>Acta Oficial Cerrada: Partido Finalizado</span>
-                  <q-badge color="emerald-9" text-color="white" class="font-10 text-weight-bold">Oficial e Inmodificable</q-badge>
-                </div>
-                <div class="text-caption text-grey-7 q-mt-xs">
-                  Por reglamento oficial de la liga, una vez que un partido ha finalizado y cuenta con su resultado y acta registrada, no se pueden modificar ni reescribir sus anotaciones.
-                </div>
-              </div>
-
-              <!-- Goleadores de tu equipo -->
-              <div v-else class="q-pt-sm border-t">
-                <div class="row items-center justify-between q-mb-sm">
-                  <div>
-                    <div class="text-subtitle2 text-weight-bold text-slate-800 row items-center q-gutter-xs">
-                      <span>3. Autores de los Goles y Asistencias de {{ equipoActual?.nombre }}:</span>
-                      <q-badge color="positive" text-color="white" class="font-10 text-weight-bolder">⚡ Selección Automática</q-badge>
-                    </div>
-                    <div class="text-caption text-grey-6">
-                      Quiénes hicieron los goles y asistencias. Se eligen automáticamente según el marcador oficial.
-                    </div>
-                  </div>
-                  <div class="row items-center q-gutter-xs">
-                    <q-btn
-                      unelevated
-                      dense
-                      no-caps
-                      color="positive"
-                      text-color="white"
-                      :icon="matBolt"
-                      label="⚡ Auto-escoger Goleadores"
-                      class="q-px-sm text-weight-bold text-caption shadow-1"
-                      @click="autoAsignarGoleadores"
-                    >
-                      <q-tooltip>Asignar automáticamente quiénes hicieron los goles y asistencias según el marcador oficial</q-tooltip>
-                    </q-btn>
-                    <q-btn
-                      v-if="partidoSeleccionado?.id || partidoSeleccionado?._id"
-                      outline
-                      dense
-                      no-caps
-                      color="indigo-8"
-                      :icon="matSportsSoccer"
-                      label="⚡ Ambos Equipos"
-                      class="q-px-sm text-weight-bold text-caption"
-                      :loading="generandoAmbosEquipos"
-                      @click="autogenerarAmbosEquipos"
-                    >
-                      <q-tooltip>Generar y guardar automáticamente los goleadores de ambos equipos en el acta oficial</q-tooltip>
-                    </q-btn>
-                    <q-btn
-                      flat
-                      dense
-                      no-caps
-                      color="primary"
-                      :icon="matAdd"
-                      label="+ Manual"
-                      class="q-px-sm text-weight-bold text-caption"
-                      @click="agregarFilaGoleador"
-                    />
-                  </div>
-                </div>
-
-                <div v-if="!filasGoleadores.length" class="text-center q-pa-md bg-white rounded-borders border text-grey-6 text-caption">
-                  Aún no se han asignado autores de goles. Haz clic en "⚡ Auto-escoger Goleadores" para seleccionarlos automáticamente.
-                </div>
-
-                <div v-else class="q-gutter-y-xs">
-                  <div
-                    v-for="(fila, idx) in filasGoleadores"
-                    :key="idx"
-                    class="row items-center q-col-gutter-sm bg-white q-pa-xs rounded-borders border"
-                  >
-                    <div class="col-12 col-sm-4">
-                      <q-select
-                        v-model="fila.jugadorId"
-                        :options="opcionesJugadoresClub"
-                        emit-value
-                        map-options
-                        outlined
-                        dense
-                        label="Goleador (Autor)"
-                        placeholder="Selecciona jugador"
-                        style="font-size: 12px"
-                      />
-                    </div>
-                    <div class="col-12 col-sm-4">
-                      <q-select
-                        v-model="fila.asistenteId"
-                        :options="[{ label: 'Sin Asistencia (Penal / Individual)', value: '' }, ...opcionesJugadoresClub]"
-                        emit-value
-                        map-options
-                        outlined
-                        dense
-                        label="Asistencia (Pase Gol)"
-                        placeholder="Quién asistió"
-                        style="font-size: 12px"
-                      />
-                    </div>
-                    <div class="col-6 col-sm-2">
-                      <q-input
-                        v-model.number="fila.goles"
-                        type="number"
-                        min="1"
-                        outlined
-                        dense
-                        label="Goles"
-                        style="font-size: 12px"
-                      />
-                    </div>
-                    <div class="col-5 col-sm-1">
-                      <q-input
-                        v-model="fila.minuto"
-                        outlined
-                        dense
-                        label="Min."
-                        placeholder="24'"
-                        style="font-size: 12px"
-                      />
-                    </div>
-                    <div class="col-1 text-right">
-                      <q-btn
-                        flat
-                        round
-                        dense
-                        size="xs"
-                        color="negative"
-                        :icon="matDelete"
-                        @click="quitarFilaGoleador(idx)"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Botón Enviar Planilla (Solo si el partido no está cerrado) -->
-              <div v-if="!esPartidoFinalizadoCerrado" class="row items-center justify-between q-pt-md border-t">
-                <div class="text-caption text-grey-7">
-                  ℹ️ Al confirmar, los goles se registrarán en la tabla y se enviará la alerta oficial al Administrador.
-                </div>
-                <q-btn
-                  unelevated
-                  no-caps
-                  color="amber-9"
-                  text-color="white"
-                  :icon="matSend"
-                  label="Enviar Planilla y Notificar al Administrador"
-                  class="text-weight-bolder shadow-1 q-px-md"
-                  :loading="enviandoPlanilla"
-                  @click="enviarPlanillaGoleadores"
-                />
-              </div>
-            </div>
-          </div>
-        </q-card>
-      </div>
     </div>
 
     <!-- Modal para Personalizar Escudo Oficial del Club -->
@@ -1092,7 +864,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import { useTorneo } from '../torneo.js'
+import { useTorneo } from '../store/torneo.js'
 import {
   matSports,
   matStadium,
@@ -1136,6 +908,64 @@ const mostrarDialogoJugador = ref(false)
 const actualizandoId = ref(null)
 const jugadorEditandoId = ref(null)
 const mensajeExito = ref('')
+const procesandoJugadorId = ref(null)
+
+const jugadoresPendientesDeAprobacion = computed(() => {
+  if (!equipoActual.value) return []
+  const eqId = String(equipoActual.value.id || equipoActual.value._id || '').trim()
+  return (store.jugadores || []).filter(j => {
+    const jEqId = String(j.equipoId || (j.equipo && typeof j.equipo === 'object' ? (j.equipo._id || j.equipo.id) : j.equipo) || '').trim()
+    return jEqId === eqId && j.estadoAprobacion === 'Pendiente'
+  })
+})
+
+async function aceptarJugadorEnClub(j) {
+  const jId = String(j._id || j.id).trim()
+  procesandoJugadorId.value = jId
+  try {
+    await store.autorizarJugador(jId)
+    $q.notify({
+      type: 'positive',
+      icon: 'check_circle',
+      message: `¡${j.nombre} ha sido aceptado oficialmente en el plantel de ${equipoActual.value?.nombre}!`,
+      position: 'top',
+      timeout: 3500
+    })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      icon: 'error',
+      message: err.message || 'Error al aceptar al jugador',
+      position: 'top'
+    })
+  } finally {
+    procesandoJugadorId.value = null
+  }
+}
+
+async function rechazarJugadorEnClub(j) {
+  const jId = String(j._id || j.id).trim()
+  procesandoJugadorId.value = jId
+  try {
+    await store.rechazarJugador(jId)
+    $q.notify({
+      type: 'info',
+      icon: 'cancel',
+      message: `Solicitud de fichaje de ${j.nombre} rechazada por el cuerpo técnico.`,
+      position: 'top',
+      timeout: 3500
+    })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      icon: 'error',
+      message: err.message || 'Error al rechazar al jugador',
+      position: 'top'
+    })
+  } finally {
+    procesandoJugadorId.value = null
+  }
+}
 const enviandoBanca = ref(false)
 
 const posicionesDisponibles = ['Arquero', 'Defensor', 'Mediocampista', 'Delantero', 'En Banca']

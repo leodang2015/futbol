@@ -3,10 +3,42 @@ import Notificacion from '../models/Notificacion.js'
 
 const router = Router()
 
-// Listar todas las notificaciones (para el Administrador)
+// Listar notificaciones segmentadas por rol, club y usuario destinatario
 router.get('/', async (req, res) => {
   try {
-    const notificaciones = await Notificacion.find()
+    const { rol, equipoId, usuario } = req.query
+    let filtro = {}
+
+    if (!rol || rol === 'organizador') {
+      // El Organizador gestiona el torneo en general (solicitudes de clubes, resultados oficiales),
+      // pero NUNCA las solicitudes de fichaje de jugadores a un club específico para evitar favoritismos.
+      filtro = {
+        tipo: { $ne: 'solicitud_jugador' }
+      }
+    } else if (rol === 'entrenador') {
+      // El Entrenador es la ÚNICA autoridad que autoriza el ingreso de futbolistas a su club
+      const eqId = equipoId ? String(equipoId).trim() : null
+      filtro = {
+        $or: [
+          { destinatarioUsuario: usuario },
+          { equipo: eqId },
+          { tipo: 'convocatoria_partido', equipo: eqId },
+          { tipo: 'marcador_fijado', equipo: eqId },
+          { tipo: 'solicitud_jugador', equipo: eqId }
+        ]
+      }
+    } else if (rol === 'jugador') {
+      // El Jugador únicamente recibe avisos de convocatoria o marcador de su propio club
+      const eqId = equipoId ? String(equipoId).trim() : null
+      filtro = {
+        $or: [
+          { destinatarioUsuario: usuario },
+          { tipo: { $in: ['convocatoria_partido', 'marcador_fijado'] }, equipo: eqId }
+        ]
+      }
+    }
+
+    const notificaciones = await Notificacion.find(filtro)
       .sort({ createdAt: -1 })
       .populate('equipo partido')
     res.json(notificaciones)

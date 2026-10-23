@@ -213,7 +213,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useTorneo, ROLES } from '../torneo.js'
+import { useTorneo, ROLES } from '../store/torneo.js'
 import JugadorDialog from '../components/JugadorDialog.vue'
 import {
   matShield,

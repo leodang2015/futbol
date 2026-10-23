@@ -260,15 +260,29 @@ export const crearPartido = async (req, res) => {
       });
     }
 
-    // Normalizar jornada / fecha (mínimo 1 y máximo 5)
-    const j = Number(jornada ?? fecha ?? 1);
-    if (j < 1 || j > 5) {
+    // Regla de Equidad Oficial: Un equipo solo se puede enfrentar a otro que tenga su misma cantidad de partidos jugados
+    // (un club que ya jugo un partido se enfrenta a otro que ya jugo, y no con otro que no ha jugado ninguno)
+    const partidosJugadosLocal = await Partido.countDocuments({
+      $or: [{ local: local }, { visitante: local }],
+      estado: { $in: ['Finalizado', 'jugado'] }
+    });
+
+    const partidosJugadosVisitante = await Partido.countDocuments({
+      $or: [{ local: visitante }, { visitante: visitante }],
+      estado: { $in: ['Finalizado', 'jugado'] }
+    });
+
+    if (partidosJugadosLocal !== partidosJugadosVisitante) {
       return res.status(400).json({
-        msg: 'Por reglamento oficial, el torneo tiene como mínimo la Fecha 1 y máximo la Fecha 5.'
+        msg: `Regla de equidad del torneo: El club "${equipoLocal.nombre}" lleva ${partidosJugadosLocal} partido(s) jugado(s), mientras que "${equipoVisitante.nombre}" lleva ${partidosJugadosVisitante}. Los equipos deben enfrentarse entre pares con igual cantidad de partidos jugados.`
       });
     }
 
-    // Regla Oficial: Un equipo debe tener mínimo 2 fechas después de ese partido para jugar de nuevo
+    // Regla de Descanso Oficial: Minimo 2 dias de descanso entre partidos para cada equipo
+    const fechaPropuesta = req.body.fechaHora ? new Date(req.body.fechaHora) : new Date();
+    const tiempoPropuesto = fechaPropuesta.getTime();
+    const DOS_DIAS_MS = 2 * 24 * 60 * 60 * 1000 - 60000; // 2 días en milisegundos
+
     const partidosPrevios = await Partido.find({
       $or: [
         { local: local }, { visitante: local },
@@ -277,22 +291,23 @@ export const crearPartido = async (req, res) => {
     });
 
     for (const p of partidosPrevios) {
-      const fechaP = Number(p.jornada || 1);
-      const involucraLocal = String(p.local) === String(local) || String(p.visitante) === String(local);
-      const involucraVisitante = String(p.local) === String(visitante) || String(p.visitante) === String(visitante);
+      if (p.fechaHora) {
+        const tiempoPrevio = new Date(p.fechaHora).getTime();
+        const diffDias = Math.abs(tiempoPropuesto - tiempoPrevio);
+        const involucraLocal = String(p.local) === String(local) || String(p.visitante) === String(local);
+        const involucraVisitante = String(p.local) === String(visitante) || String(p.visitante) === String(visitante);
 
-      if (involucraLocal && Math.abs(j - fechaP) < 2) {
-        return res.status(400).json({
-          msg: `Regla de descanso oficial: El club "${equipoLocal.nombre}" ya tiene un partido en la Jornada ${fechaP}. Debe tener como mínimo 2 fechas después de ese partido para jugar de nuevo (próxima fecha válida: Jornada ${fechaP + 2} o superior).`
-        });
-      }
-
-      if (involucraVisitante && Math.abs(j - fechaP) < 2) {
-        return res.status(400).json({
-          msg: `Regla de descanso oficial: El club "${equipoVisitante.nombre}" ya tiene un partido en la Jornada ${fechaP}. Debe tener como mínimo 2 fechas después de ese partido para jugar de nuevo (próxima fecha válida: Jornada ${fechaP + 2} o superior).`
-        });
+        if (diffDias < DOS_DIAS_MS) {
+          const clubAfectado = involucraLocal ? equipoLocal.nombre : equipoVisitante.nombre;
+          const fechaPrevStr = new Date(p.fechaHora).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          return res.status(400).json({
+            msg: `Regla de descanso oficial: El club "${clubAfectado}" tiene un partido el ${fechaPrevStr}. Por reglamento debe haber un mínimo de 2 días de descanso entre partidos para volver a jugar.`
+          });
+        }
       }
     }
+
+    const j = partidosJugadosLocal + 1;
 
     // Si no viene torneo, asignar o inicializar el torneo oficial de la liga
     if (!torneo) {
@@ -308,11 +323,6 @@ export const crearPartido = async (req, res) => {
     }
 
     const fechaReal = req.body.fechaHora ? new Date(req.body.fechaHora) : new Date();
-    if (fechaReal.getTime() > Date.now() + 65000) {
-      return res.status(400).json({
-        msg: 'Por reglamento oficial, el organizador debe fijar la fecha y hora en tiempo real y no puede ser posterior al momento actual.'
-      });
-    }
 
     const nuevoPartido = new Partido({
       torneo,
@@ -461,6 +471,233 @@ export const confirmarPartidoDT = async (req, res) => {
   }
 };
 
+
+export const reportarGolesDT = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { equipoId, entrenadorNombre, goles, goleadores, faltas, tarjetas } = req.body;
+
+    const partido = await Partido.findById(id).populate('local visitante');
+    if (!partido) {
+      return res.status(404).json({ msg: 'El partido no existe en la base de datos' });
+    }
+
+    if (['finalizado', 'jugado'].includes(String(partido.estado || '').toLowerCase())) {
+      return res.status(400).json({
+        msg: 'Este partido ya fue oficializado y cerrado en la tabla de posiciones.'
+      });
+    }
+
+    const eqIdStr = String(equipoId || '').trim();
+    const locIdStr = String(partido.local._id || partido.local);
+    const visIdStr = String(partido.visitante._id || partido.visitante);
+
+    const cantGoles = Math.max(0, Number(goles) || 0);
+    const autores = Array.isArray(goleadores) ? goleadores : [];
+
+    let esLocal = false;
+    let nombreMiClub = '';
+
+    const cantFaltas = Math.max(0, Number(faltas) || 0);
+    const listaTarjetasDT = Array.isArray(tarjetas) ? tarjetas : [];
+
+    if (eqIdStr === locIdStr) {
+      esLocal = true;
+      nombreMiClub = partido.local.nombre;
+      partido.reporteGolesLocal = {
+        goles: cantGoles,
+        reportado: true,
+        goleadores: autores
+      };
+      partido.golesLocal = cantGoles;
+      partido.faltasLocal = cantFaltas;
+    } else if (eqIdStr === visIdStr) {
+      nombreMiClub = partido.visitante.nombre;
+      partido.reporteGolesVisitante = {
+        goles: cantGoles,
+        reportado: true,
+        goleadores: autores
+      };
+      partido.golesVisitante = cantGoles;
+      partido.faltasVisitante = cantFaltas;
+    }
+
+    // Registrar tarjetas reportadas
+    if (listaTarjetasDT.length > 0) {
+      try {
+        await procesarSancionesDisciplinarias(listaTarjetasDT, eqIdStr);
+      } catch (errSancion) {
+        console.error('Error al procesar sanciones disciplinarias:', errSancion);
+      }
+      if (!Array.isArray(partido.tarjetas)) partido.tarjetas = [];
+      listaTarjetasDT.forEach(t => {
+        partido.tarjetas.push({
+          jugadorId: t.jugadorId,
+          nombre: t.nombre,
+          dorsal: t.dorsal,
+          equipo: eqIdStr === locIdStr ? partido.local._id : partido.visitante._id,
+          equipoNombre: nombreMiClub,
+          tipo: t.tipo || 'Amarilla',
+          motivo: t.motivo || 'Falta reglamentaria',
+          minuto: Number(t.minuto) || 45
+        });
+      });
+    } else {
+      return res.status(400).json({ msg: 'Tu club no forma parte de este encuentro.' });
+    }
+
+    // Si ambos DTs ya reportaron sus goles, unificar los goleadores oficiales y finalizar el encuentro
+    const repLoc = partido.reporteGolesLocal;
+    const repVis = partido.reporteGolesVisitante;
+
+    const Notificacion = (await import('../models/Notificacion.js')).default;
+
+    if (repLoc?.reportado && repVis?.reportado) {
+      partido.estado = 'Finalizado';
+
+      // Unificar lista de goleadores oficiales reportados por cada DT
+      const listaGoleadores = [];
+      if (Array.isArray(repLoc.goleadores)) {
+        repLoc.goleadores.forEach((g, idx) => {
+          listaGoleadores.push({
+            jugadorId: g.jugadorId,
+            nombre: g.nombre,
+            dorsal: g.dorsal,
+            equipo: partido.local._id,
+            equipoNombre: partido.local.nombre,
+            goles: Number(g.goles) || 1,
+            minuto: 15 + (idx * 20) % 70
+          });
+        });
+      }
+      if (Array.isArray(repVis.goleadores)) {
+        repVis.goleadores.forEach((g, idx) => {
+          listaGoleadores.push({
+            jugadorId: g.jugadorId,
+            nombre: g.nombre,
+            dorsal: g.dorsal,
+            asistenteId: g.asistenteId || '',
+            asistenteNombre: g.asistenteNombre || '',
+            equipo: partido.visitante._id,
+            equipoNombre: partido.visitante.nombre,
+            goles: Number(g.goles) || 1,
+            minuto: 20 + (idx * 25) % 65
+          });
+        });
+      }
+      partido.goleadores = listaGoleadores;
+
+      // Recalcular estadísticas
+      await recalcularEstadisticasJugadores(partido);
+
+      // Notificación al organizador con el resultado consolidado
+      try {
+        await Notificacion.create({
+          tipo: 'marcador_fijado',
+          titulo: `⚽ Resultado Oficial Consolidado: ${partido.local.nombre} ${partido.golesLocal} - ${partido.golesVisitante} ${partido.visitante.nombre}`,
+          mensaje: `Ambos Directores Técnicos reportaron los goles de sus respectivos clubes (${partido.local.nombre}: ${partido.golesLocal} goles, ${partido.visitante.nombre}: ${partido.golesVisitante} goles). El partido ha quedado oficializado automáticamente en la tabla de posiciones.`,
+          remitente: 'Sistema Oficial del Torneo',
+          partido: partido._id,
+          destinatarioRol: 'organizador',
+          datos: { partidoId: partido._id, golesLocal: partido.golesLocal, golesVisitante: partido.golesVisitante }
+        });
+      } catch (_) {}
+    } else {
+      // Notificar que un DT reportó los goles de su equipo
+      try {
+        await Notificacion.create({
+          tipo: 'reporte_goleadores',
+          titulo: `📋 El DT de ${nombreMiClub} reportó ${cantGoles} gol(es) para su equipo`,
+          mensaje: `El DT de ${nombreMiClub} ha registrado el reporte oficial de goles de su club (${cantGoles} gol/es). Se espera que el DT rival reporte los suyos para oficializar el resultado final.`,
+          remitente: entrenadorNombre || `DT ${nombreMiClub}`,
+          equipo: equipoId,
+          partido: partido._id,
+          destinatarioRol: 'organizador',
+          datos: { partidoId: partido._id, goles: cantGoles, equipo: nombreMiClub }
+        });
+      } catch (_) {}
+    }
+
+    await partido.save();
+    const partidoPoblado = await Partido.findById(partido._id).populate('local visitante');
+
+    res.json({
+      msg: `¡Reporte de goles enviado con éxito! Indicaste ${cantGoles} gol(es) para ${nombreMiClub}.`,
+      partido: partidoPoblado
+    });
+  } catch (error) {
+    console.error('Error en reportarGolesDT:', error);
+    res.status(400).json({ msg: error.message || 'Error al reportar goles del DT' });
+  }
+};
+
+
+// Regla Única Oficial de Faltas (Sin acumulación de partidos ni expulsión del equipo):
+// - Si un jugador recibe 1 tarjeta roja o 2 tarjetas amarillas en el encuentro, no jugará el siguiente partido (1 partido suspendido).
+// - No se acumulan sanciones entre partidos ni se expulsa del equipo.
+export const procesarSancionesDisciplinarias = async (tarjetasReportadas, equipoId) => {
+  if (!Array.isArray(tarjetasReportadas) || tarjetasReportadas.length === 0) return [];
+  const Jugador = (await import('../models/Jugador.js')).default;
+  const Notificacion = (await import('../models/Notificacion.js')).default;
+
+  // Agrupar tarjetas por jugadorId en este encuentro
+  const porJugador = {};
+  for (const t of tarjetasReportadas) {
+    const jId = String(t.jugadorId || t.jugador || '').trim();
+    if (!jId) continue;
+    if (!porJugador[jId]) {
+      porJugador[jId] = { amarillas: 0, rojas: 0, nombre: t.nombre || 'Jugador', dorsal: t.dorsal };
+    }
+    if (t.tipo === 'Amarilla') {
+      porJugador[jId].amarillas += 1;
+    } else if (t.tipo === 'Roja') {
+      porJugador[jId].rojas += 1;
+    }
+  }
+
+  const resultadoSanciones = [];
+
+  for (const [jugadorId, stats] of Object.entries(porJugador)) {
+    const jugador = await Jugador.findById(jugadorId);
+    if (!jugador) continue;
+
+    // Regla única: 1 roja directa O 2 amarillas en el partido -> 1 partido sin jugar (no se acumula)
+    const mereceSuspension = stats.rojas >= 1 || stats.amarillas >= 2;
+
+    if (mereceSuspension) {
+      jugador.partidosSuspendidosRestantes = 1;
+      jugador.expulsadoDelTorneo = false; // Jamás es sacado del equipo
+      jugador.motivoSancion = stats.rojas >= 1
+        ? 'SUSPENDIDO: Tarjeta roja en el último partido. No jugará el siguiente encuentro.'
+        : 'SUSPENDIDO: Doble amarilla en el último partido. No jugará el siguiente encuentro.';
+
+      try {
+        await Notificacion.create({
+          tipo: 'sancion_disciplinaria',
+          titulo: `🛑 Suspensión de 1 Partido: ${jugador.nombre}`,
+          mensaje: `El futbolista ${jugador.nombre} (#${jugador.numero}) recibió ${stats.rojas >= 1 ? 'tarjeta roja' : 'doble amarilla'} y no podrá disputar el siguiente encuentro reglamentario.`,
+          remitente: 'Comité de Disciplina',
+          equipo: jugador.equipo,
+          destinatarioRol: 'organizador'
+        });
+      } catch (_) {}
+    } else {
+      // Si solo sacó 1 amarilla, no se suspende
+      jugador.partidosSuspendidosRestantes = 0;
+      jugador.motivoSancion = '';
+    }
+
+    await jugador.save();
+    resultadoSanciones.push({
+      jugadorId,
+      nombre: jugador.nombre,
+      suspendidoPartidos: jugador.partidosSuspendidosRestantes
+    });
+  }
+
+  return resultadoSanciones;
+};
+
 export const fijarMarcadorOrganizador = async (req, res) => {
   try {
     const { id } = req.params;
@@ -489,9 +726,17 @@ export const fijarMarcadorOrganizador = async (req, res) => {
     partido.asistenciasVisitante = Number(asistenciasVisitante) || 0;
     partido.estado = 'Finalizado';
 
-    // Selección automática de goleadores y asistencias de cada equipo
-    if (partido.golesLocal > 0 || partido.golesVisitante > 0) {
+    // Goleadores oficiales fijados por el Organizador (o autogenerados si no vinieron explícitos)
+    if (Array.isArray(req.body.goleadores) && req.body.goleadores.length > 0) {
+      partido.goleadores = req.body.goleadores.map(g => ({
+        ...g,
+        goles: Number(g.goles) || 1,
+        minuto: typeof g.minuto === 'number' ? g.minuto : (parseInt(String(g.minuto || '45').replace(/[^0-9]/g, ''), 10) || 45)
+      }));
+    } else if (partido.golesLocal > 0 || partido.golesVisitante > 0) {
       partido.goleadores = await autoGenerarGoleadoresParaEquipos(partido);
+    } else {
+      partido.goleadores = [];
     }
 
     await partido.save();
@@ -626,7 +871,6 @@ export const autoGenerarGoleadoresParaEquipos = async (partido) => {
 
       const asignaciones = [];
       let golesRestantes = totalGoles;
-      const minutosBase = [14, 28, 37, 49, 58, 67, 76, 84, 89];
 
       // Barajar aleatoriamente
       const shuffled = [...pool].sort(() => 0.5 - Math.random());
@@ -639,8 +883,6 @@ export const autoGenerarGoleadoresParaEquipos = async (partido) => {
         const posiblesAsistentes = jugadores.filter(j => String(j._id) !== String(jugador._id));
         const tieneAsistencia = posiblesAsistentes.length > 0 && Math.random() > 0.35;
         const asistente = tieneAsistencia ? posiblesAsistentes[Math.floor(Math.random() * posiblesAsistentes.length)] : null;
-        const baseMin = minutosBase[idx % minutosBase.length] || 15;
-        const minNum = Math.min(90, Math.max(1, baseMin + (idx * 7) % 15));
 
         asignaciones.push({
           jugador: jugador._id,
@@ -648,7 +890,7 @@ export const autoGenerarGoleadoresParaEquipos = async (partido) => {
           nombre: `${jugador.nombre} ${jugador.apellido && jugador.apellido !== '-' ? jugador.apellido : ''}`.trim(),
           dorsal: jugador.numero ?? jugador.dorsal ?? 10,
           goles: 1,
-          minuto: minNum,
+          minuto: 0, // Se distribuirá con separación mínima garantizada de 2 minutos
           asistente: asistente ? asistente._id : null,
           asistenteId: asistente ? String(asistente._id) : '',
           asistenteNombre: asistente ? `${asistente.nombre} ${asistente.apellido && asistente.apellido !== '-' ? asistente.apellido : ''}`.trim() : '',
@@ -666,6 +908,23 @@ export const autoGenerarGoleadoresParaEquipos = async (partido) => {
     }
     if (totalGolesVis > 0) {
       listaGoleadores.push(...distribuirGoles(jugsVis, totalGolesVis, eqVis?.nombre, visId));
+    }
+
+    // Regla: Separación obligatoria de al menos 2 minutos entre CADA gol del partido (no pueden coincidir en el mismo minuto)
+    const totalGolesTotales = listaGoleadores.length;
+    if (totalGolesTotales > 0) {
+      const shuffledGoles = [...listaGoleadores].sort(() => 0.5 - Math.random());
+      const espacioDisponible = Math.floor(75 / (totalGolesTotales + 1));
+      const paso = Math.max(3, Math.min(12, espacioDisponible));
+      let minActual = 10 + Math.floor(Math.random() * 4);
+
+      shuffledGoles.forEach((g) => {
+        g.minuto = Math.min(90, minActual);
+        minActual += Math.max(2, paso + Math.floor(Math.random() * 2));
+      });
+
+      shuffledGoles.sort((a, b) => Number(a.minuto) - Number(b.minuto));
+      return shuffledGoles;
     }
 
     return listaGoleadores;
@@ -746,7 +1005,8 @@ export default {
   cargarResultado, 
   obtenerTablaPosiciones, 
   crearPartido, 
-  confirmarPartidoDT, 
+  confirmarPartidoDT,
+  reportarGolesDT, 
   fijarMarcadorOrganizador, 
   actualizarGoleadores,
   autogenerarGoleadoresHandler,

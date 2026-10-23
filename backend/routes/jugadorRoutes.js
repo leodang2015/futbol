@@ -54,4 +54,27 @@ router.post('/', crearJugadorValidator, crearJugador);
 router.put('/:id', [idValidator, actualizarJugadorValidator], editarJugador);
 router.delete('/:id', idValidator, eliminarJugador);
 
+// Rutas de Autorización de Fichaje de Jugador (por el Entrenador o el Organizador)
+router.put('/:id/autorizar', async (req, res) => {
+  try {
+    const Jugador = (await import('../models/Jugador.js')).default;
+    const jug = await Jugador.findByIdAndUpdate(req.params.id, { estadoAprobacion: 'Aprobado' }, { new: true }).populate('equipo');
+    if (!jug) return res.status(404).json({ msg: 'Jugador no encontrado' });
+    res.json({ msg: `¡Futbolista ${jug.nombre} autorizado e incorporado al club!`, jugador: jug });
+  } catch (err) {
+    res.status(400).json({ msg: err.message || 'Error al autorizar jugador' });
+  }
+});
+
+router.put('/:id/rechazar', async (req, res) => {
+  try {
+    const Jugador = (await import('../models/Jugador.js')).default;
+    const jug = await Jugador.findByIdAndUpdate(req.params.id, { estadoAprobacion: 'Rechazado' }, { new: true }).populate('equipo');
+    if (!jug) return res.status(404).json({ msg: 'Jugador no encontrado' });
+    res.json({ msg: `Solicitud de fichaje de ${jug.nombre} rechazada.`, jugador: jug });
+  } catch (err) {
+    res.status(400).json({ msg: err.message || 'Error al rechazar jugador' });
+  }
+});
+
 export default router;

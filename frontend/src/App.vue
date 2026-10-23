@@ -35,13 +35,36 @@
           </q-tabs>
         </div>
 
-        <!-- Banner de Error si ocurre -->
-        <q-banner v-if="errorAcceso" dense class="bg-negative text-white q-px-md q-py-sm">
-          <template #avatar>
-            <q-icon :name="matErrorOutline" />
-          </template>
-          <span class="text-caption text-weight-medium">{{ errorAcceso }}</span>
-        </q-banner>
+        <!-- Banner de Error o Equipo Cancelado -->
+        <div v-if="errorAcceso" class="q-px-md q-py-sm bg-negative text-white rounded-borders q-mx-md q-mt-sm">
+          <div class="row items-start no-wrap q-gutter-xs">
+            <q-icon :name="matErrorOutline" size="20px" class="q-mr-xs shrink-0" />
+            <div class="col">
+              <div class="text-caption text-weight-bold">
+                {{ esEquipoCancelado ? '⚠️ Equipo Cancelado / Denegado' : 'Error al iniciar sesión' }}
+              </div>
+              <div class="text-caption font-11" style="line-height: 1.4;">
+                {{ errorAcceso }}
+              </div>
+
+              <!-- Botón si el equipo o la solicitud de jugador fue rechazada -->
+              <div v-if="esEquipoCancelado" class="q-mt-xs">
+                <q-btn
+                  unelevated
+                  dense
+                  no-caps
+                  size="sm"
+                  color="amber-4"
+                  text-color="dark"
+                  :icon="matPersonAdd"
+                  label="Crear otra cuenta / elegir otro equipo"
+                  class="text-weight-bolder q-px-sm shadow-1"
+                  @click="abrirRegistroNuevoEquipoRechazado"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
 
         <q-tab-panels v-model="tabAcceso" animated class="q-pa-lg">
           <!-- PANEL 1: INICIAR SESIÓN -->
@@ -390,8 +413,8 @@
                   </q-tab-panels>
                 </div>
 
-                <div class="text-caption text-grey-8 font-11">
-                  💡 Solo habrá un entrenador por equipo. Fundarás este club y serás su único director técnico.
+                <div class="text-caption text-emerald-9 font-11 bg-white q-pa-xs rounded border border-emerald-3">
+                  📋 <strong>Regla Oficial:</strong> Propondrás este nuevo club para que el <strong>Organizador del Torneo</strong> evalúe y autorice su afiliación oficial.
                 </div>
               </div>
 
@@ -428,40 +451,20 @@
                   </template>
                 </q-select>
 
-                <!-- Selección de Posición Táctica (Obligatorio) -->
-                <div>
+                <!-- Posición Reglamentaria Inicial: En Banca (El Entrenador decide la posición) -->
+                <div class="bg-indigo-50 border border-indigo-2 rounded-borders q-pa-sm">
                   <div class="row items-center justify-between q-mb-xs">
-                    <span class="text-caption text-weight-bolder text-indigo-9">
-                      📍 2. Elige tu Posición en la Cancha * (Obligatorio)
-                    </span>
-                    <q-badge color="indigo-9" class="text-weight-bold">
-                      {{ registroForm.posicion || 'Elige posición' }}
+                    <div class="row items-center q-gutter-xs text-indigo-9 text-weight-bold font-12">
+                      <q-icon :name="matEventSeat" size="18px" />
+                      <span>Posición Inicial: Suplente en Banca</span>
+                    </div>
+                    <q-badge color="indigo-8" text-color="white" class="text-weight-bold font-10">
+                      🪑 En Banca
                     </q-badge>
                   </div>
-
-                  <div class="row q-col-gutter-xs">
-                    <div
-                      v-for="pos in opcionesPosiciones"
-                      :key="pos.value"
-                      class="col-6"
-                    >
-                      <div
-                        class="cursor-pointer text-center q-pa-xs rounded-borders transition-all border"
-                        :class="registroForm.posicion === pos.value ? 'bg-indigo-7 text-white shadow-1 border-indigo-9' : 'bg-white text-slate-800 border-indigo-2'"
-                        @click="registroForm.posicion = pos.value"
-                        style="min-height: 48px; display: flex; flex-direction: column; justify-content: center;"
-                      >
-                        <div class="text-caption text-weight-bolder ellipsis">{{ pos.label }}</div>
-                        <div class="font-10 ellipsis" :class="registroForm.posicion === pos.value ? 'text-indigo-1' : 'text-grey-6'">
-                          {{ pos.desc }}
-                        </div>
-                      </div>
-                    </div>
+                  <div class="text-caption text-slate-700 font-11" style="line-height: 1.4;">
+                    Al registrarte ingresarás a la banca de suplentes. El <strong>Director Técnico</strong> de tu club es la única persona encargada de autorizar tu ingreso y decidir en qué posición táctica (Arquero, Defensor, Mediocampista o Delantero) jugarás en la cancha.
                   </div>
-                </div>
-
-                <div class="text-caption text-grey-8 font-11">
-                  💡 Quedarás registrado en la nómina oficial del club con tu posición asignada para la pizarra táctica del DT.
                 </div>
               </div>
 
@@ -729,13 +732,12 @@
               :icon="matDoneAll"
               @click="store.marcarTodasNotificacionesLeidas()"
             />
-            <q-btn flat round dense :icon="matClose" v-close-popup text-color="grey-4" />
           </div>
         </q-card-section>
 
         <!-- Contenido / Lista de Notificaciones -->
         <q-card-section class="q-pa-md" style="max-height: 65vh; overflow-y: auto;">
-          <div v-if="!store.notificaciones.length" class="text-center q-py-xl text-grey-6">
+          <div v-if="!store.notificacionesDelUsuario.length" class="text-center q-py-xl text-grey-6">
             <q-icon :name="matNotifications" size="52px" color="grey-4" class="q-mb-sm" />
             <div class="text-subtitle2 text-weight-bold text-slate-800">No hay notificaciones registradas</div>
             <div class="text-caption text-grey-5 q-mt-xs">
@@ -745,7 +747,7 @@
 
           <div v-else class="q-gutter-y-sm">
             <q-card
-              v-for="n in store.notificaciones"
+              v-for="n in store.notificacionesDelUsuario"
               :key="n._id || n.id"
               flat
               bordered
@@ -799,6 +801,54 @@
                     Remitente: <strong class="text-slate-900">{{ n.remitente }}</strong>
                   </span>
                   <div class="row items-center q-gutter-xs">
+                    <!-- ACCIONES EXCLUSIVAS DEL ENTRENADOR: Aceptar o Rechazar jugador en su plantel -->
+                    <template v-if="n.tipo === 'solicitud_jugador' && store.esEntrenador">
+                      <q-btn
+                        dense
+                        unelevated
+                        no-caps
+                        size="xs"
+                        color="positive"
+                        label="✅ Aceptar en el Equipo"
+                        class="text-weight-bold q-px-xs"
+                        @click="autorizarJugadorDesdeNotif(n)"
+                      />
+                      <q-btn
+                        dense
+                        flat
+                        no-caps
+                        size="xs"
+                        color="negative"
+                        label="❌ Rechazar"
+                        class="text-weight-bold q-px-xs"
+                        @click="rechazarJugadorDesdeNotif(n)"
+                      />
+                    </template>
+
+                    <!-- ACCIONES DEL ORGANIZADOR: Autorizar o Rechazar clubes -->
+                    <template v-else-if="n.tipo === 'solicitud_club' && store.esOrganizador">
+                      <q-btn
+                        dense
+                        unelevated
+                        no-caps
+                        size="xs"
+                        color="positive"
+                        label="Autorizar Club"
+                        class="text-weight-bold q-px-xs"
+                        @click="autorizarClubDesdeNotif(n)"
+                      />
+                      <q-btn
+                        dense
+                        flat
+                        no-caps
+                        size="xs"
+                        color="negative"
+                        label="Rechazar"
+                        class="text-weight-bold q-px-xs"
+                        @click="rechazarClubDesdeNotif(n)"
+                      />
+                    </template>
+
                     <q-btn
                       v-if="!n.leida"
                       flat
@@ -846,7 +896,7 @@ import { ref, computed, onMounted } from 'vue'
 import logoCrest from './assets/images/league_crest_badge_1790957070182.jpg'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import { useTorneo, ROLES } from './torneo.js'
+import { useTorneo, ROLES } from './store/torneo.js'
 import PartidoDialog from './components/PartidoDialog.vue'
 import EquipoDialog from './components/EquipoDialog.vue'
 
@@ -882,6 +932,17 @@ const router = useRouter()
 // Control del Formulario de Ingreso Obligatorio
 const tabAcceso = ref('login')
 const errorAcceso = ref('')
+const esEquipoCancelado = ref(false)
+
+function abrirRegistroNuevoEquipoRechazado() {
+  tabAcceso.value = 'registro'
+  seleccionarRolRegistro('entrenador')
+  registroForm.value.nombreEquipo = ''
+  registroForm.value.barriadaEquipo = ''
+  registroForm.value.usuario = loginForm.value.usuario || ''
+  errorAcceso.value = ''
+  esEquipoCancelado.value = false
+}
 const verPasswordLogin = ref(false)
 const verPasswordReg = ref(false)
 
@@ -899,7 +960,7 @@ const registroForm = ref({
   equipo: null,
   nombreEquipo: '',
   barriada: '',
-  posicion: 'Delantero',
+  posicion: 'En Banca',
   escudocolor: '#059669',
   escudoFigura: '🛡️',
   escudoUrl: ''
@@ -989,7 +1050,13 @@ async function ejecutarLogin() {
       timeout: 3500
     })
   } catch (err) {
-    errorAcceso.value = err.message || 'Credenciales incorrectas'
+    const rawMsg = err.message || 'Credenciales incorrectas'
+    errorAcceso.value = rawMsg
+    if (rawMsg.toLowerCase().includes('rechazad') || rawMsg.toLowerCase().includes('cancelad') || rawMsg.toLowerCase().includes('denegad')) {
+      esEquipoCancelado.value = true
+    } else {
+      esEquipoCancelado.value = false
+    }
   }
 }
 
@@ -1011,10 +1078,7 @@ async function ejecutarRegistro() {
       errorAcceso.value = 'Como jugador debes escoger obligatoriamente un equipo existente en la plataforma.'
       return
     }
-    if (!registroForm.value.posicion) {
-      errorAcceso.value = 'Como jugador debes escoger obligatoriamente tu posición táctica en el campo.'
-      return
-    }
+registroForm.value.posicion = 'En Banca'
   }
 
   try {
@@ -1032,6 +1096,21 @@ async function ejecutarRegistro() {
       escudoFigura: registroForm.value.escudoFigura,
       escudoUrl: registroForm.value.escudoUrl
     })
+    if (registroForm.value.rol === 'entrenador') {
+      $q.notify({
+        type: 'positive',
+        icon: 'notifications_active',
+        message: `📋 Solicitud enviada al Administrador: El club "${registroForm.value.nombreEquipo}" fue enviado para autorización oficial del Organizador.`,
+        position: 'top',
+        timeout: 6000
+      })
+      // Si el club requiere aprobación previa del organizador, no entra directo hasta ser autorizado
+      store.logout()
+      tabAcceso.value = 'login'
+      errorAcceso.value = `¡Registro recibido! Tu club "${registroForm.value.nombreEquipo}" quedó enviado al Organizador. Te notificará una vez autorizado para que puedas iniciar sesión.`
+      return
+    }
+
     $q.notify({
       type: 'positive',
       icon: 'check_circle',
@@ -1042,6 +1121,96 @@ async function ejecutarRegistro() {
   } catch (err) {
     errorAcceso.value = err.message || 'Error al registrar la cuenta'
   }
+}
+
+
+async function autorizarClubDesdeNotif(n) {
+  const eqId = n.datos?.equipoId || n.equipo
+  if (!eqId) return
+  try {
+    const res = await store.autorizarEquipo(eqId)
+    await store.marcarNotificacionLeida(n._id || n.id)
+    $q.notify({
+      type: 'positive',
+      icon: 'check_circle',
+      message: res?.msg || 'Club autorizado oficialmente para el torneo.',
+      position: 'top',
+      timeout: 3500
+    })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      icon: 'error',
+      message: err.message || 'Error al autorizar club',
+      position: 'top'
+    })
+  }
+}
+
+async function rechazarClubDesdeNotif(n) {
+  const eqId = n.datos?.equipoId || n.equipo
+  if (!eqId) return
+  try {
+    await store.rechazarEquipo(eqId)
+    await store.marcarNotificacionLeida(n._id || n.id)
+    $q.notify({
+      type: 'warning',
+      icon: 'cancel',
+      message: 'Solicitud de club rechazada.',
+      position: 'top',
+      timeout: 3000
+    })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      icon: 'error',
+      message: err.message || 'Error al rechazar club',
+      position: 'top'
+    })
+  }
+}
+
+async function autorizarJugadorDesdeNotif(n) {
+  const jId = n.datos?.jugadorId
+  try {
+    let jugadorTarget = null
+    if (jId) {
+      jugadorTarget = store.jugadores.find(j => (j.id || j._id) === jId)
+    }
+    if (!jugadorTarget && n.datos?.jugador) {
+      jugadorTarget = store.jugadores.find(j => j.email?.includes(n.datos.jugador) || j.nombre?.toLowerCase().includes(n.datos.jugador.toLowerCase()))
+    }
+    const targetId = jugadorTarget ? (jugadorTarget.id || jugadorTarget._id) : (jId || n.datos?.clubId)
+    if (targetId) {
+      await store.autorizarJugador(targetId)
+    }
+    await store.marcarNotificacionLeida(n._id || n.id)
+    $q.notify({
+      type: 'positive',
+      icon: 'check_circle',
+      message: '¡Futbolista autorizado e incorporado al club exitosamente!',
+      position: 'top',
+      timeout: 3500
+    })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      icon: 'error',
+      message: err.message || 'Error al autorizar jugador',
+      position: 'top'
+    })
+  }
+}
+
+async function rechazarJugadorDesdeNotif(n) {
+  await store.marcarNotificacionLeida(n._id || n.id)
+  $q.notify({
+    type: 'warning',
+    icon: 'cancel',
+    message: 'Solicitud de incorporación de futbolista desestimada.',
+    position: 'top',
+    timeout: 3000
+  })
 }
 
 function cerrarSesion() {

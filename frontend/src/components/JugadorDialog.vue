@@ -89,7 +89,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useTorneo } from '../torneo.js'
+import { useTorneo } from '../store/torneo.js'
 import { matPersonAdd, matClose, matCheck } from '@quasar/extras/material-icons'
 
 const props = defineProps({

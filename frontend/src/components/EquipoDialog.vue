@@ -65,7 +65,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useTorneo } from '../torneo.js'
+import { useTorneo } from '../store/torneo.js'
 import { matShield, matClose, matCheck } from '@quasar/extras/material-icons'
 
 const props = defineProps({ modelValue: Boolean })

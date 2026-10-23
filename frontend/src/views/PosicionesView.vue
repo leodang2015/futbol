@@ -136,10 +136,9 @@
     <div class="row q-col-gutter-lg">
       <!-- Columna Principal: Tabla Oficial de Posiciones -->
       <div class="col-12 col-lg-8">
-        <!-- BANNER DE PRIVACIDAD / VISTA: Modo Jugador o Entrenador -->
-        <!-- BANNER DE INFORMACIÓN EXCLUSIVA DEL CLUB (Jugador / Entrenador) -->
+        <!-- BANNER DE INFORMACIÓN DEL CLUB (Jugador) -->
         <q-banner
-          v-if="store.esJugador || store.esEntrenador"
+          v-if="store.esJugador"
           dense
           rounded
           class="bg-indigo-1 text-indigo-10 q-mb-md q-py-sm q-px-md border border-indigo-2 shadow-1"
@@ -150,10 +149,10 @@
           <div class="row items-center justify-between no-wrap">
             <div>
               <div class="text-subtitle2 text-weight-bolder">
-                ⚽ Información de tu Club: {{ miClubEnTabla?.nombre || store.miEquipo?.nombre || 'Tu Equipo' }}
+                ⚽ Ficha de tu Club: {{ miClubEnTabla?.nombre || store.miEquipo?.nombre || 'Tu Equipo' }}
               </div>
               <div class="text-caption text-indigo-9">
-                Tu club se ubica en el <strong>Puesto {{ miClubEnTabla?.pos ? `${miClubEnTabla.pos}°` : '—' }}</strong> con <strong>{{ miClubEnTabla?.pts || 0 }} pts</strong> oficiales ({{ miClubEnTabla?.pj || 0 }} PJ, {{ miClubEnTabla?.pg || 0 }} PG, {{ miClubEnTabla?.pe || 0 }} PE, {{ miClubEnTabla?.pp || 0 }} PP). Como {{ store.esEntrenador ? 'director técnico' : 'jugador' }}, solo tienes acceso a la información y posición de tu propio equipo.
+                Tu club se ubica en el <strong>Puesto {{ miClubEnTabla?.pos ? `${miClubEnTabla.pos}°` : '—' }}</strong> con <strong>{{ miClubEnTabla?.pts || 0 }} pts</strong> oficiales ({{ miClubEnTabla?.pj || 0 }} PJ, {{ miClubEnTabla?.pg || 0 }} PG, {{ miClubEnTabla?.pe || 0 }} PE, {{ miClubEnTabla?.pp || 0 }} PP). Como jugador, tienes tu resumen enfocado en tu club.
               </div>
             </div>
             <q-badge color="indigo-8" text-color="white" class="text-weight-bolder q-px-sm q-py-xs font-12 shadow-1">
@@ -162,10 +161,35 @@
           </div>
         </q-banner>
 
+        <!-- BANNER INFORMATIVO PARA ENTRENADOR (Visión completa de la tabla) -->
+        <q-banner
+          v-else-if="store.esEntrenador"
+          dense
+          rounded
+          class="bg-emerald-1 text-emerald-10 q-mb-md q-py-sm q-px-md border border-emerald-3 shadow-1"
+        >
+          <template #avatar>
+            <q-icon :name="matTableChart" size="26px" color="positive" />
+          </template>
+          <div class="row items-center justify-between no-wrap">
+            <div>
+              <div class="text-subtitle2 text-weight-bolder">
+                🏆 Tabla General de la Liga · Vista Completa de Entrenador
+              </div>
+              <div class="text-caption text-emerald-9">
+                Como <strong>Director Técnico</strong>, puedes visualizar la posición y rendimiento de todos los clubes de la competición para planificar tus tácticas y seguir a tus rivales directos.
+              </div>
+            </div>
+            <q-badge color="positive" text-color="white" class="text-weight-bold q-px-sm q-py-xs font-11">
+              {{ miClubEnTabla ? `Tu Club: Puesto #${miClubEnTabla.pos}` : 'DT Oficial' }}
+            </q-badge>
+          </div>
+        </q-banner>
+
         <q-card flat bordered class="main-table-card bg-white rounded-borders overflow-hidden">
           <!-- Toolbar Superior: Filtro y Leyenda -->
           <q-card-section class="table-toolbar row items-center justify-between q-col-gutter-sm bg-slate-50 border-b">
-            <div v-if="store.esOrganizador" class="row items-center q-gutter-sm">
+            <div v-if="store.esOrganizador || store.esEntrenador" class="row items-center q-gutter-sm">
               <q-input
                 v-model="buscar"
                 dense
@@ -182,11 +206,14 @@
               <span v-if="buscar" class="text-caption text-grey-6 font-mono">
                 {{ filas.length }} resultado(s)
               </span>
+              <q-badge v-if="store.esEntrenador && miClubEnTabla" color="emerald-9" text-color="white" class="font-11">
+                Tu Club: {{ miClubEnTabla.nombre }} (Puesto #{{ miClubEnTabla.pos }})
+              </q-badge>
             </div>
             <div v-else class="row items-center q-gutter-xs">
               <q-icon :name="matLock" size="18px" color="indigo-8" class="q-mr-xs" />
               <span class="text-subtitle2 text-weight-bold text-slate-800">
-                Información de tu Grupo/Club: {{ miClubEnTabla?.nombre || store.miEquipo?.nombre || 'Tu Equipo' }}
+                Información de tu Club: {{ miClubEnTabla?.nombre || store.miEquipo?.nombre || 'Tu Equipo' }}
               </span>
               <q-badge color="indigo-8" text-color="white" class="text-weight-bolder font-11 q-ml-xs shadow-1">
                 Puesto Oficial: {{ miClubEnTabla?.pos ? ('#' + miClubEnTabla.pos) : '—' }}
@@ -469,7 +496,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { useTorneo } from '../torneo.js'
+import { useTorneo } from '../store/torneo.js'
 import {
   matSearch,
   matSports,
@@ -519,9 +546,9 @@ const miClubEnTabla = computed(() => {
 const filas = computed(() => {
   const todas = tablaConPosiciones.value
 
-  // Para jugador y entrenador: RESTRICCIÓN ESTRICTA: NO ven la tabla general de posiciones de los demás clubes,
-  // únicamente ven la información y rendimiento de su propio equipo/grupo y su puesto actual en el torneo.
-  if (store.esJugador || store.esEntrenador) {
+  // El Entrenador y el Organizador pueden ver la tabla completa con todos los equipos
+  // El jugador mantiene su filtro personal si no está usando el buscador
+  if (store.esJugador && !buscar.value) {
     const miEqId = String(store.miEquipoId || '').trim()
     if (miEqId) {
       return todas.filter(e => String(e.id || e._id || '').trim() === miEqId)

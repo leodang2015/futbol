@@ -32,6 +32,15 @@ const equipoSchema = new Schema({
     type: String, 
     required: true, 
     trim: true 
+  },
+  estadoAprobacion: {
+    type: String,
+    enum: ['Pendiente', 'Aprobado', 'Rechazado'],
+    default: 'Aprobado'
+  },
+  solicitadoPor: {
+    type: String,
+    default: ''
   }
 }, { 
   timestamps: true 
