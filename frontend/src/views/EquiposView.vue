@@ -789,7 +789,11 @@ const equipo = computed(() => {
 
 const todosLosJugadoresDelClub = computed(() => {
   if (!equipo.value) return []
-  return store.jugadores.filter(j => j.equipoId === equipo.value.id || j.equipo === equipo.value.id)
+  const eqId = String(equipo.value.id || equipo.value._id || '').trim()
+  return store.jugadores.filter(j => {
+    const jEqId = String(j.equipoId || (j.equipo && typeof j.equipo === 'object' ? (j.equipo._id || j.equipo.id) : j.equipo) || '').trim()
+    return jEqId === eqId && j.estadoAprobacion !== 'Rechazado'
+  })
 })
 
 const plantel = computed(() => {
