@@ -153,7 +153,7 @@ async function cargarTodo() {
     const tData = tRes.data
     torneo.value = Array.isArray(tData) ? tData[0] : (tData?.torneo ?? tData)
     equipos.value = lista(eRes.data).map(normEquipo)
-    jugadores.value = lista(jRes.data).map(normJugador)
+    jugadores.value = lista(jRes.data).filter(j => j.estadoAprobacion !== 'Rechazado').map(normJugador)
     partidos.value = lista(pRes.data).map(normPartido)
 
     const nData = lista(nRes.data)
