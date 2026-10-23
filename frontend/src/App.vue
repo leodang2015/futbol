@@ -478,6 +478,29 @@
                 </div>
               </div>
 
+              <!-- Campo de Código de Seguridad para Organizador -->
+              <div v-if="registroForm.rol === 'organizador'" class="bg-amber-50 q-pa-sm rounded-borders border border-amber-3 q-mt-xs">
+                <div class="row items-center justify-between q-mb-xs">
+                  <div class="text-caption text-weight-bold text-amber-10">🔑 Código de Autorización de Organizador *</div>
+                  <span class="text-caption text-grey-7 font-10">Generado por Omar</span>
+                </div>
+                <q-input
+                  v-model="registroForm.codigo"
+                  outlined
+                  dense
+                  bg-color="white"
+                  placeholder="Ej: OMAR-8421"
+                  :rules="[val => !!val || 'El código generado por el organizador Omar es obligatorio']"
+                >
+                  <template #prepend>
+                    <q-icon :name="matVpnKey" color="amber-9" />
+                  </template>
+                </q-input>
+                <div class="text-caption text-grey-8 font-10">
+                  ℹ️ Solo el organizador principal <strong>Omar</strong> recibe este código al iniciar sesión para autorizar la creación de nuevos organizadores.
+                </div>
+              </div>
+
               <q-btn
                 type="submit"
                 color="primary"
@@ -602,6 +625,24 @@
                   {{ store.notificacionesNoLeidas.length ? `${store.notificacionesNoLeidas.length} notificaciones del torneo pendientes` : 'Bandeja de Notificaciones Oficiales' }}
                 </q-tooltip>
               </q-btn>
+
+              <!-- Código Exclusivo de Organizador para Omar (Visible inmediatamente) -->
+              <div
+                v-if="store.esOrganizadorOmar"
+                class="row items-center no-wrap bg-amber-4 text-slate-950 q-px-sm q-py-xs rounded-borders shadow-2 cursor-pointer q-mx-xs border border-amber-6"
+                @click="copiarCodigoOrganizador"
+              >
+                <q-icon :name="matVpnKey" size="16px" class="q-mr-xs text-amber-10" />
+                <div class="row items-center no-wrap q-gutter-xs">
+                  <span class="text-caption text-weight-bolder">Código Org:</span>
+                  <q-badge color="amber-10" text-color="white" class="font-mono text-weight-bolder font-12 q-px-xs">
+                    {{ store.codigoOrganizadorActivo || 'OMAR-8421' }}
+                  </q-badge>
+                </div>
+                <q-tooltip class="bg-dark text-white">
+                  🔑 Código dinámico exclusivo de tu cuenta Omar. Haz clic para copiarlo y compartirlo con quien desees crear como nuevo Organizador.
+                </q-tooltip>
+              </div>
 
               <!-- Perfil del Usuario Activo -->
               <div class="row items-center no-wrap q-ml-xs bg-slate-800 q-px-sm q-py-xs rounded-borders">
@@ -932,6 +973,19 @@ const router = useRouter()
 // Control del Formulario de Ingreso Obligatorio
 const tabAcceso = ref('login')
 const errorAcceso = ref('')
+
+function copiarCodigoOrganizador() {
+  if (!store.codigoOrganizadorActivo) return
+  navigator.clipboard?.writeText(store.codigoOrganizadorActivo)
+  $q.notify({
+    type: 'positive',
+    icon: 'content_copy',
+    message: `Código "${store.codigoOrganizadorActivo}" copiado al portapapeles. Compártelo con el nuevo organizador.`,
+    position: 'top',
+    timeout: 3500
+  })
+}
+
 const esEquipoCancelado = ref(false)
 
 function abrirRegistroNuevoEquipoRechazado() {
@@ -1024,7 +1078,7 @@ const opcionesEquipos = computed(() =>
 
 function seleccionarRolRegistro(nuevoRol) {
   registroForm.value.rol = nuevoRol
-  if (nuevoRol === 'organizador') registroForm.value.codigo = '1'
+  if (nuevoRol === 'organizador') registroForm.value.codigo = ''
   else if (nuevoRol === 'entrenador') registroForm.value.codigo = '2'
   else if (nuevoRol === 'jugador') {
     registroForm.value.codigo = '3'
@@ -1062,8 +1116,7 @@ async function ejecutarLogin() {
 
 async function ejecutarRegistro() {
   errorAcceso.value = ''
-  if (registroForm.value.rol === 'organizador') registroForm.value.codigo = '1'
-  else if (registroForm.value.rol === 'entrenador') registroForm.value.codigo = '2'
+  if (registroForm.value.rol === 'entrenador') registroForm.value.codigo = '2'
   else if (registroForm.value.rol === 'jugador') registroForm.value.codigo = '3'
 
   if (registroForm.value.rol === 'entrenador') {
