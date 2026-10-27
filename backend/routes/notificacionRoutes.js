@@ -24,7 +24,11 @@ router.get('/', async (req, res) => {
           { equipo: eqId },
           { tipo: 'convocatoria_partido', equipo: eqId },
           { tipo: 'marcador_fijado', equipo: eqId },
-          { tipo: 'solicitud_jugador', equipo: eqId }
+          { tipo: 'solicitud_jugador', equipo: eqId },
+          { tipo: 'traspaso_salida', equipo: eqId },
+          { tipo: 'traspaso_llegada', equipo: eqId },
+          { tipo: 'traspaso_completado', equipo: eqId },
+          { tipo: 'partido_pospuesto', equipo: eqId }
         ]
       }
     } else if (rol === 'jugador') {
@@ -33,7 +37,7 @@ router.get('/', async (req, res) => {
       filtro = {
         $or: [
           { destinatarioUsuario: usuario },
-          { tipo: { $in: ['convocatoria_partido', 'marcador_fijado'] }, equipo: eqId }
+          { tipo: { $in: ['convocatoria_partido', 'marcador_fijado', 'partido_pospuesto'] }, equipo: eqId }
         ]
       }
     }

@@ -10,9 +10,11 @@ const partidoSchema = new Schema({
   golesVisitante: { type: Number, default: 0, min: 0 },
   asistenciasLocal: { type: Number, default: 0, min: 0 },
   asistenciasVisitante: { type: Number, default: 0, min: 0 },
+  motivoPostergacion: { type: String, default: '' },
+  fechaOriginal: { type: Date },
   estado: { 
     type: String, 
-    enum: ['Por Confirmar', 'En Preparación', 'Programado', 'Finalizado'], 
+    enum: ['Por Confirmar', 'En Preparación', 'Programado', 'Finalizado', 'Pospuesto'], 
     default: 'Por Confirmar' 
   },
   confirmacionLocal: { type: Boolean, default: false },
@@ -47,7 +49,8 @@ const partidoSchema = new Schema({
     equipo: { type: Schema.Types.ObjectId, ref: 'Equipo' },
     equipoNombre: String,
     asistente: { type: Schema.Types.ObjectId, ref: 'Jugador' },
-    asistenteNombre: String
+    asistenteNombre: String,
+    esAutogol: { type: Boolean, default: false }
   }],
   faltasLocal: { type: Number, default: 0, min: 0 },
   faltasVisitante: { type: Number, default: 0, min: 0 },
@@ -61,6 +64,15 @@ const partidoSchema = new Schema({
     tipo: { type: String, enum: ['Amarilla', 'Roja'], default: 'Amarilla' },
     motivo: { type: String, default: 'Falta táctica' },
     minuto: { type: Number, default: 45 }
+  }],
+  cambios: [{
+    equipo: { type: Schema.Types.ObjectId, ref: 'Equipo' },
+    equipoNombre: String,
+    jugadorSaleId: String,
+    jugadorSaleNombre: String,
+    jugadorEntraId: String,
+    jugadorEntraNombre: String,
+    minuto: { type: Number, default: 60 }
   }],
   faltas: [{
     jugadorId: String,

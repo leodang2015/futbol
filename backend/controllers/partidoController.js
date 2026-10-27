@@ -78,6 +78,7 @@ export const cargarResultado = async (req, res) => {
     partido.golesVisitante = golesVisitante;
     partido.tarjetas = tarjetas || [];
     partido.estado = 'Finalizado';
+    partido.cambios = Array.isArray(req.body.cambios) ? req.body.cambios : (partido.cambios || []);
 
     if (Array.isArray(goleadores) && goleadores.length) {
       partido.goleadores = goleadores;
@@ -554,6 +555,7 @@ export const reportarGolesDT = async (req, res) => {
 
     if (repLoc?.reportado && repVis?.reportado) {
       partido.estado = 'Finalizado';
+    partido.cambios = Array.isArray(req.body.cambios) ? req.body.cambios : (partido.cambios || []);
 
       // Unificar lista de goleadores oficiales reportados por cada DT
       const listaGoleadores = [];
@@ -720,11 +722,50 @@ export const fijarMarcadorOrganizador = async (req, res) => {
     partido.confirmacionVisitante = true;
     partido.confirmadoPorDTs = true;
 
+    
+    // -------------------------------------------------------------
+    // REGLA OFICIAL DE TITULARES Y SUPLENTES (CAMBIOS REGLAMENTARIOS)
+    // Solo puede marcar gol quien está en la alineación titular/cancha,
+    // o un suplente de banca que haya entrado por un cambio reglamentario
+    // y cuyo gol sea posterior (o en el) minuto de su ingreso al campo.
+    // -------------------------------------------------------------
+    const Jugador = (await import('../models/Jugador.js')).default;
+    const listaCambios = Array.isArray(req.body.cambios) ? req.body.cambios : [];
+
+    if (Array.isArray(req.body.goleadores) && req.body.goleadores.length > 0) {
+      for (const g of req.body.goleadores) {
+        if (!g.jugadorId) continue;
+        const jugDoc = await Jugador.findById(g.jugadorId);
+        if (!jugDoc) continue;
+
+        const minutoGol = typeof g.minuto === 'number' ? g.minuto : (parseInt(String(g.minuto || '45').replace(/[^0-9]/g, ''), 10) || 45);
+        const estaEnBanca = jugDoc.posicion === 'En Banca';
+
+        if (estaEnBanca) {
+          // Buscar si hubo un cambio donde este jugador entró a la cancha
+          const cambioDelJugador = listaCambios.find(c => String(c.jugadorEntraId) === String(jugDoc._id));
+          if (!cambioDelJugador) {
+            return res.status(400).json({
+              msg: `⚠️ REGLA REGLAMENTARIA: El futbolista "${jugDoc.nombre}" se encuentra registrado como suplente (En Banca). Para que un suplente anote un gol, debe registrarse un cambio oficial en el partido sustituyendo a un titular.`
+            });
+          }
+
+          const minutoCambio = Number(cambioDelJugador.minuto) || 60;
+          if (minutoGol < minutoCambio) {
+            return res.status(400).json({
+              msg: `⚠️ REGLA CRONOLÓGICA DE SUSTITUCIÓN: El gol de "${jugDoc.nombre}" (Minuto ${minutoGol}') no puede ser anterior al minuto de su ingreso al campo (Cambio en Minuto ${minutoCambio}'). Los goles del suplente deben ser después de entrar a la cancha.`
+            });
+          }
+        }
+      }
+    }
+
     partido.golesLocal = Number(golesLocal) || 0;
     partido.golesVisitante = Number(golesVisitante) || 0;
     partido.asistenciasLocal = Number(asistenciasLocal) || 0;
     partido.asistenciasVisitante = Number(asistenciasVisitante) || 0;
     partido.estado = 'Finalizado';
+    partido.cambios = Array.isArray(req.body.cambios) ? req.body.cambios : (partido.cambios || []);
 
     // Goleadores oficiales fijados por el Organizador (o autogenerados si no vinieron explícitos)
     if (Array.isArray(req.body.goleadores) && req.body.goleadores.length > 0) {
@@ -828,6 +869,7 @@ export const actualizarGoleadores = async (req, res) => {
       partido.goleadores = [...otrosClubes, ...goleadoresSanitizados];
     }
     partido.estado = 'Finalizado';
+    partido.cambios = Array.isArray(req.body.cambios) ? req.body.cambios : (partido.cambios || []);
 
     await partido.save();
     await recalcularEstadisticasJugadores();
@@ -950,6 +992,7 @@ export const autogenerarGoleadoresHandler = async (req, res) => {
 
     partido.goleadores = await autoGenerarGoleadoresParaEquipos(partido);
     partido.estado = 'Finalizado';
+    partido.cambios = Array.isArray(req.body.cambios) ? req.body.cambios : (partido.cambios || []);
     await partido.save();
     await recalcularEstadisticasJugadores();
 
@@ -975,10 +1018,12 @@ async function recalcularEstadisticasJugadores() {
         for (const g of p.goleadores) {
           const jId = g.jugadorId ? String(g.jugadorId) : '';
           const aId = g.asistenteId ? String(g.asistenteId) : '';
-          if (jId) {
+          const esAutogol = Boolean(g.esAutogol);
+          // Si es autogol, cuenta en el marcador del partido a favor del rival, pero no suma goles individuales al jugador
+          if (jId && !esAutogol) {
             golesPorJugador[jId] = (golesPorJugador[jId] || 0) + (Number(g.goles) || 1);
           }
-          if (aId) {
+          if (aId && !esAutogol) {
             asistenciasPorJugador[aId] = (asistenciasPorJugador[aId] || 0) + 1;
           }
         }

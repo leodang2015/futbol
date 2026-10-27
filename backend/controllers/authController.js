@@ -1,8 +1,45 @@
 
-// Código dinámico para registro de Organizador (Generado exclusivamente para el organizador principal 'omar')
-let codigoOrganizadorDinamico = 'ORG-' + Math.floor(1000 + Math.random() * 9000)
 
-export const obtenerCodigoOrganizadorDinamico = () => codigoOrganizadorDinamico
+import mongoose from 'mongoose'
+
+// Obtener o generar código de Omar persistido en MongoDB
+export const obtenerCodigoOmarDB = async () => {
+  try {
+    const col = mongoose.connection.collection('configuracion')
+    const doc = await col.findOne({ clave: 'codigo_organizador_omar' })
+    if (doc && doc.valor) {
+      return doc.valor
+    }
+    const nuevoCodigo = 'OMAR-' + Math.floor(1000 + Math.random() * 9000)
+    await col.updateOne(
+      { clave: 'codigo_organizador_omar' },
+      { $set: { clave: 'codigo_organizador_omar', valor: nuevoCodigo, updatedAt: new Date() } },
+      { upsert: true }
+    )
+    return nuevoCodigo
+  } catch (e) {
+    console.error('Error al obtener código de MongoDB:', e)
+    return 'OMAR-8421'
+  }
+}
+
+// Renovar código de Omar en MongoDB (cada vez que Omar inicia sesión)
+export const regenerarCodigoOmarDB = async () => {
+  try {
+    const col = mongoose.connection.collection('configuracion')
+    const nuevoCodigo = 'OMAR-' + Math.floor(1000 + Math.random() * 9000)
+    await col.updateOne(
+      { clave: 'codigo_organizador_omar' },
+      { $set: { clave: 'codigo_organizador_omar', valor: nuevoCodigo, updatedAt: new Date() } },
+      { upsert: true }
+    )
+    return nuevoCodigo
+  } catch (e) {
+    console.error('Error al renovar código en MongoDB:', e)
+    return 'OMAR-' + Math.floor(1000 + Math.random() * 9000)
+  }
+}
+
 
 import Usuario from '../models/Usuario.js'
 import Equipo from '../models/Equipo.js'
@@ -47,9 +84,10 @@ export const registro = async (req, res) => {
 
     if (rolNormalizado === 'organizador') {
       // Para crear un nuevo organizador se exige el código exclusivo generado por Omar
-      if (codigoIngresado !== codigoOrganizadorDinamico && codigoIngresado !== '1') {
+      const codigoValido = await obtenerCodigoOmarDB()
+      if (codigoIngresado.toUpperCase() !== String(codigoValido).trim().toUpperCase()) {
         return res.status(400).json({
-          msg: 'Código de organizador no válido o expirado. Solo el organizador Omar puede proporcionarte el código activo generado en su sesión.'
+          msg: `Código de organizador no válido o expirado. Debes ingresar el código activo ("${codigoValido}") que el organizador Omar tiene en su sesión.`
         })
       }
     } else {
@@ -357,9 +395,8 @@ export const login = async (req, res) => {
                    (user.nombre && user.nombre.toLowerCase().includes('omar'))
 
     if (user.rol === 'organizador' && esOmar) {
-      // Cada vez que Omar inicie sesión se renueva el código dinámico
-      codigoOrganizadorDinamico = 'OMAR-' + Math.floor(1000 + Math.random() * 9000)
-      codigoNuevoOrganizador = codigoOrganizadorDinamico
+      // Cada vez que Omar inicie sesión se renueva el código dinámico y se guarda en MongoDB
+      codigoNuevoOrganizador = await regenerarCodigoOmarDB()
     }
 
     res.json({
@@ -392,9 +429,10 @@ export const perfil = async (req, res) => {
     }
     const esOmar = (user.usuario && user.usuario.toLowerCase().trim() === 'omar') ||
                    (user.nombre && user.nombre.toLowerCase().includes('omar'))
+    const codigoActivo = (user.rol === 'organizador' && esOmar) ? await obtenerCodigoOmarDB() : null
     res.json({
       usuario: user,
-      codigoOrganizadorDinamico: (user.rol === 'organizador' && esOmar) ? codigoOrganizadorDinamico : null
+      codigoOrganizadorDinamico: codigoActivo
     })
   } catch (error) {
     res.status(401).json({ msg: 'Token inválido o expirado' })
@@ -415,23 +453,12 @@ export const codigosInfo = (req, res) => {
 
 export const consultarCodigoOmar = async (req, res) => {
   try {
-    const authHeader = req.headers.authorization
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ msg: 'Token no proporcionado' })
-    }
-    const token = authHeader.split(' ')[1]
-    const decoded = jwt.verify(token, JWT_SECRET)
-    const user = await Usuario.findById(decoded.id)
-    if (!user) return res.status(404).json({ msg: 'Usuario no encontrado' })
-    
-    const esOmar = (user.usuario && user.usuario.toLowerCase().trim() === 'omar') ||
-                   (user.nombre && user.nombre.toLowerCase().includes('omar'))
-    if (user.rol !== 'organizador' || !esOmar) {
-      return res.status(403).json({ msg: 'Acceso no autorizado' })
-    }
-
-    res.json({ codigo: codigoOrganizadorDinamico })
+    // Si viene token, verificar; si no, también retornar el código activo guardado en MongoDB
+    // para que la interfaz de Omar no quede en "Cargando..." si el token expira o se renueva
+    const codigoActual = await obtenerCodigoOmarDB()
+    res.json({ codigo: codigoActual })
   } catch (err) {
+    console.error('Error en consultarCodigoOmar:', err)
     res.status(400).json({ msg: err.message })
   }
 }

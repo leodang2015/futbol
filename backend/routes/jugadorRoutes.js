@@ -77,4 +77,180 @@ router.put('/:id/rechazar', async (req, res) => {
   }
 });
 
+
+// --- RUTAS DE TRASPASO DE EQUIPO (SOLICITUD Y DOBLE ACEPTACIÓN DT ORIGEN Y DT DESTINO) ---
+router.post('/:id/solicitar-traspaso', async (req, res) => {
+  try {
+    const Jugador = (await import('../models/Jugador.js')).default;
+    const Equipo = (await import('../models/Equipo.js')).default;
+    const Notificacion = (await import('../models/Notificacion.js')).default;
+
+    const { id } = req.params;
+    const { nuevoEquipoId, motivo } = req.body;
+
+    if (!nuevoEquipoId) {
+      return res.status(400).json({ msg: 'Debes seleccionar el equipo de destino' });
+    }
+
+    const jugador = await Jugador.findById(id).populate('equipo');
+    if (!jugador) return res.status(404).json({ msg: 'Jugador no encontrado' });
+
+    if (String(jugador.equipo?._id || jugador.equipo) === String(nuevoEquipoId)) {
+      return res.status(400).json({ msg: 'Ya perteneces a este equipo' });
+    }
+
+    const nuevoEquipo = await Equipo.findById(nuevoEquipoId);
+    if (!nuevoEquipo) return res.status(404).json({ msg: 'Equipo destino no encontrado' });
+
+    const nombreCompleto = `${jugador.nombre} ${jugador.apellido && jugador.apellido !== '-' ? jugador.apellido : ''}`.trim();
+    const clubOrigenNombre = jugador.equipo?.nombre || 'Club Actual';
+
+    // Crear notificación para el DT de origen (Fase 1: Autorización de salida)
+    await Notificacion.create({
+      tipo: 'traspaso_salida',
+      titulo: `🔄 Solicitud de Traspaso: ${nombreCompleto}`,
+      mensaje: `El futbolista ${nombreCompleto} solicita autorización para salir de ${clubOrigenNombre} y fichar por ${nuevoEquipo.nombre}. Como DT de origen, debes autorizar su carta de salida.`,
+      remitente: 'Sistema de Traspasos',
+      equipo: jugador.equipo?._id || jugador.equipo,
+      equipoNombre: clubOrigenNombre,
+      datos: {
+        jugadorId: jugador._id,
+        jugadorNombre: nombreCompleto,
+        clubOrigenId: jugador.equipo?._id || jugador.equipo,
+        clubOrigenNombre,
+        clubDestinoId: nuevoEquipo._id,
+        clubDestinoNombre: nuevoEquipo.nombre,
+        motivo: motivo || 'Decisión deportiva'
+      }
+    });
+
+    res.json({
+      msg: `Solicitud de traspaso enviada con éxito. Se notificó al DT de ${clubOrigenNombre} para su aprobación de salida.`,
+      jugador
+    });
+  } catch (err) {
+    console.error('Error en solicitar-traspaso:', err);
+    res.status(400).json({ msg: err.message || 'Error al procesar solicitud de traspaso' });
+  }
+});
+
+// Aprobación de salida por parte del DT de origen -> Pasa a notificación para DT de destino
+router.put('/:id/autorizar-salida-traspaso', async (req, res) => {
+  try {
+    const Jugador = (await import('../models/Jugador.js')).default;
+    const Equipo = (await import('../models/Equipo.js')).default;
+    const Notificacion = (await import('../models/Notificacion.js')).default;
+
+    const { id } = req.params;
+    const { clubDestinoId, notificacionId } = req.body;
+
+    const jugador = await Jugador.findById(id).populate('equipo');
+    if (!jugador) return res.status(404).json({ msg: 'Jugador no encontrado' });
+
+    const clubDestino = await Equipo.findById(clubDestinoId);
+    if (!clubDestino) return res.status(404).json({ msg: 'Club de destino no encontrado' });
+
+    const nombreCompleto = `${jugador.nombre} ${jugador.apellido && jugador.apellido !== '-' ? jugador.apellido : ''}`.trim();
+    const clubOrigenNombre = jugador.equipo?.nombre || 'Club Origen';
+
+    // Marcar como leída la notificación de salida
+    if (notificacionId) {
+      await Notificacion.findByIdAndUpdate(notificacionId, { leida: true });
+    }
+
+    // Crear notificación para el DT de destino (Fase 2: Aceptación de llegada)
+    await Notificacion.create({
+      tipo: 'traspaso_llegada',
+      titulo: `📥 Fichaje Aprobado por Club de Origen: ${nombreCompleto}`,
+      mensaje: `El DT de ${clubOrigenNombre} ha liberado la carta de traspaso de ${nombreCompleto}. Ahora tú como DT de ${clubDestino.nombre} debes dar el visto bueno final para incorporarlo a tu equipo.`,
+      remitente: `DT ${clubOrigenNombre}`,
+      equipo: clubDestino._id,
+      equipoNombre: clubDestino.nombre,
+      datos: {
+        jugadorId: jugador._id,
+        jugadorNombre: nombreCompleto,
+        clubOrigenId: jugador.equipo?._id || jugador.equipo,
+        clubOrigenNombre,
+        clubDestinoId: clubDestino._id,
+        clubDestinoNombre: clubDestino.nombre
+      }
+    });
+
+    res.json({
+      msg: `Carta de salida concedida a ${nombreCompleto}. Solicitud remitida al DT de ${clubDestino.nombre}.`
+    });
+  } catch (err) {
+    console.error('Error en autorizar-salida-traspaso:', err);
+    res.status(400).json({ msg: err.message || 'Error al autorizar salida' });
+  }
+});
+
+// Aprobación final por parte del DT de destino -> Se ejecuta el cambio de equipo y usuario asociado
+router.put('/:id/confirmar-llegada-traspaso', async (req, res) => {
+  try {
+    const Jugador = (await import('../models/Jugador.js')).default;
+    const Equipo = (await import('../models/Equipo.js')).default;
+    const Usuario = (await import('../models/Usuario.js')).default;
+    const Notificacion = (await import('../models/Notificacion.js')).default;
+
+    const { id } = req.params;
+    const { clubDestinoId, notificacionId } = req.body;
+
+    const clubDestino = await Equipo.findById(clubDestinoId);
+    if (!clubDestino) return res.status(404).json({ msg: 'Club destino no encontrado' });
+
+    // Actualizar jugador: moverlo al nuevo equipo con posición 'En Banca' y estado 'Aprobado'
+    const jugador = await Jugador.findByIdAndUpdate(
+      id,
+      {
+        equipo: clubDestino._id,
+        posicion: 'En Banca',
+        esCapitan: false,
+        estadoAprobacion: 'Aprobado'
+      },
+      { new: true }
+    ).populate('equipo');
+
+    if (!jugador) return res.status(404).json({ msg: 'Jugador no encontrado' });
+
+    // Sincronizar el usuario asociado si existe
+    if (jugador.usuarioAsociado) {
+      await Usuario.findOneAndUpdate(
+        { usuario: jugador.usuarioAsociado },
+        { equipo: clubDestino._id }
+      );
+    }
+
+    if (notificacionId) {
+      await Notificacion.findByIdAndUpdate(notificacionId, { leida: true });
+    }
+
+    const nombreCompleto = `${jugador.nombre} ${jugador.apellido && jugador.apellido !== '-' ? jugador.apellido : ''}`.trim();
+
+    // Notificación de confirmación exitosa
+    await Notificacion.create({
+      tipo: 'traspaso_completado',
+      titulo: `✅ Traspaso Oficializado: ${nombreCompleto}`,
+      mensaje: `El futbolista ${nombreCompleto} ha sido transferido oficialmente y se encuentra integrado a la banca de ${clubDestino.nombre}.`,
+      remitente: 'Liga Oficial',
+      equipo: clubDestino._id,
+      equipoNombre: clubDestino.nombre,
+      datos: {
+        jugadorId: jugador._id,
+        jugadorNombre: nombreCompleto,
+        clubDestinoId: clubDestino._id,
+        clubDestinoNombre: clubDestino.nombre
+      }
+    });
+
+    res.json({
+      msg: `¡Traspaso completado! ${nombreCompleto} ahora es parte del club ${clubDestino.nombre}.`,
+      jugador
+    });
+  } catch (err) {
+    console.error('Error en confirmar-llegada-traspaso:', err);
+    res.status(400).json({ msg: err.message || 'Error al confirmar llegada de traspaso' });
+  }
+});
+
 export default router;
