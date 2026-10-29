@@ -253,4 +253,83 @@ router.put('/:id/confirmar-llegada-traspaso', async (req, res) => {
   }
 });
 
+
+// Actualizar posición de un jugador (Pizarra Táctica / DT)
+router.patch('/:id/posicion', async (req, res) => {
+  try {
+    const JugadorModel = (await import('../models/Jugador.js')).default;
+    const { id } = req.params;
+    const { posicion } = req.body;
+    if (!posicion) {
+      return res.status(400).json({ msg: 'La posición es requerida' });
+    }
+    const jug = await JugadorModel.findByIdAndUpdate(
+      id,
+      { posicion: String(posicion).trim() },
+      { new: true }
+    ).populate('equipo');
+    if (!jug) {
+      return res.status(404).json({ msg: 'Jugador no encontrado' });
+    }
+    res.json({
+      msg: `Posición de ${jug.nombre} actualizada a ${jug.posicion}`,
+      jugador: jug
+    });
+  } catch (err) {
+    res.status(400).json({ msg: err.message || 'Error al actualizar posición' });
+  }
+});
+
+// Soporte PUT para posición (fallback)
+router.put('/:id/posicion', async (req, res) => {
+  try {
+    const JugadorModel = (await import('../models/Jugador.js')).default;
+    const { id } = req.params;
+    const { posicion } = req.body;
+    const jug = await JugadorModel.findByIdAndUpdate(
+      id,
+      { posicion: String(posicion).trim() },
+      { new: true }
+    ).populate('equipo');
+    if (!jug) return res.status(404).json({ msg: 'Jugador no encontrado' });
+    res.json({ msg: `Posición de ${jug.nombre} actualizada`, jugador: jug });
+  } catch (err) {
+    res.status(400).json({ msg: err.message || 'Error al actualizar posición' });
+  }
+});
+
+// Actualizar dorsal del jugador
+router.patch('/:id/dorsal', async (req, res) => {
+  try {
+    const JugadorModel = (await import('../models/Jugador.js')).default;
+    const { id } = req.params;
+    const { numero } = req.body;
+    const num = Number(numero);
+    if (!num || num < 1 || num > 99) {
+      return res.status(400).json({ msg: 'El dorsal debe ser entre 1 y 99' });
+    }
+    const jug = await JugadorModel.findById(id);
+    if (!jug) return res.status(404).json({ msg: 'Jugador no encontrado' });
+
+    // Validar dorsal repetido en el mismo club
+    const ocupado = await JugadorModel.findOne({
+      equipo: jug.equipo,
+      numero: num,
+      _id: { $ne: jug._id }
+    });
+    if (ocupado) {
+      return res.status(400).json({
+        msg: `El dorsal #${num} ya está asignado a ${ocupado.nombre} en este equipo.`
+      });
+    }
+
+    jug.numero = num;
+    jug.dorsal = num;
+    await jug.save();
+    res.json({ msg: `Dorsal #${num} asignado a ${jug.nombre}`, jugador: jug });
+  } catch (err) {
+    res.status(400).json({ msg: err.message || 'Error al actualizar dorsal' });
+  }
+});
+
 export default router;

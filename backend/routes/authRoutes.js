@@ -1,6 +1,13 @@
 import { Router } from 'express'
-import { registro, login, perfil, codigosInfo, consultarCodigoOmar } from '../controllers/authController.js'
-
+import {
+  registro,
+  login,
+  perfil,
+  codigosInfo,
+  consultarCodigoOmar,
+  editarPerfil,
+  eliminarMiCuenta
+} from '../controllers/authController.js'
 const router = Router()
 
 router.post('/registro', registro)

@@ -412,8 +412,9 @@ export const login = async (req, res) => {
 
     // Generar código dinámico exclusivo si el organizador que inicia sesión es 'omar'
     let codigoNuevoOrganizador = null
-    const esOmar = (user.usuario && user.usuario.toLowerCase().trim() === 'omar') ||
-                   (user.nombre && user.nombre.toLowerCase().includes('omar'))
+    // REGLA ESTRICTA DE SEGURIDAD: Únicamente el USUARIO 'omar' (username === 'omar')
+    // es el superadministrador facultado para generar y poseer el código dinámico.
+    const esOmar = (user.usuario && user.usuario.toLowerCase().trim() === 'omar')
 
     if (user.rol === 'organizador' && esOmar) {
       // Cada vez que Omar inicie sesión se renueva el código dinámico y se guarda en MongoDB
@@ -448,8 +449,9 @@ export const perfil = async (req, res) => {
         if (!user) {
       return res.status(404).json({ msg: 'Usuario no encontrado' })
     }
-    const esOmar = (user.usuario && user.usuario.toLowerCase().trim() === 'omar') ||
-                   (user.nombre && user.nombre.toLowerCase().includes('omar'))
+    // REGLA ESTRICTA DE SEGURIDAD: Únicamente el USUARIO 'omar' (username === 'omar')
+    // es el superadministrador facultado para generar y poseer el código dinámico.
+    const esOmar = (user.usuario && user.usuario.toLowerCase().trim() === 'omar')
     const codigoActivo = (user.rol === 'organizador' && esOmar) ? await obtenerCodigoOmarDB() : null
     res.json({
       usuario: user,
@@ -481,5 +483,216 @@ export const consultarCodigoOmar = async (req, res) => {
   } catch (err) {
     console.error('Error en consultarCodigoOmar:', err)
     res.status(400).json({ msg: err.message })
+  }
+}
+
+
+// ============================================================================
+// GESTIÓN DE PERFIL: EDITAR USUARIO Y ELIMINACIÓN EN CASCADA REGLAMENTARIA
+// ============================================================================
+
+export const editarPerfil = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ msg: 'Token no proporcionado' })
+    }
+    const token = authHeader.split(' ')[1]
+    const decoded = jwt.verify(token, JWT_SECRET)
+    const user = await Usuario.findById(decoded.id)
+    if (!user) {
+      return res.status(404).json({ msg: 'Usuario no encontrado' })
+    }
+
+    const { nombre, nuevoUsuario, passwordActual, nuevoPassword } = req.body
+
+    // 1. Modificar nombre de usuario (username) si se solicita
+    if (nuevoUsuario && typeof nuevoUsuario === 'string') {
+      const nuevoUserClean = nuevoUsuario.toLowerCase().trim()
+      if (nuevoUserClean.length < 3) {
+        return res.status(400).json({ msg: 'El nombre de usuario debe tener al menos 3 caracteres' })
+      }
+      if (user.usuario === 'omar' && nuevoUserClean !== 'omar') {
+        return res.status(403).json({ msg: 'El usuario maestro "omar" no puede cambiar su identificador de cuenta principal.' })
+      }
+      if (nuevoUserClean !== user.usuario) {
+        const existeOtro = await Usuario.findOne({ usuario: nuevoUserClean })
+        if (existeOtro) {
+          return res.status(400).json({ msg: `El usuario "${nuevoUserClean}" ya está en uso. Elige otro.` })
+        }
+        // Actualizar referencias si es jugador o entrenador
+        if (user.rol === 'jugador') {
+          const JugadorModel = (await import('../models/Jugador.js')).default
+          await JugadorModel.updateMany({ usuarioAsociado: user.usuario }, { usuarioAsociado: nuevoUserClean })
+        }
+        user.usuario = nuevoUserClean
+      }
+    }
+
+    // 2. Modificar nombre personal / visible
+    if (nombre && typeof nombre === 'string' && nombre.trim().length >= 2) {
+      user.nombre = nombre.trim()
+      if (user.rol === 'jugador') {
+        const JugadorModel = (await import('../models/Jugador.js')).default
+        await JugadorModel.updateMany({ usuarioAsociado: user.usuario }, { nombre: user.nombre })
+      }
+    }
+
+    // 3. Modificar contraseña si se proporciona
+    if (nuevoPassword && typeof nuevoPassword === 'string') {
+      if (nuevoPassword.length < 4) {
+        return res.status(400).json({ msg: 'La nueva contraseña debe tener al menos 4 caracteres' })
+      }
+      if (!passwordActual || !user.validPassword(passwordActual)) {
+        return res.status(400).json({ msg: 'La contraseña actual no es correcta' })
+      }
+      user.setPassword(nuevoPassword)
+    }
+
+    await user.save()
+
+    // Reemitir token si cambió el usuario
+    const nuevoToken = jwt.sign(
+      { id: user._id, usuario: user.usuario, rol: user.rol },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    )
+
+    res.json({
+      msg: 'Perfil actualizado exitosamente',
+      usuario: user,
+      token: nuevoToken
+    })
+  } catch (error) {
+    console.error('Error al editar perfil:', error)
+    res.status(400).json({ msg: error.message || 'Error al actualizar perfil' })
+  }
+}
+
+export const eliminarMiCuenta = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ msg: 'Token no proporcionado' })
+    }
+    const token = authHeader.split(' ')[1]
+    const decoded = jwt.verify(token, JWT_SECRET)
+    const user = await Usuario.findById(decoded.id)
+    if (!user) {
+      return res.status(404).json({ msg: 'Usuario no encontrado' })
+    }
+
+    // REGLA CRÍTICA DE PROTECCIÓN AL ORGANIZADOR OMAR:
+    // "El único que no se podrá eliminar será el organizador que tiene el usuario omar"
+    if (user.usuario === 'omar') {
+      return res.status(403).json({
+        msg: '⛔ ACCIÓN PROHIBIDA: El superadministrador "omar" es el organizador fundacional del torneo y no puede ser eliminado.'
+      })
+    }
+
+    const { password } = req.body
+    if (!password || !user.validPassword(password)) {
+      return res.status(400).json({ msg: 'Debes confirmar tu contraseña para autorizar la eliminación de tu cuenta' })
+    }
+
+    const EquipoModel = (await import('../models/Equipo.js')).default
+    const JugadorModel = (await import('../models/Jugador.js')).default
+    const PartidoModel = (await import('../models/Partido.js')).default
+    const NotificacionModel = (await import('../models/Notificacion.js')).default
+
+    // CASO A: ELIMINACIÓN DE ENTRENADOR (CASCADA TOTAL DEL CLUB Y SUS JUGADORES)
+    // "Si el entrenador se elimina se quita todo el equipo y todos los usuarios futbolista que estén vinculados al equipo"
+    if (user.rol === 'entrenador') {
+      // 1. Identificar el equipo vinculado
+      let eqId = user.equipo
+      if (!eqId) {
+        const eqFound = await EquipoModel.findOne({
+          $or: [
+            { tecnico: new RegExp(`^${user.usuario}$`, 'i') },
+            { tecnico: new RegExp(`^${user.nombre}$`, 'i') },
+            { solicitadoPor: user.usuario }
+          ]
+        })
+        if (eqFound) eqId = eqFound._id
+      }
+
+      let clubNombre = 'Club'
+      if (eqId) {
+        const eqObj = await EquipoModel.findById(eqId)
+        if (eqObj) clubNombre = eqObj.nombre
+
+        // 2. Buscar todos los futbolistas vinculados al equipo (fichas)
+        const fichasJugadores = await JugadorModel.find({ equipo: eqId })
+        const usernamesFutbolistas = fichasJugadores
+          .map(f => f.usuarioAsociado)
+          .filter(Boolean)
+
+        // 3. Eliminar todas las cuentas de usuario de los futbolistas de ese club
+        if (usernamesFutbolistas.length > 0) {
+          await Usuario.deleteMany({ usuario: { $in: usernamesFutbolistas }, rol: 'jugador' })
+        }
+        // También eliminar usuarios que tengan asignado directamente ese equipo
+        await Usuario.deleteMany({ equipo: eqId, rol: 'jugador' })
+
+        // 4. Eliminar todas las fichas de jugadores de ese club
+        await JugadorModel.deleteMany({ equipo: eqId })
+
+        // 5. Eliminar partidos no jugados o vinculados al club
+        await PartidoModel.deleteMany({
+          $or: [{ local: eqId }, { visitante: eqId }],
+          estado: { $ne: 'Finalizado' }
+        })
+
+        // 6. Eliminar el equipo oficialmente
+        await EquipoModel.findByIdAndDelete(eqId)
+
+        // 7. Notificación informativa al organizador
+        try {
+          await NotificacionModel.create({
+            tipo: 'baja_equipo',
+            titulo: `⚠️ Club Disuelto: ${clubNombre}`,
+            mensaje: `El DT @${user.usuario} eliminó su cuenta. En consecuencia, el club "${clubNombre}" y todo su plantel de futbolistas vinculados fueron dados de baja del torneo.`,
+            remitente: 'Sistema'
+          })
+        } catch (_) {}
+      }
+
+      // 8. Eliminar la cuenta del entrenador
+      await Usuario.findByIdAndDelete(user._id)
+
+      return res.json({
+        msg: `Cuenta de Entrenador eliminada con éxito. Se dio de baja el club "${clubNombre}" y todas las cuentas de futbolistas vinculadas al equipo.`,
+        rol: 'entrenador',
+        equipoEliminado: clubNombre
+      })
+    }
+
+    // CASO B: ELIMINACIÓN DE JUGADOR (FUTBOLISTA)
+    // "Los otros tendrán una eliminación que no perjudica mucho"
+    if (user.rol === 'jugador') {
+      // Dar de baja su ficha deportiva individual sin afectar al club ni a los demás futbolistas
+      await JugadorModel.deleteMany({
+        $or: [
+          { usuarioAsociado: user.usuario },
+          { email: new RegExp(`^${user.usuario}@`, 'i') }
+        ]
+      })
+      await Usuario.findByIdAndDelete(user._id)
+      return res.json({
+        msg: 'Tu cuenta de futbolista fue eliminada. Tu ficha en el plantel fue removida sin afectar a tu club.',
+        rol: 'jugador'
+      })
+    }
+
+    // CASO C: OTRO ORGANIZADOR SECUNDARIO (NO OMAR)
+    await Usuario.findByIdAndDelete(user._id)
+    return res.json({
+      msg: 'Cuenta de organizador secundario eliminada correctamente.',
+      rol: 'organizador'
+    })
+
+  } catch (error) {
+    console.error('Error al eliminar cuenta:', error)
+    res.status(400).json({ msg: error.message || 'Error al eliminar cuenta' })
   }
 }
