@@ -53,6 +53,21 @@ export const loginJugador = async (req, res) => {
       });
     }
 
+    // BLOQUEO TOTAL REGLAMENTARIO: Si no está Aceptado por el DT, no puede hacer nada ni ingresar
+    if (jugador.estadoAprobacion === 'Pendiente') {
+      return res.status(403).json({
+        msg: "🚫 ACCESO BLOQUEADO: Tu ficha de futbolista está pendiente de aprobación. El Entrenador de tu club debe aceptarte en su plantel antes de que puedas realizar cualquier acción en el sistema.",
+        estadoAprobacion: 'Pendiente'
+      });
+    }
+
+    if (jugador.estadoAprobacion === 'Rechazado') {
+      return res.status(403).json({
+        msg: "🚫 ACCESO DENEGADO: Tu solicitud de ingreso fue rechazada por el Entrenador. No tienes permisos para operar en el sistema.",
+        estadoAprobacion: 'Rechazado'
+      });
+    }
+
     const token = await generarJWT(jugador._id);
 
     res.json({

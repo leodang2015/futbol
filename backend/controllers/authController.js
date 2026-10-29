@@ -235,19 +235,40 @@ export const registro = async (req, res) => {
     nuevoUsuario.setPassword(password)
     await nuevoUsuario.save()
 
-    // 7. Generar token JWT
+    // REGLA OFICIAL DE AUTORIZACIÓN OBLIGATORIA PREVIA:
+    // 1. Si es JUGADOR: Queda en estado Pendiente y NO puede entrar hasta que el Entrenador lo acepte.
+    if (rolNormalizado === 'jugador') {
+      return res.status(201).json({
+        msg: '¡Registro completado! Tu ficha quedó en estado PENDIENTE. Debes esperar a que el Entrenador de tu club autorice y acepte tu incorporación antes de poder ingresar al sistema.',
+        requiereAprobacion: true,
+        rol: 'jugador',
+        equipoNombre: (equipoExistente && equipoExistente.nombre) || 'el club'
+      });
+    }
+
+    // 2. Si es ENTRENADOR con nuevo club: Queda en estado Pendiente y NO puede entrar hasta que el Organizador lo apruebe.
+    if (rolNormalizado === 'entrenador' && nuevoEquipoCreado) {
+      return res.status(201).json({
+        msg: '¡Club propuesto con éxito! Tu equipo quedó en estado PENDIENTE. Debes esperar a que el Organizador del Torneo apruebe y afilie tu club antes de poder ingresar al sistema.',
+        requiereAprobacion: true,
+        rol: 'entrenador',
+        clubNombre: nuevoEquipoCreado.nombre
+      });
+    }
+
+    // 3. Organizador (u otros autorizados): Se genera token directamente
     const token = jwt.sign(
       { id: nuevoUsuario._id, usuario: nuevoUsuario.usuario, rol: nuevoUsuario.rol },
       JWT_SECRET,
       { expiresIn: '7d' }
-    )
+    );
 
     res.status(201).json({
       msg: 'Usuario registrado exitosamente',
       usuario: nuevoUsuario,
       token,
       equipoCreado: nuevoEquipoCreado
-    })
+    });
   } catch (error) {
     console.error('Error en registro de usuario:', error)
     res.status(400).json({
@@ -315,12 +336,12 @@ export const login = async (req, res) => {
       const eqEstado = user.equipo.estadoAprobacion || 'Aprobado'
       if (eqEstado === 'Pendiente') {
         return res.status(403).json({
-          msg: 'Tu club propuesto "' + (user.equipo.nombre || 'Club') + '" se encuentra en revisión. El Administrador/Organizador debe autorizar la creación del equipo para habilitar el acceso oficial.',
+          msg: '🚫 ACCESO BLOQUEADO: Tu club "' + (user.equipo.nombre || 'Club') + '" está pendiente de autorización. Hasta que el Organizador no lo apruebe, el club no está afiliado y no podrás realizar ninguna acción.',
           estadoClub: 'Pendiente'
         })
       } else if (eqEstado === 'Rechazado') {
         return res.status(403).json({
-          msg: 'Equipo cancelado / denegado por el Organizador. Debes crear otro equipo para que el Organizador lo evalúe y lo acepte.',
+          msg: '🚫 ACCESO DENEGADO: El club propuesto fue rechazado por el Organizador. No tienes acceso a funciones operativas en la liga.',
           estadoClub: 'Rechazado',
           clubRechazado: user.equipo.nombre || 'Club',
           permitirCrearNuevoEquipo: true
@@ -348,7 +369,7 @@ export const login = async (req, res) => {
           });
         } else if (jFicha.estadoAprobacion === 'Pendiente') {
           return res.status(403).json({
-            msg: `Tu solicitud de ingreso al club ${jFicha.equipo?.nombre || 'club'} está en revisión. El Entrenador de tu equipo debe aceptarte para que puedas ingresar.`,
+            msg: `🚫 ACCESO BLOQUEADO: Tu solicitud para el club ${jFicha.equipo?.nombre || 'club'} está pendiente de aprobación. Hasta que tu Entrenador no te acepte, no podrás ingresar ni realizar ninguna acción en el sistema.`,
             estadoJugador: 'Pendiente'
           });
         }
