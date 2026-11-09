@@ -97,23 +97,31 @@ router.post('/generar-automaticos-ia', async (req, res) => {
       if (visId) clubesConPartidoPendiente.add(visId);
     });
 
+    // Regla estricta: Solo clubes completamente libres de partidos en curso
     const clubesCompletamenteLibres = clubes.filter(c => !clubesConPartidoPendiente.has(String(c._id)));
+
     if (clubesCompletamenteLibres.length < 2) {
-      const nombresPendientes = clubes.filter(c => clubesConPartidoPendiente.has(String(c._id))).map(c => c.nombre).join(', ');
       return res.status(400).json({
-        msg: `⚠️ REGLA OFICIAL: Los clubes (${nombresPendientes}) ya tienen partidos pendientes o en preparación en el fixture. Por reglamento, cada club debe terminar o suspender formalmente su partido anterior antes de que se le asigne uno nuevo.`
+        msg: 'Todos están jugando un partido, no se puede más.'
       });
     }
 
+    const clubesParaProgramar = clubesCompletamenteLibres;
+
     let inicioTimestamp = fechaBase ? new Date(fechaBase).getTime() : Date.now() + 3600000;
-    if (partidosExistentes.length && partidosExistentes[0].fechaHora) {
-      const ultimaFecha = new Date(partidosExistentes[0].fechaHora).getTime();
-      if (ultimaFecha > inicioTimestamp) {
-        inicioTimestamp = ultimaFecha + (intervaloDias * 24 * 3600000);
+    if (partidosExistentes.length) {
+      const fechasValidas = partidosExistentes
+        .map(p => p.fechaHora ? new Date(p.fechaHora).getTime() : 0)
+        .filter(t => !isNaN(t) && t > 0);
+      if (fechasValidas.length) {
+        const maxFecha = Math.max(...fechasValidas);
+        if (maxFecha >= inicioTimestamp || esProximaJornada) {
+          inicioTimestamp = maxFecha + (Number(intervaloDias || 1) * 24 * 3600000);
+        }
       }
     }
 
-    const resumenClubes = clubesCompletamenteLibres.map(c => ({
+    const resumenClubes = clubesParaProgramar.map(c => ({
       id: String(c._id),
       nombre: c.nombre,
       barriada: c.barriada || 'Barrio',
@@ -179,8 +187,8 @@ Reglas estrictas de programación:
 
     for (let i = 0; i < emparejamientos.length; i++) {
       const emp = emparejamientos[i];
-      const clubLoc = clubesCompletamenteLibres.find(c => String(c._id) === String(emp.localId));
-      const clubVis = clubesCompletamenteLibres.find(c => String(c._id) === String(emp.visitanteId));
+      const clubLoc = clubesParaProgramar.find(c => String(c._id) === String(emp.localId));
+      const clubVis = clubesParaProgramar.find(c => String(c._id) === String(emp.visitanteId));
       if (!clubLoc || !clubVis) continue;
 
       fechaCursor.setHours(16, 0, 0, 0);
