@@ -7,11 +7,26 @@
           <q-icon :name="matSportsScore" color="positive" size="22px" />
           <div class="text-subtitle1 text-weight-bold">Programar Partido Oficial</div>
         </div>
+        <q-btn
+          unelevated
+          no-caps
+          dense
+          color="amber-9"
+          text-color="white"
+          :icon="matAutoAwesome"
+          label="✨ Generador Inteligente con IA Gemini"
+          class="text-weight-bolder q-px-sm shadow-2"
+          @click="mostrarModalIA = true"
+        >
+          <q-tooltip>Crea múltiples partidos automáticamente con lógica de paridad y fechas separadas por días usando Gemini AI</q-tooltip>
+        </q-btn>
         <q-btn flat round dense :icon="matClose" v-close-popup text-color="grey-4" size="sm" />
       </q-card-section>
 
       <!-- Cuerpo Scrolleable Cómodo -->
       <q-card-section class="scroll q-pa-md q-gutter-y-sm col">
+
+
         <!-- Fila 1: Jornada Oficial y Fecha/Hora del Partido -->
         <div class="row q-col-gutter-sm items-stretch">
           <div class="col-12 col-sm-5">
@@ -225,16 +240,170 @@
       </q-card-actions>
     </q-card>
   </q-dialog>
+
+    <!-- DIÁLOGO OFICIAL: GENERADOR AUTOMÁTICO DE PARTIDOS CON IA GEMINI -->
+    <q-dialog v-model="mostrarModalIA" position="standard">
+      <q-card style="width: 520px; max-width: 95vw; max-height: 88vh;" class="rounded-xl overflow-hidden bg-white shadow-24 column no-wrap">
+        <!-- Encabezado Oscuro de Alto Contraste Fijo -->
+        <q-card-section class="bg-slate-900 text-white row items-center justify-between q-py-sm q-px-md border-b border-slate-800 shrink-0">
+          <div class="row items-center q-gutter-md">
+            <div class="avatar-robot flex flex-center shadow-2">
+              <span style="font-size: 24px;">🤖</span>
+            </div>
+            <div>
+              <div class="text-subtitle1 text-weight-bolder text-white row items-center q-gutter-xs">
+                <span>Generador de Partidos con IA Gemini</span>
+                <q-badge color="amber-5" text-color="dark" class="text-weight-bolder font-11 q-px-xs">
+                  PRO
+                </q-badge>
+              </div>
+              <div class="text-caption font-11 text-amber-3 text-weight-medium">
+                Fixture inteligente con paridad deportiva y días diferenciados
+              </div>
+            </div>
+          </div>
+          <q-btn flat round dense icon="close" text-color="grey-4" v-close-popup size="sm" />
+        </q-card-section>
+
+        <!-- Cuerpo Scrolleable con barra y cursor de desplazamiento -->
+        <q-card-section class="scroll q-pa-md q-gutter-y-md col bg-slate-50/50">
+          <!-- Reglas reglamentarias garantizadas -->
+          <div class="bg-indigo-50 border border-indigo-2 rounded-borders q-pa-sm text-caption text-slate-800">
+            <strong>🧠 Lógica Aplicada por Gemini AI:</strong>
+            <ul class="q-my-xs q-pl-md font-11" style="line-height: 1.4;">
+              <li><strong>Paridad competitiva:</strong> Empareja clubes con nivel similar de puntos y partidos disputados.</li>
+              <li><strong>Separación por días:</strong> Cada encuentro o jornada queda programado en <strong>días distintos y consecutivos</strong> (por ejemplo: Día 1 a las 16:00, Día 2 a las 16:00...).</li>
+              <li><strong>Sin repetición:</strong> Un equipo no juega contra sí mismo ni se duplican cruces inmediatos.</li>
+            </ul>
+          </div>
+
+          
+          <!-- AVISO OFICIAL: REGLA DE PARTIDO ÚNICO EN CURSO -->
+          <div v-if="clubesConPartidoPendienteInfo && clubesConPartidoPendienteInfo.length" class="bg-amber-50 border-2 border-amber-400 rounded-borders q-pa-sm text-caption text-amber-10">
+            <div class="row items-center q-gutter-xs q-mb-xs text-weight-bolder font-12 text-amber-9">
+              <q-icon name="warning" size="20px" color="amber-9" />
+              <span>⚠️ Aviso Oficial del Torneo:</span>
+            </div>
+            <div class="font-12 text-weight-bold text-slate-900 q-py-xs" style="line-height: 1.4;">
+              Todos están jugando un partido, no se puede más.
+            </div>
+            <div class="font-11 text-grey-8" style="line-height: 1.3;">
+              Los clubes ({{ clubesConPartidoPendienteNombres }}) tienen un encuentro en curso o pendiente en el fixture. Para habilitar nuevos encuentros o programar más partidos, primero se deben finalizar o cargar los resultados de los partidos actuales.
+            </div>
+          </div>
+
+          <!-- Selector 1: Cantidad de Partidos -->
+          <div class="bg-slate-50 border rounded-borders q-pa-sm">
+            <div class="row items-center justify-between q-mb-sm">
+              <div class="text-caption text-weight-bolder text-slate-900">
+                1. ¿Cuántos partidos deseas programar con IA? *
+              </div>
+              <q-badge color="primary" text-color="white" class="font-mono text-weight-bolder font-12 q-px-xs">
+                {{ cantidadPartidosIA }} {{ cantidadPartidosIA === 1 ? 'partido' : 'partidos' }}
+              </q-badge>
+            </div>
+            <div class="row q-col-gutter-xs">
+              <div v-for="n in [1, 2, 3, 4, 5, 6]" :key="n" class="col-4 col-sm-2">
+                <q-btn
+                  unelevated
+                  no-caps
+                  class="full-width text-weight-bolder border shadow-1"
+                  :color="cantidadPartidosIA === n ? 'primary' : 'white'"
+                  :text-color="cantidadPartidosIA === n ? 'white' : 'slate-800'"
+                  :style="cantidadPartidosIA === n ? 'border-color: var(--q-primary) !important;' : 'border-color: #cbd5e1 !important;'"
+                  :label="`${n}`"
+                  @click="cantidadPartidosIA = n"
+                >
+                  <q-tooltip>{{ n }} {{ n === 1 ? 'partido' : 'partidos' }}</q-tooltip>
+                </q-btn>
+              </div>
+            </div>
+          </div>
+
+          <!-- Selector 2: Separación Cronológica entre Partidos (Días) -->
+          <div class="bg-slate-50 border rounded-borders q-pa-sm">
+            <div class="row items-center justify-between q-mb-sm">
+              <div class="text-caption text-weight-bolder text-slate-900">
+                2. Separación de días entre cada partido *
+              </div>
+              <q-badge color="emerald-9" text-color="white" class="font-mono text-weight-bolder font-12 q-px-xs">
+                {{ intervaloDiasIA === 1 ? '1 día (Días consecutivos)' : `${intervaloDiasIA} días entre partidos` }}
+              </q-badge>
+            </div>
+            <div class="row q-col-gutter-xs">
+              <div
+                v-for="opt in [
+                  { dias: 1, label: '1 día (Consecutivo)', badge: 'Recomendado' },
+                  { dias: 2, label: '2 días', badge: 'Descanso' },
+                  { dias: 3, label: '3 días', badge: 'Espaciado' },
+                  { dias: 7, label: '7 días (Semanal)', badge: 'Fin de semana' }
+                ]"
+                :key="opt.dias"
+                class="col-6 col-sm-3"
+              >
+                <q-card
+                  flat
+                  bordered
+                  class="cursor-pointer text-center q-pa-xs column items-center justify-center transition-all"
+                  :class="intervaloDiasIA === opt.dias ? 'bg-emerald-50 border-2 border-emerald-6 text-emerald-10 shadow-2 text-weight-bolder' : 'bg-white border-slate-300 text-slate-700'"
+                  @click="intervaloDiasIA = opt.dias"
+                >
+                  <div class="text-weight-bold font-12">{{ opt.label }}</div>
+                  <div class="font-10 text-grey-6">{{ opt.badge }}</div>
+                </q-card>
+              </div>
+            </div>
+          </div>
+        </q-card-section>
+
+        <!-- Barra de Acciones Fija en la Base -->
+        <q-card-actions align="right" class="q-pa-md bg-white border-t shrink-0">
+          <q-btn flat no-caps label="Cancelar" color="grey-7" v-close-popup />
+          <q-btn
+            unelevated
+            no-caps
+            color="positive"
+            text-color="white"
+            :loading="generandoConIA"
+            :icon="matAutoAwesome"
+            :label="`Crear ${cantidadPartidosIA} Partido(s) con IA`"
+            class="text-weight-bolder q-px-md shadow-2"
+            @click="ejecutarGeneracionIA"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import { useTorneo } from '../store/torneo.js'
+import { useQuasar } from 'quasar'
 import { matSportsScore, matClose, matRemove, matAdd, matCheck } from '@quasar/extras/material-icons'
 
 const props = defineProps({ modelValue: Boolean })
 const emit = defineEmits(['update:modelValue'])
 const store = useTorneo()
+const $q = useQuasar()
+
+const clubesConPartidoPendienteInfo = computed(() => {
+  const pendientes = new Set()
+  const finalizadoFn = (p) => ['jugado', 'finalizado'].includes(String(p?.estado || '').toLowerCase())
+  for (const p of (store?.partidos || [])) {
+    if (!finalizadoFn(p)) {
+      const loc = p.localId || (p.local && typeof p.local === 'object' ? (p.local._id || p.local.id) : p.local)
+      const vis = p.visitanteId || (p.visitante && typeof p.visitante === 'object' ? (p.visitante._id || p.visitante.id) : p.visitante)
+      if (loc) pendientes.add(String(loc).trim())
+      if (vis) pendientes.add(String(vis).trim())
+    }
+  }
+  return (store?.equipos || []).filter(e => pendientes.has(String(e.id || e._id).trim()))
+})
+
+const clubesConPartidoPendienteNombres = computed(() => {
+  return (clubesConPartidoPendienteInfo.value || []).map(c => c.nombre).join(', ')
+})
+
 
 function getAhoraString() {
   const d = new Date()
@@ -392,6 +561,42 @@ const alertaReglamentaria = computed(() => {
   return ''
 })
 
+
+const mostrarModalIA = ref(false)
+const cantidadPartidosIA = ref(3)
+const intervaloDiasIA = ref(1)
+const generandoConIA = ref(false)
+
+async function ejecutarGeneracionIA() {
+  generandoConIA.value = true
+  try {
+    const res = await store.generarPartidosConIA({
+      cantidadPartidos: cantidadPartidosIA.value,
+      intervaloDias: intervaloDiasIA.value
+    })
+    mostrarModalIA.value = false
+    emit('update:modelValue', false)
+    $q.notify({
+      type: 'positive',
+      icon: 'auto_awesome',
+      message: res.msg || '¡Partidos programados con éxito por la IA Gemini!',
+      position: 'top',
+      timeout: 5000
+    })
+  } catch (err) {
+    const errorMsg = err.response?.data?.msg || err.message || 'Todos están jugando un partido, no se puede más.'
+    $q.notify({
+      type: 'negative',
+      icon: 'warning',
+      message: errorMsg,
+      position: 'top',
+      timeout: 4500
+    })
+  } finally {
+    generandoConIA.value = false
+  }
+}
+
 const puedeGuardar = computed(() => {
   const esFechaHoraValida = Boolean(form.value.fechaHora)
   return Boolean(
@@ -488,5 +693,15 @@ async function guardar() {
 .font-mono {
   font-family: 'JetBrains Mono', monospace;
   font-variant-numeric: tabular-nums;
+}
+
+.avatar-robot {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #f59e0b;
+}
+.bg-slate-900 {
+  background-color: #0f172a !important;
 }
 </style>

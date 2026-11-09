@@ -94,7 +94,111 @@
       </q-card-section>
     </q-card>
 
-    <!-- Solicitudes de Jugadores Pendientes de Autorización por el DT -->
+        <!-- SOLICITUDES DE TRASPASO: CARTA DE SALIDA (Fase 1) -->
+    <div v-if="solicitudesSalidaPendientes.length" class="bg-amber-50 border-2 border-amber-5 rounded-borders q-pa-md q-mb-md shadow-2">
+      <div class="row items-center justify-between q-mb-xs">
+        <div class="row items-center q-gutter-xs">
+          <q-icon :name="matSwapHoriz" color="amber-10" size="24px" />
+          <span class="text-subtitle1 text-weight-bolder text-amber-10">
+            🔄 Solicitudes de Salida / Traspaso de tu Equipo ({{ solicitudesSalidaPendientes.length }})
+          </span>
+        </div>
+        <q-badge color="amber-10" text-color="white" class="text-weight-bold">
+          Fase 1: Autorización de Salida
+        </q-badge>
+      </div>
+      <div class="text-caption text-slate-700 q-mb-sm">
+        Los siguientes futbolistas de tu club solicitan cambiar de equipo. Como DT de origen, debes autorizar su carta de salida para que el club de destino pueda evaluar su fichaje.
+      </div>
+      <div class="row q-col-gutter-sm">
+        <div v-for="notif in solicitudesSalidaPendientes" :key="notif._id" class="col-12 col-md-6">
+          <div class="bg-white q-pa-sm rounded border border-amber-4 row items-center justify-between">
+            <div>
+              <div class="text-weight-bold text-slate-900 font-12">{{ notif.datos?.jugadorNombre }}</div>
+              <div class="text-caption text-grey-7 font-10">
+                Destino solicitado: <strong class="text-primary">{{ notif.datos?.clubDestinoNombre }}</strong>
+              </div>
+            </div>
+            <div class="row items-center q-gutter-xs">
+              <q-btn
+                dense
+                unelevated
+                no-caps
+                size="sm"
+                color="positive"
+                label="✅ Conceder Salida"
+                class="text-weight-bold q-px-xs"
+                @click="autorizarSalidaDesdeNotif(notif)"
+              />
+              <q-btn
+                dense
+                flat
+                no-caps
+                size="sm"
+                color="negative"
+                label="❌ Retener"
+                class="text-weight-bold q-px-xs"
+                @click="store.marcarNotificacionLeida(notif._id)"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOLICITUDES DE TRASPASO: INCORPORACIÓN / LLEGADA (Fase 2) -->
+    <div v-if="solicitudesLlegadaPendientes.length" class="bg-emerald-50 border-2 border-emerald-5 rounded-borders q-pa-md q-mb-md shadow-2">
+      <div class="row items-center justify-between q-mb-xs">
+        <div class="row items-center q-gutter-xs">
+          <q-icon :name="matPersonAdd" color="emerald-9" size="24px" />
+          <span class="text-subtitle1 text-weight-bolder text-emerald-9">
+            📥 Nuevos Fichajes Liberados para tu Club ({{ solicitudesLlegadaPendientes.length }})
+          </span>
+        </div>
+        <q-badge color="emerald-8" text-color="white" class="text-weight-bold">
+          Fase 2: Visto Bueno del DT Destino
+        </q-badge>
+      </div>
+      <div class="text-caption text-slate-700 q-mb-sm">
+        El club de origen ya liberó la carta de salida. Como nuevo DT, tú tienes la última palabra para incorporarlo formalmente a tu plantel.
+      </div>
+      <div class="row q-col-gutter-sm">
+        <div v-for="notif in solicitudesLlegadaPendientes" :key="notif._id" class="col-12 col-md-6">
+          <div class="bg-white q-pa-sm rounded border border-emerald-4 row items-center justify-between">
+            <div>
+              <div class="text-weight-bold text-slate-900 font-12">{{ notif.datos?.jugadorNombre }}</div>
+              <div class="text-caption text-grey-7 font-10">
+                Procedencia: <strong class="text-slate-800">{{ notif.datos?.clubOrigenNombre }}</strong>
+              </div>
+            </div>
+            <div class="row items-center q-gutter-xs">
+              <q-btn
+                dense
+                unelevated
+                no-caps
+                size="sm"
+                color="positive"
+                label="✅ Aceptar en el Equipo"
+                class="text-weight-bold q-px-xs"
+                @click="confirmarLlegadaDesdeNotif(notif)"
+              />
+              <q-btn
+                dense
+                flat
+                no-caps
+                size="sm"
+                color="negative"
+                label="❌ Rechazar"
+                class="text-weight-bold q-px-xs"
+                @click="store.marcarNotificacionLeida(notif._id)"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<!-- Solicitudes de Jugadores Pendientes de Autorización por el DT -->
     <div v-if="jugadoresPendientesDeAprobacion.length" class="bg-amber-50 border-2 border-amber-4 rounded-borders q-pa-md q-mb-md shadow-2">
       <div class="row items-center justify-between q-mb-sm">
         <div class="row items-center q-gutter-xs">
@@ -909,6 +1013,77 @@ const actualizandoId = ref(null)
 const jugadorEditandoId = ref(null)
 const mensajeExito = ref('')
 const procesandoJugadorId = ref(null)
+
+const solicitudesSalidaPendientes = computed(() => {
+  if (!equipoActual.value) return []
+  const eqId = String(equipoActual.value.id || equipoActual.value._id || '').trim()
+  return (store.notificaciones || []).filter(n => {
+    const nEqId = String(n.equipo?._id || n.equipo || '').trim()
+    return n.tipo === 'traspaso_salida' && !n.leida && nEqId === eqId
+  })
+})
+
+const solicitudesLlegadaPendientes = computed(() => {
+  if (!equipoActual.value) return []
+  const eqId = String(equipoActual.value.id || equipoActual.value._id || '').trim()
+  return (store.notificaciones || []).filter(n => {
+    const nEqId = String(n.equipo?._id || n.equipo || '').trim()
+    return n.tipo === 'traspaso_llegada' && !n.leida && nEqId === eqId
+  })
+})
+
+async function autorizarSalidaDesdeNotif(n) {
+  const jId = n.datos?.jugadorId
+  const clubDestinoId = n.datos?.clubDestinoId
+  if (!jId || !clubDestinoId) return
+  try {
+    const res = await store.autorizarSalidaTraspaso({
+      jugadorId: jId,
+      clubDestinoId,
+      notificacionId: n._id || n.id
+    })
+    $q.notify({
+      type: 'positive',
+      icon: 'check_circle',
+      message: res.msg || 'Carta de salida concedida al futbolista.',
+      position: 'top',
+      timeout: 4500
+    })
+    await store.cargarTodo()
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: err.message || 'Error al autorizar salida'
+    })
+  }
+}
+
+async function confirmarLlegadaDesdeNotif(n) {
+  const jId = n.datos?.jugadorId
+  const clubDestinoId = n.datos?.clubDestinoId
+  if (!jId || !clubDestinoId) return
+  try {
+    const res = await store.confirmarLlegadaTraspaso({
+      jugadorId: jId,
+      clubDestinoId,
+      notificacionId: n._id || n.id
+    })
+    $q.notify({
+      type: 'positive',
+      icon: 'verified',
+      message: res.msg || '¡Futbolista transferido e incorporado exitosamente!',
+      position: 'top',
+      timeout: 5000
+    })
+    await store.cargarTodo()
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: err.message || 'Error al confirmar llegada del fichaje'
+    })
+  }
+}
+
 
 const jugadoresPendientesDeAprobacion = computed(() => {
   if (!equipoActual.value) return []

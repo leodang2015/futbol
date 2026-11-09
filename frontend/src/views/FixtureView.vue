@@ -114,6 +114,37 @@
               </span>
             </div>
             <div class="row items-center q-gutter-xs">
+              <!-- Botón Eliminar Encuentro (Exclusivo Organizador para corregir cruces o cumplir reglas de terminación) -->
+              <q-btn
+                v-if="store.esOrganizador && !finalizado(p)"
+                dense
+                flat
+                round
+                size="xs"
+                color="negative"
+                icon="delete"
+                @click="confirmarEliminarPartido(p)"
+              >
+                <q-tooltip>Quitar este partido del fixture oficial</q-tooltip>
+              </q-btn>
+
+              <!-- Botón Posponer Partido (Exclusivo Organizador en partidos no finalizados) -->
+              <q-btn
+                v-if="store.esOrganizador && !finalizado(p)"
+                dense
+                unelevated
+                no-caps
+                size="sm"
+                color="amber-9"
+                text-color="white"
+                :icon="matSchedule"
+                label="⚠️ Posponer"
+                class="q-px-xs text-weight-bold shadow-1"
+                @click="abrirModalPosponer(p)"
+              >
+                <q-tooltip>Posponer encuentro por mal clima o fuerza mayor y notificar a ambos clubes</q-tooltip>
+              </q-btn>
+
               <!-- Acción del Organizador o badge informativo para los demás roles -->
               <q-btn
                 v-if="store.esOrganizador && !finalizado(p) && yaPasoElPartido(p)"
@@ -154,23 +185,32 @@
             </div>
           </div>
 
+          <!-- BANNER DE PARTIDO POSPUESTO -->
+          <div v-if="String(p.estado || '').toLowerCase().includes('pospuesto')" class="bg-amber-50 border-y border-amber-300 q-px-md q-py-xs text-caption text-amber-10 row items-center justify-between font-11">
+            <div class="row items-center q-gutter-xs">
+              <span class="text-weight-bolder">⚠️ PARTIDO POSPUESTO:</span>
+              <span>"{{ p.motivoPostergacion || 'Causa de fuerza mayor / Clima' }}"</span>
+            </div>
+            <span class="font-mono text-grey-8 font-10">Notificado a los dos equipos</span>
+          </div>
+
           <!-- Enfrentamiento y Marcador -->
           <q-card-section class="q-py-md q-px-lg">
             <div class="row items-center justify-between no-wrap">
               <!-- Equipo Local -->
               <div class="team-side col-5 row items-center no-wrap">
-                <div class="club-badge-container q-mr-xs" :style="{ backgroundColor: color(p.localId) }">
+                <div class="club-badge-container q-mr-xs" :style="{ backgroundColor: color(p.localId || p.local) }">
                   <img
-                    v-if="crestUrl(p.localId)"
-                    :src="crestUrl(p.localId)"
+                    v-if="crestUrl(p.localId || p.local)"
+                    :src="crestUrl(p.localId || p.local)"
                     alt="Escudo"
                     class="club-badge-img"
                   />
-                  <span v-else-if="crestFigura(p.localId)" class="club-badge-emoji">{{ crestFigura(p.localId) }}</span>
+                  <span v-else-if="crestFigura(p.localId || p.local)" class="club-badge-emoji">{{ crestFigura(p.localId || p.local) }}</span>
                   <span v-else class="club-badge-dot" />
                 </div>
-                <span class="team-name text-weight-bold text-dark ellipsis" :title="nombre(p.localId)">
-                  {{ nombre(p.localId) }}
+                <span class="team-name text-weight-bold text-dark ellipsis" :title="nombre(p.localId || p.local)">
+                  {{ nombre(p.localId || p.local) }}
                 </span>
               </div>
 
@@ -196,17 +236,17 @@
 
               <!-- Equipo Visitante -->
               <div class="team-side col-5 row items-center justify-end no-wrap text-right">
-                <span class="team-name text-weight-bold text-dark ellipsis" :title="nombre(p.visitanteId)">
-                  {{ nombre(p.visitanteId) }}
+                <span class="team-name text-weight-bold text-dark ellipsis" :title="nombre(p.visitanteId || p.visitante)">
+                  {{ nombre(p.visitanteId || p.visitante) }}
                 </span>
-                <div class="club-badge-container q-ml-xs" :style="{ backgroundColor: color(p.visitanteId) }">
+                <div class="club-badge-container q-ml-xs" :style="{ backgroundColor: color(p.visitanteId || p.visitante) }">
                   <img
-                    v-if="crestUrl(p.visitanteId)"
-                    :src="crestUrl(p.visitanteId)"
+                    v-if="crestUrl(p.visitanteId || p.visitante)"
+                    :src="crestUrl(p.visitanteId || p.visitante)"
                     alt="Escudo"
                     class="club-badge-img"
                   />
-                  <span v-else-if="crestFigura(p.visitanteId)" class="club-badge-emoji">{{ crestFigura(p.visitanteId) }}</span>
+                  <span v-else-if="crestFigura(p.visitanteId || p.visitante)" class="club-badge-emoji">{{ crestFigura(p.visitanteId || p.visitante) }}</span>
                   <span v-else class="club-badge-dot" />
                 </div>
               </div>
@@ -244,7 +284,7 @@
             <div v-if="p.faltasLocal || p.faltasVisitante || (p.tarjetas && p.tarjetas.length)" class="bg-amber-50/60 rounded-lg border border-amber-200/70 q-pa-xs q-mb-xs row items-center justify-between text-caption font-11 text-slate-700">
               <div class="row items-center q-gutter-xs">
                 <span class="text-weight-bold text-amber-9">⚠️ Faltas:</span>
-                <span>{{ p.faltasLocal || 0 }} ({{ nombre(p.localId) }}) - {{ p.faltasVisitante || 0 }} ({{ nombre(p.visitanteId) }})</span>
+                <span>{{ p.faltasLocal || 0 }} ({{ nombre(p.localId || p.local) }}) - {{ p.faltasVisitante || 0 }} ({{ nombre(p.visitanteId || p.visitante) }})</span>
               </div>
               <div v-if="p.tarjetas && p.tarjetas.length" class="row items-center q-gutter-xs">
                 <span class="text-weight-bold text-slate-800">Tarjetas:</span>
@@ -260,7 +300,7 @@
               <div class="col-12 col-sm-6">
                 <div class="bg-emerald-50/60 p-2 rounded-lg border border-emerald-200 h-full">
                   <div class="text-caption text-weight-bolder text-emerald-9 q-mb-xs row items-center justify-between border-b border-emerald-200 pb-1">
-                    <span>⚽ Goles de {{ nombre(p.localId) }}</span>
+                    <span>⚽ Goles de {{ nombre(p.localId || p.local) }}</span>
                     <span class="font-mono text-weight-bold">({{ golesDelClubEnPartido(p, p.localId).length }})</span>
                   </div>
                   <div v-if="golesDelClubEnPartido(p, p.localId).length === 0" class="text-caption text-slate-400 font-10 italic py-1 text-center">
@@ -273,7 +313,10 @@
                       class="bg-white q-pa-xs rounded border border-emerald-100 text-caption font-11 shadow-xs"
                     >
                       <div class="row items-center justify-between no-wrap">
-                        <span class="text-weight-bold text-slate-900 ellipsis">⚽ {{ g.nombre }}</span>
+                        <span class="text-weight-bold text-slate-900 ellipsis">
+  <span v-if="g.esAutogol" class="text-rose-7">🥅 {{ g.nombre }} (Autogol)</span>
+  <span v-else>⚽ {{ g.nombre }}</span>
+</span>
                         <span class="text-emerald-700 font-mono text-weight-bold font-10">{{ g.minuto ? `${g.minuto}'` : 'Gol' }}</span>
                       </div>
                       <div v-if="g.asistenteNombre" class="text-slate-600 font-10 row items-center q-gutter-xs q-mt-xs">
@@ -289,7 +332,7 @@
               <div class="col-12 col-sm-6">
                 <div class="bg-indigo-50/60 p-2 rounded-lg border border-indigo-200 h-full">
                   <div class="text-caption text-weight-bolder text-indigo-9 q-mb-xs row items-center justify-between border-b border-indigo-200 pb-1">
-                    <span>⚽ Goles de {{ nombre(p.visitanteId) }}</span>
+                    <span>⚽ Goles de {{ nombre(p.visitanteId || p.visitante) }}</span>
                     <span class="font-mono text-weight-bold">({{ golesDelClubEnPartido(p, p.visitanteId).length }})</span>
                   </div>
                   <div v-if="golesDelClubEnPartido(p, p.visitanteId).length === 0" class="text-caption text-slate-400 font-10 italic py-1 text-center">
@@ -302,7 +345,10 @@
                       class="bg-white q-pa-xs rounded border border-indigo-100 text-caption font-11 shadow-xs"
                     >
                       <div class="row items-center justify-between no-wrap">
-                        <span class="text-weight-bold text-slate-900 ellipsis">⚽ {{ g.nombre }}</span>
+                        <span class="text-weight-bold text-slate-900 ellipsis">
+  <span v-if="g.esAutogol" class="text-rose-7">🥅 {{ g.nombre }} (Autogol)</span>
+  <span v-else>⚽ {{ g.nombre }}</span>
+</span>
                         <span class="text-indigo-700 font-mono text-weight-bold font-10">{{ g.minuto ? `${g.minuto}'` : 'Gol' }}</span>
                       </div>
                       <div v-if="g.asistenteNombre" class="text-slate-600 font-10 row items-center q-gutter-xs q-mt-xs">
@@ -334,23 +380,29 @@
     </div>
     <!-- DIÁLOGO PARA CARGAR / MODIFICAR PUNTUACIÓN DEL PARTIDO (El día del partido) -->
     <q-dialog v-model="modalPuntuacionAbierto" position="standard">
-      <q-card class="bg-white rounded-borders shadow-24" style="width: 600px; max-width: 95vw; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; margin: auto;">
-        <q-card-section class="bg-slate-900 text-white row items-center justify-between q-py-sm q-px-md">
-          <div class="row items-center q-gutter-xs">
-            <q-icon :name="matSportsScore" color="positive" size="22px" />
-            <div class="text-subtitle1 text-weight-bold">Cargar Puntuación y Goleadores Oficiales</div>
+      <q-card class="bg-white rounded-xl shadow-24 column no-wrap" style="width: 560px; max-width: 94vw; height: 88vh; max-height: 88vh; margin: auto; overflow: hidden;">
+        <!-- Encabezado Fijo con buen espacio y padding -->
+        <q-card-section class="bg-slate-900 text-white row items-center justify-between q-py-md q-px-lg shrink-0 border-b border-slate-800">
+          <div class="row items-center q-gutter-sm">
+            <q-avatar size="32px" color="emerald-9" text-color="white">
+              <q-icon :name="matSportsScore" size="20px" />
+            </q-avatar>
+            <div class="text-subtitle1 text-weight-bolder text-white tracking-wide">
+              Cargar Puntuación y Goleadores Oficiales
+            </div>
           </div>
           <q-btn flat round dense :icon="matClose" v-close-popup text-color="grey-4" size="sm" />
         </q-card-section>
 
-        <div v-if="partidoEditandoPuntuacion" class="q-pa-md q-gutter-y-md bg-slate-50 overflow-y-auto" style="flex: 1 1 auto; max-height: calc(88vh - 120px);">
+        <!-- Cuerpo Scrollable Con Barra de Desplazamiento Cómoda -->
+        <q-card-section v-if="partidoEditandoPuntuacion" class="scroll q-pa-md q-gutter-y-md bg-slate-50 col">
           <!-- Encabezado con Jornada y Fecha -->
           <div class="text-center bg-white q-pa-xs rounded border text-caption text-grey-8 font-mono">
             Jornada {{ partidoEditandoPuntuacion.fecha }} · {{ formatearFecha(partidoEditandoPuntuacion.fechaHora) }}
           </div>
 
           <!-- Marcador Frente a Frente -->
-          <div class="row q-col-gutter-sm items-center justify-center bg-white q-pa-md rounded-borders border shadow-xs">
+          <div class="row q-col-gutter-xs items-center justify-center bg-white q-py-sm q-px-xs rounded-borders border shadow-xs">
             <!-- Local -->
             <div class="col-5 text-center">
               <div class="text-caption text-weight-bold text-dark ellipsis q-mb-xs" :title="nombre(partidoEditandoPuntuacion.localId)">
@@ -419,34 +471,67 @@
               <div class="text-caption text-weight-bold text-emerald-9 q-mb-xs">
                 ⚽ Goles y Asistencias de {{ nombre(partidoEditandoPuntuacion.localId) }} ({{ golesLocalInput }} gol/es):
               </div>
-              <div v-for="(g, idx) in goleadoresLocalModal" :key="'loc-' + idx" class="row items-center q-gutter-xs bg-white q-pa-xs rounded border border-slate-200">
-                <span class="text-caption font-mono font-bold text-emerald-8">#{{ idx + 1 }}</span>
-                <div class="col-12 col-sm-6">
-                  <q-select
-                    v-model="g.jugadorId"
-                    :options="opcionesJugadores(partidoEditandoPuntuacion.localId)"
-                    emit-value
-                    map-options
-                    outlined
-                    dense
-                    bg-color="white"
-                    label="⚽ Autor del gol"
-                    style="font-size: 11px"
-                  />
+              <div v-for="(g, idx) in goleadoresLocalModal" :key="'loc-' + idx" class="bg-white q-pa-xs rounded border border-slate-200 q-gutter-y-xs">
+                <div class="row items-center justify-between no-wrap">
+                  <span class="text-caption font-mono font-bold text-emerald-8">Gol #{{ idx + 1 }}</span>
+                  <div class="row items-center q-gutter-xs">
+                    <span class="font-10 text-grey-7 font-bold">⏱️ Minuto:</span>
+                    <q-input
+                      v-model.number="g.minuto"
+                      type="number"
+                      min="1"
+                      max="95"
+                      dense
+                      outlined
+                      bg-color="white"
+                      placeholder="Auto"
+                      style="width: 75px; font-size: 11px"
+                    >
+                      <template #append><span class="font-10 text-grey-6">'</span></template>
+                    </q-input>
+                    <q-checkbox
+                      v-model="g.esAutogol"
+                      dense
+                      size="xs"
+                      color="rose"
+                      label="Autogol"
+                      class="font-10 text-weight-bold text-rose-8"
+                      @update:model-value="g.asistenteId = ''; g.jugadorId = ''"
+                    />
+                  </div>
                 </div>
-                <div class="col-12 col-sm">
-                  <q-select
-                    v-model="g.asistenteId"
-                    :options="opcionesAsistidores(partidoEditandoPuntuacion.localId, g.jugadorId)"
-                    emit-value
-                    map-options
-                    outlined
-                    dense
-                    bg-color="white"
-                    label="👟 Asistidor (Pase Gol)"
-                    style="font-size: 11px"
-                    clearable
-                  />
+                <div class="row q-col-gutter-sm items-center q-pt-xs">
+                  <div class="col-12 col-sm-6">
+                    <q-select
+                      v-model="g.jugadorId"
+                      :options="g.esAutogol ? opcionesJugadores(partidoEditandoPuntuacion.visitanteId) : opcionesJugadores(partidoEditandoPuntuacion.localId)"
+                      emit-value
+                      map-options
+                      outlined
+                      dense
+                      bg-color="white"
+                      :label="g.esAutogol ? '🥅 Anotador en contra' : '⚽ Autor del gol'"
+                      class="text-weight-medium"
+                    />
+                  </div>
+                  <div class="col-12 col-sm-6">
+                    <q-select
+                      v-if="!g.esAutogol"
+                      v-model="g.asistenteId"
+                      :options="opcionesAsistidores(partidoEditandoPuntuacion.localId, g.jugadorId)"
+                      emit-value
+                      map-options
+                      outlined
+                      dense
+                      bg-color="white"
+                      label="👟 Asistidor (Pase de gol)"
+                      class="text-weight-medium"
+                      clearable
+                    />
+                    <div v-else class="text-caption text-rose-7 font-10 italic q-pa-xs bg-rose-50 rounded border border-rose-2 text-center">
+                      🥅 Gol a favor de {{ nombre(partidoEditandoPuntuacion.localId) }}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -456,39 +541,183 @@
               <div class="text-caption text-weight-bold text-indigo-9 q-mb-xs">
                 ⚽ Goles y Asistencias de {{ nombre(partidoEditandoPuntuacion.visitanteId) }} ({{ golesVisInput }} gol/es):
               </div>
-              <div v-for="(g, idx) in goleadoresVisModal" :key="'vis-' + idx" class="row items-center q-gutter-xs bg-white q-pa-xs rounded border border-slate-200">
-                <span class="text-caption font-mono font-bold text-indigo-8">#{{ idx + 1 }}</span>
-                <div class="col-12 col-sm-6">
-                  <q-select
-                    v-model="g.jugadorId"
-                    :options="opcionesJugadores(partidoEditandoPuntuacion.visitanteId)"
-                    emit-value
-                    map-options
-                    outlined
-                    dense
-                    bg-color="white"
-                    label="⚽ Autor del gol"
-                    style="font-size: 11px"
-                  />
+              <div v-for="(g, idx) in goleadoresVisModal" :key="'vis-' + idx" class="bg-white q-pa-xs rounded border border-slate-200 q-gutter-y-xs">
+                <div class="row items-center justify-between no-wrap">
+                  <span class="text-caption font-mono font-bold text-indigo-8">Gol #{{ idx + 1 }}</span>
+                  <div class="row items-center q-gutter-xs">
+                    <span class="font-10 text-grey-7 font-bold">⏱️ Minuto:</span>
+                    <q-input
+                      v-model.number="g.minuto"
+                      type="number"
+                      min="1"
+                      max="95"
+                      dense
+                      outlined
+                      bg-color="white"
+                      placeholder="Auto"
+                      style="width: 75px; font-size: 11px"
+                    >
+                      <template #append><span class="font-10 text-grey-6">'</span></template>
+                    </q-input>
+                    <q-checkbox
+                      v-model="g.esAutogol"
+                      dense
+                      size="xs"
+                      color="rose"
+                      label="Autogol"
+                      class="font-10 text-weight-bold text-rose-8"
+                      @update:model-value="g.asistenteId = ''; g.jugadorId = ''"
+                    />
+                  </div>
                 </div>
-                <div class="col-12 col-sm">
-                  <q-select
-                    v-model="g.asistenteId"
-                    :options="opcionesAsistidores(partidoEditandoPuntuacion.visitanteId, g.jugadorId)"
-                    emit-value
-                    map-options
-                    outlined
+                <div class="row q-col-gutter-sm items-center q-pt-xs">
+                  <div class="col-12 col-sm-6">
+                    <q-select
+                      v-model="g.jugadorId"
+                      :options="g.esAutogol ? opcionesJugadores(partidoEditandoPuntuacion.localId) : opcionesJugadores(partidoEditandoPuntuacion.visitanteId)"
+                      emit-value
+                      map-options
+                      outlined
+                      dense
+                      bg-color="white"
+                      :label="g.esAutogol ? '🥅 Anotador en contra' : '⚽ Autor del gol'"
+                      class="text-weight-medium"
+                    />
+                  </div>
+                  <div class="col-12 col-sm-6">
+                    <q-select
+                      v-if="!g.esAutogol"
+                      v-model="g.asistenteId"
+                      :options="opcionesAsistidores(partidoEditandoPuntuacion.visitanteId, g.jugadorId)"
+                      emit-value
+                      map-options
+                      outlined
+                      dense
+                      bg-color="white"
+                      label="👟 Asistidor (Pase de gol)"
+                      class="text-weight-medium"
+                      clearable
+                    />
+                    <div v-else class="text-caption text-rose-7 font-10 italic q-pa-xs bg-rose-50 rounded border border-rose-2 text-center">
+                      🥅 Gol a favor de {{ nombre(partidoEditandoPuntuacion.visitanteId) }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+                        <!-- SECCIÓN OFICIAL DE CAMBIOS / SUSTITUCIONES (REGLAMENTO: LOS SUPLENTES DEBEN ENTRAR PARA ANOTAR) -->
+            <div class="bg-indigo-50/70 q-pa-sm rounded border border-indigo-200 q-gutter-y-xs q-mt-sm">
+              <div class="row items-center justify-between">
+                <div>
+                  <div class="text-caption text-weight-bold text-indigo-10 row items-center q-gutter-xs">
+                    <q-icon :name="matSwapHoriz" size="18px" color="indigo-9" />
+                    <span>🔄 Cambios y Sustituciones Oficiales</span>
+                  </div>
+                  <div class="text-caption text-indigo-9 font-10">
+                    📋 <strong>Regla Básica:</strong> Los jugadores suplentes ("En Banca") solo pueden anotar si ingresaron por un cambio y su gol es posterior a dicho minuto.
+                  </div>
+                </div>
+                <q-btn
+                  dense
+                  unelevated
+                  no-caps
+                  size="xs"
+                  color="indigo-9"
+                  text-color="white"
+                  :icon="matAdd"
+                  label="+ Registrar Cambio"
+                  @click="agregarCambioModal"
+                />
+              </div>
+
+              <!-- Lista de cambios del partido -->
+              <div v-if="cambiosOrganizadorModal.length === 0" class="text-caption text-grey-5 font-10 italic text-center q-py-xs bg-white rounded border border-indigo-100">
+                Sin sustituciones registradas (solo los 11 titulares en formación pueden anotar goles)
+              </div>
+              <div v-else class="q-gutter-y-xs">
+                <div
+                  v-for="(c, cIdx) in cambiosOrganizadorModal"
+                  :key="'org-cambio-' + cIdx"
+                  class="row items-center q-gutter-xs bg-white q-pa-xs rounded border border-indigo-200 shadow-xs"
+                >
+                  <span class="text-caption font-mono font-bold text-indigo-9 bg-indigo-100 q-px-xs rounded">
+                    Cambio #{{ cIdx + 1 }}
+                  </span>
+
+                  <!-- Club del cambio -->
+                  <div class="col-12 col-sm-3">
+                    <q-select
+                      v-model="c.equipoId"
+                      :options="opcionesClubesPartido"
+                      emit-value
+                      map-options
+                      dense
+                      outlined
+                      bg-color="white"
+                      label="Club"
+                      style="font-size: 11px"
+                      @update:model-value="c.jugadorSaleId = ''; c.jugadorEntraId = ''"
+                    />
+                  </div>
+
+                  <!-- Jugador Titular que Sale -->
+                  <div class="col-12 col-sm-3">
+                    <q-select
+                      v-model="c.jugadorSaleId"
+                      :options="opcionesTitularesClub(c.equipoId)"
+                      emit-value
+                      map-options
+                      dense
+                      outlined
+                      bg-color="white"
+                      label="🔴 Sale (Titular)"
+                      style="font-size: 11px"
+                    />
+                  </div>
+
+                  <!-- Jugador Suplente que Entra -->
+                  <div class="col-12 col-sm-3">
+                    <q-select
+                      v-model="c.jugadorEntraId"
+                      :options="opcionesSuplentesClub(c.equipoId)"
+                      emit-value
+                      map-options
+                      dense
+                      outlined
+                      bg-color="white"
+                      label="🟢 Entra (Suplente)"
+                      style="font-size: 11px"
+                    />
+                  </div>
+
+                  <!-- Minuto del Cambio -->
+                  <div class="col-auto">
+                    <q-input
+                      v-model.number="c.minuto"
+                      type="number"
+                      dense
+                      outlined
+                      bg-color="white"
+                      label="Minuto"
+                      style="width: 75px; font-size: 11px"
+                    />
+                  </div>
+
+                  <q-btn
+                    flat
+                    round
                     dense
-                    bg-color="white"
-                    label="👟 Asistidor (Pase Gol)"
-                    style="font-size: 11px"
-                    clearable
+                    size="xs"
+                    color="negative"
+                    :icon="matClose"
+                    @click="cambiosOrganizadorModal.splice(cIdx, 1)"
                   />
                 </div>
               </div>
             </div>
 
-            <!-- SECCIÓN DE FALTAS Y TARJETAS REGISTRADAS POR EL ORGANIZADOR -->
+<!-- SECCIÓN DE FALTAS Y TARJETAS REGISTRADAS POR EL ORGANIZADOR -->
             <div class="bg-amber-50/60 q-pa-sm rounded border border-amber-200 q-gutter-y-xs q-mt-sm">
               <div class="row items-center justify-between">
                 <div>
@@ -546,6 +775,17 @@
                       style="font-size: 11px"
                     />
                   </div>
+                  <div class="col-auto">
+                    <q-input
+                      v-model.number="t.minuto"
+                      type="number"
+                      dense
+                      outlined
+                      bg-color="white"
+                      label="Minuto"
+                      style="width: 75px; font-size: 11px"
+                    />
+                  </div>
                   <q-btn flat round dense size="xs" color="negative" :icon="matClose" @click="tarjetasOrganizadorModal.splice(tIdx, 1)" />
                 </div>
               </div>
@@ -557,8 +797,8 @@
           </div>
 
 
-        </div>
-        <q-card-actions align="right" class="bg-white q-pa-md border-t">
+        </q-card-section>
+        <q-card-actions align="right" class="bg-white q-pa-md border-t shrink-0">
           <q-btn flat no-caps label="Cancelar" color="grey-7" v-close-popup />
           <q-btn
             unelevated
@@ -581,7 +821,103 @@
     <!-- DIÁLOGO PARA QUE EL ENTRENADOR REPORTE EXCLUSIVAMENTE LOS GOLES DE SU EQUIPO -->
     
 
-  </template>
+  
+    <!-- MODAL OFICIAL PARA POSPONER PARTIDO Y NOTIFICAR A AMBOS EQUIPOS -->
+    <q-dialog v-model="modalPosponerAbierto">
+      <q-card style="width: 440px; max-width: 92vw; max-height: 90vh;" class="rounded-xl overflow-hidden bg-white shadow-10 column no-wrap">
+        <q-card-section class="bg-amber-9 text-white row items-center justify-between q-py-md">
+          <div class="row items-center q-gutter-sm">
+            <q-avatar size="36px" color="amber-1" text-color="amber-10">
+              <q-icon :name="matSchedule" size="24px" />
+            </q-avatar>
+            <div>
+              <div class="text-subtitle1 text-weight-bolder">Posponer Encuentro Oficial</div>
+              <div class="text-caption font-11 text-amber-1">
+                {{ partidoParaPosponer ? `${nombre(partidoParaPosponer.localId)} vs ${nombre(partidoParaPosponer.visitanteId)}` : 'Partido' }}
+              </div>
+            </div>
+          </div>
+          <q-btn flat round dense icon="close" text-color="white" v-close-popup />
+        </q-card-section>
+
+        <q-card-section class="q-pa-md q-gutter-y-md col scroll">
+          <div class="bg-amber-50 border border-amber-3 rounded-borders q-pa-sm text-caption text-slate-800">
+            📢 <strong>Notificación Automática Reglamentaria:</strong>
+            Al confirmar la postergación, se enviará una notificación oficial e inmediata a las bandejas del <strong>{{ partidoParaPosponer ? nombre(partidoParaPosponer.localId) : 'Equipo Local' }}</strong> y del <strong>{{ partidoParaPosponer ? nombre(partidoParaPosponer.visitanteId) : 'Equipo Visitante' }}</strong> (tanto al Director Técnico como a sus futbolistas).
+          </div>
+
+          <!-- Motivo de la postergación -->
+          <div>
+            <div class="text-caption text-weight-bolder text-slate-900 q-mb-xs">
+              Motivo o Causa de la Postergación *
+            </div>
+            <q-select
+              v-model="motivoPosponerSeleccionado"
+              :options="[
+                'Lluvias torrenciales / Mal estado de la cancha',
+                'Condiciones climáticas adversas / Tormenta eléctrica',
+                'Causa de fuerza mayor / Falta de fluido eléctrico en escenario',
+                'Acuerdo mutuo y solicitud formal entre directivas de clubes',
+                'Duelo o motivo de fuerza mayor institucional'
+              ]"
+              outlined
+              dense
+              bg-color="white"
+              placeholder="Selecciona o escribe el motivo"
+            />
+          </div>
+
+          <!-- Detalles adicionales opcionales -->
+          <div>
+            <div class="text-caption text-weight-bolder text-slate-900 q-mb-xs">
+              Detalle o Justificación Adicional
+            </div>
+            <q-input
+              v-model="detalleMotivoPosponer"
+              type="textarea"
+              rows="2"
+              outlined
+              dense
+              bg-color="white"
+              placeholder="Ej: El árbitro y comisario determinaron que el campo está inundado y no garantiza la integridad de los jugadores."
+            />
+          </div>
+
+          <!-- Reprogramación de nueva fecha opcional -->
+          <div>
+            <div class="row items-center justify-between q-mb-xs">
+              <span class="text-caption text-weight-bolder text-slate-900">
+                Reprogramar Nueva Fecha y Hora (Opcional)
+              </span>
+              <span class="text-caption text-grey-6 font-10">Si se deja vacío, queda 'A definir'</span>
+            </div>
+            <q-input
+              v-model="nuevaFechaHoraPosponer"
+              type="datetime-local"
+              outlined
+              dense
+              bg-color="white"
+              class="font-mono text-caption"
+            />
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-px-md q-pb-md bg-slate-50 border-t">
+          <q-btn flat no-caps label="Cancelar" color="grey-7" v-close-popup />
+          <q-btn
+            unelevated
+            no-caps
+            color="amber-10"
+            text-color="white"
+            :loading="guardandoPosponer"
+            label="⚠️ Confirmar y Notificar a Ambos Clubes"
+            class="text-weight-bolder q-px-md shadow-2"
+            @click="ejecutarPosponerPartido"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+</template>
 
 <script setup>
 import { ref, computed } from 'vue'
@@ -639,32 +975,48 @@ async function generarGoleadoresPartido(partidoId) {
 
 const opciones = computed(() => [
   { label: '⚽ Todos los partidos', value: 'todos' },
-  { label: '📋 En Preparación', value: 'preparacion' },
-  { label: '✅ Partidos Finalizados', value: 'finalizado' },
-  { label: '⏳ Próximos Encuentros', value: 'proximo' }
+  { label: '⏳ Próximos Encuentros (Por disputarse)', value: 'proximo' },
+  { label: '📋 En Preparación / Hora de Cargar Eventos', value: 'preparacion' },
+  { label: '✅ Partidos Finalizados (Con Acta Oficial)', value: 'finalizado' }
 ])
 
 const finalizado = (p) => ['jugado', 'finalizado'].includes(String(p?.estado || '').toLowerCase())
 
 const statusBadgeLabel = (p) => {
   const est = String(p?.estado || '').toLowerCase()
+  if (est.includes('pospuesto')) return '⚠️ Pospuesto'
   if (['jugado', 'finalizado'].includes(est)) return 'Finalizado'
-  if (est.includes('preparaci') || est.includes('proceso')) return 'En Preparación'
-  if (est.includes('confirmar')) return 'Por Confirmar'
-  return 'Programado'
+  if (yaPasoElPartido(p)) return '📋 En Preparación / Eventos'
+  return '⏳ Próximo Encuentro'
 }
 
 const statusBadgeClass = (p) => {
   const est = String(p?.estado || '').toLowerCase()
+  if (est.includes('pospuesto')) return 'bg-amber-100 text-amber-900 border-2 border-amber-500 font-bold'
   if (['jugado', 'finalizado'].includes(est)) return 'bg-emerald-100 text-emerald-800 border border-emerald-300'
   if (est.includes('preparaci') || est.includes('proceso')) return 'bg-amber-100 text-amber-900 border border-amber-300'
   if (est.includes('confirmar')) return 'bg-sky-100 text-sky-800 border border-sky-300'
   return 'bg-slate-100 text-slate-700 border border-slate-300'
 }
-const nombre = (id) => store.equipoPorId(id)?.nombre ?? 'Club no asignado'
-const color = (id) => store.equipoPorId(id)?.color || store.equipoPorId(id)?.escudocolor || '#059669'
-const crestUrl = (id) => store.equipoPorId(id)?.escudoUrl
-const crestFigura = (id) => store.equipoPorId(id)?.escudoFigura
+const nombre = (id) => {
+  if (!id) return 'Club no asignado'
+  if (typeof id === 'object' && id.nombre) return id.nombre
+  const eq = store.equipoPorId(id)
+  return eq?.nombre ?? 'Club no asignado'
+}
+const color = (id) => {
+  if (typeof id === 'object' && (id.color || id.escudocolor)) return id.color || id.escudocolor
+  const eq = store.equipoPorId(id)
+  return eq?.color || eq?.escudocolor || '#059669'
+}
+const crestUrl = (id) => {
+  if (typeof id === 'object' && id.escudoUrl) return id.escudoUrl
+  return store.equipoPorId(id)?.escudoUrl
+}
+const crestFigura = (id) => {
+  if (typeof id === 'object' && id.escudoFigura) return id.escudoFigura
+  return store.equipoPorId(id)?.escudoFigura
+}
 
 const lista = computed(() => {
   const all = store.partidos || []
@@ -693,16 +1045,14 @@ const lista = computed(() => {
     return base.filter(p => finalizado(p))
   }
 
+  // Próximos Encuentros: Aquellos cuya fecha/hora todavía NO ha ocurrido
   if (fecha.value === 'proximo') {
-    return base.filter(p => !finalizado(p))
+    return base.filter(p => !finalizado(p) && !yaPasoElPartido(p))
   }
 
+  // En Preparación / Hora de Cargar Eventos: Aquellos cuya fecha/hora ya llegó o pasó y están listos para oficializar
   if (fecha.value === 'preparacion') {
-    // Filtro general de partidos en preparación de cualquier club
-    return base.filter(p => {
-      const est = String(p.estado || '').toLowerCase()
-      return (est.includes('preparaci') || est.includes('proceso') || est.includes('confirmar')) && !finalizado(p)
-    })
+    return base.filter(p => !finalizado(p) && yaPasoElPartido(p))
   }
 
   // 'todos': Todos los partidos del torneo (o de su equipo si activó el encendedor)
@@ -726,6 +1076,89 @@ const rivalProximo = computed(() => {
 })
 
 // Control de puntuación del partido (habilitado cuando es el día)
+const modalPosponerAbierto = ref(false)
+const partidoParaPosponer = ref(null)
+const motivoPosponerSeleccionado = ref('Lluvias torrenciales / Mal estado de la cancha')
+const detalleMotivoPosponer = ref('')
+const nuevaFechaHoraPosponer = ref('')
+const guardandoPosponer = ref(false)
+
+
+async function confirmarEliminarPartido(p) {
+  const pId = p.id || p._id
+  const locNom = nombre(p.localId)
+  const visNom = nombre(p.visitanteId)
+
+  $q.dialog({
+    title: '🗑️ Quitar Partido del Fixture',
+    message: `¿Deseas eliminar el partido entre "${locNom}" y "${visNom}" para cumplir con el orden del torneo?`,
+    cancel: { label: 'Cancelar', flat: true, color: 'grey-7' },
+    ok: { label: 'Sí, Eliminar Partido', color: 'negative', unelevated: true }
+  }).onOk(async () => {
+    try {
+      await store.eliminarPartido(pId)
+      $q.notify({
+        type: 'positive',
+        icon: 'delete',
+        message: 'Partido removido exitosamente del fixture oficial.',
+        position: 'top',
+        timeout: 4000
+      })
+    } catch (err) {
+      $q.notify({
+        type: 'negative',
+        icon: 'error',
+        message: err.message || 'Error al eliminar el partido',
+        position: 'top'
+      })
+    }
+  })
+}
+
+function abrirModalPosponer(p) {
+  partidoParaPosponer.value = p
+  motivoPosponerSeleccionado.value = 'Lluvias torrenciales / Mal estado de la cancha'
+  detalleMotivoPosponer.value = ''
+  nuevaFechaHoraPosponer.value = ''
+  modalPosponerAbierto.value = true
+}
+
+async function ejecutarPosponerPartido() {
+  if (!partidoParaPosponer.value) return
+  guardandoPosponer.value = true
+  try {
+    const motivoFinal = detalleMotivoPosponer.value
+      ? `${motivoPosponerSeleccionado.value} - ${detalleMotivoPosponer.value}`
+      : motivoPosponerSeleccionado.value
+
+    const pId = partidoParaPosponer.value.id || partidoParaPosponer.value._id
+    const res = await store.posponerPartido({
+      partidoId: pId,
+      motivo: motivoFinal,
+      nuevaFechaHora: nuevaFechaHoraPosponer.value || null
+    })
+
+    modalPosponerAbierto.value = false
+    $q.notify({
+      type: 'positive',
+      icon: 'campaign',
+      message: res.msg || 'Partido pospuesto y notificado exitosamente a ambos clubes.',
+      position: 'top',
+      timeout: 5000
+    })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      icon: 'error',
+      message: err.message || 'Error al posponer el partido',
+      position: 'top',
+      timeout: 4000
+    })
+  } finally {
+    guardandoPosponer.value = false
+  }
+}
+
 const modalPuntuacionAbierto = ref(false)
 const modoManualGoleadores = ref(true)
 
@@ -780,15 +1213,86 @@ const guardandoPuntuacion = ref(false)
 const goleadoresLocalModal = ref([])
 const goleadoresVisModal = ref([])
 const tarjetasOrganizadorModal = ref([])
+const cambiosOrganizadorModal = ref([])
+
+const opcionesClubesPartido = computed(() => {
+  const p = partidoEditandoPuntuacion.value
+  if (!p) return []
+  return [
+    { label: nombre(p.localId), value: p.localId },
+    { label: nombre(p.visitanteId), value: p.visitanteId }
+  ]
+})
+
+function opcionesTitularesClub(eqId) {
+  if (!eqId) return []
+  const idStr = String(eqId).trim()
+  return (store.jugadores || [])
+    .filter(j => {
+      const jEq = String(j.equipoId || (j.equipo && typeof j.equipo === 'object' ? (j.equipo._id || j.equipo.id) : j.equipo) || '').trim()
+      const pos = String(j.posicion || '').trim()
+      return jEq === idStr && pos !== 'En Banca' && j.estadoAprobacion !== 'Rechazado'
+    })
+    .map(j => ({
+      label: `${j.nombre} (#${j.numero ?? j.dorsal ?? '-'}) · ${j.posicion}`,
+      value: j.id || j._id
+    }))
+}
+
+function opcionesSuplentesClub(eqId) {
+  if (!eqId) return []
+  const idStr = String(eqId).trim()
+  return (store.jugadores || [])
+    .filter(j => {
+      const jEq = String(j.equipoId || (j.equipo && typeof j.equipo === 'object' ? (j.equipo._id || j.equipo.id) : j.equipo) || '').trim()
+      const pos = String(j.posicion || '').trim()
+      return jEq === idStr && pos === 'En Banca' && j.estadoAprobacion !== 'Rechazado'
+    })
+    .map(j => ({
+      label: `${j.nombre} (#${j.numero ?? j.dorsal ?? '-'}) [Suplente]`,
+      value: j.id || j._id
+    }))
+}
+
+function siguienteMinutoDisponible(tipo = 'cambio') {
+  // Recopilar todos los minutos ocupados actualmente
+  const ocupados = new Set()
+  for (const c of cambiosOrganizadorModal.value) {
+    if (c.minuto) ocupados.add(Number(c.minuto))
+  }
+  for (const t of tarjetasOrganizadorModal.value) {
+    if (t.minuto) ocupados.add(Number(t.minuto))
+  }
+
+  let base = tipo === 'cambio' ? 55 : 25
+  while (ocupados.has(base) && base <= 89) {
+    base += 1
+  }
+  return Math.min(89, base)
+}
+
+function agregarCambioModal() {
+  const p = partidoEditandoPuntuacion.value
+  if (!p) return
+  const proximoMin = siguienteMinutoDisponible('cambio')
+  cambiosOrganizadorModal.value.push({
+    equipoId: p.localId,
+    jugadorSaleId: '',
+    jugadorEntraId: '',
+    minuto: proximoMin
+  })
+}
 
 function agregarTarjetaOrganizador() {
   const p = partidoEditandoPuntuacion.value
   if (!p) return
   const opts = opcionesJugadoresAmbosClubes(p)
+  const proximoMin = siguienteMinutoDisponible('falta')
   tarjetasOrganizadorModal.value.push({
     tipo: 'Amarilla',
     jugadorId: opts[0]?.value || '',
-    nombre: opts[0]?.nombre || 'Jugador'
+    nombre: opts[0]?.nombre || 'Jugador',
+    minuto: proximoMin
   })
 }
 
@@ -1006,17 +1510,31 @@ async function enviarReporteGolesDT() {
 function opcionesJugadores(equipoId) {
   if (!equipoId) return []
   const eqStr = String(equipoId).trim()
+  const suplentesConCambioIds = new Set(
+    (cambiosOrganizadorModal.value || [])
+      .filter(c => String(c.equipoId).trim() === eqStr && c.jugadorEntraId)
+      .map(c => String(c.jugadorEntraId))
+  )
+
   return store.jugadores
     .filter(j => {
-      const jEq = j.equipoId || (j.equipo && typeof j.equipo === 'object' ? (j.equipo._id || j.equipo.id) : j.equipo)
-      return String(jEq || '').trim() === eqStr
+      const jEq = String(j.equipoId || (j.equipo && typeof j.equipo === 'object' ? (j.equipo._id || j.equipo.id) : j.equipo) || '').trim()
+      if (jEq !== eqStr || j.estadoAprobacion === 'Rechazado') return false
+      const esTitular = String(j.posicion || '').trim() !== 'En Banca'
+      const jId = String(j.id || j._id)
+      return esTitular || suplentesConCambioIds.has(jId)
     })
-    .map(j => ({
-      label: `#${j.numero || j.dorsal || '-'} ${j.nombre} ${j.apellido && j.apellido !== '-' ? j.apellido : ''} (${j.posicion || 'Delantero'})`,
-      value: j.id || j._id,
-      nombre: `${j.nombre} ${j.apellido && j.apellido !== '-' ? j.apellido : ''}`.trim(),
-      dorsal: j.numero || j.dorsal || '-'
-    }))
+    .map(j => {
+      const esTitular = String(j.posicion || '').trim() !== 'En Banca'
+      const prefix = esTitular ? '⚽ [Titular]' : '🔄 [Entró por Cambio]'
+      return {
+        label: `${prefix} #${j.numero || j.dorsal || '-'} ${j.nombre} ${j.apellido && j.apellido !== '-' ? j.apellido : ''}`,
+        value: j.id || j._id,
+        nombre: `${j.nombre} ${j.apellido && j.apellido !== '-' ? j.apellido : ''}`.trim(),
+        dorsal: j.numero || j.dorsal || '-',
+        esTitular
+      }
+    })
 }
 
 function sincronizarFilasGoleadoresModal() {
@@ -1098,6 +1616,15 @@ function abrirModalPuntuacion(p) {
   golesLocalInput.value = Number(p.golesLocal ?? 0)
   golesVisInput.value = Number(p.golesVisitante ?? 0)
   tarjetasOrganizadorModal.value = []
+  cambiosOrganizadorModal.value = []
+  if (Array.isArray(p.cambios)) {
+    cambiosOrganizadorModal.value = p.cambios.map(c => ({
+      equipoId: c.equipo?._id || c.equipo || c.equipoId,
+      jugadorSaleId: c.jugadorSaleId,
+      jugadorEntraId: c.jugadorEntraId,
+      minuto: c.minuto || 60
+    }))
+  }
   if (Array.isArray(p.tarjetas)) {
     tarjetasOrganizadorModal.value = p.tarjetas.map(t => ({
       tipo: t.tipo || 'Amarilla',
@@ -1126,14 +1653,15 @@ async function guardarPuntuacionPartido() {
       if (jug) {
         listaGoleadores.push({
           jugadorId: jug.value,
-          nombre: jug.nombre,
+          nombre: g.esAutogol ? `${jug.nombre} (Autogol)` : jug.nombre,
           dorsal: jug.dorsal,
           asistenteId: foundAsist ? String(foundAsist.value) : '',
           asistenteNombre: foundAsist ? String(foundAsist.nombre) : '',
           equipo: p.localId,
           equipoNombre: nombre(p.localId),
           goles: 1,
-          minuto: 0
+          minuto: 0,
+          esAutogol: Boolean(g.esAutogol)
         })
       }
     })
@@ -1144,29 +1672,92 @@ async function guardarPuntuacionPartido() {
       if (jug) {
         listaGoleadores.push({
           jugadorId: jug.value,
-          nombre: jug.nombre,
+          nombre: g.esAutogol ? `${jug.nombre} (Autogol)` : jug.nombre,
           dorsal: jug.dorsal,
           asistenteId: foundAsist ? String(foundAsist.value) : '',
           asistenteNombre: foundAsist ? String(foundAsist.nombre) : '',
           equipo: p.visitanteId,
           equipoNombre: nombre(p.visitanteId),
           goles: 1,
-          minuto: 0
+          minuto: 0,
+          esAutogol: Boolean(g.esAutogol)
         })
       }
     })
 
     // Separación obligatoria de mínimo 2 minutos entre CADA gol del partido
+    
+    // REGLA: Si anota un suplente, verificar que entró en un cambio y que su gol sea posterior al cambio
+    for (const g of listaGoleadores) {
+      const jDoc = store.jugadores.find(j => String(j.id || j._id) === String(g.jugadorId))
+      if (jDoc && String(jDoc.posicion || '').trim() === 'En Banca') {
+        const cambio = cambiosOrganizadorModal.value.find(c => String(c.jugadorEntraId) === String(jDoc.id || jDoc._id))
+        if (!cambio) {
+          throw new Error(`⚠️ REGLA OFICIAL: "${jDoc.nombre}" está En Banca. Solo puede anotar si registras su cambio oficial sustituyendo a un titular.`)
+        }
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // CRONOLOGÍA REGLAMENTARIA ESTRICTA DE EVENTOS (SIN COINCIDENCIAS DE MINUTO)
+    // 1. No puede haber dos eventos en el mismo minuto (minutos únicos por evento).
+    // 2. Cada cambio o falta debe tener al menos 1 minuto de diferencia con cualquier otro evento.
+    // 3. Entre un gol y otro gol debe existir un intervalo mínimo de 5 MINUTOS.
+    // 4. Los suplentes que anoten deben hacerlo con gol posterior a su cambio (+1 min).
+    // -------------------------------------------------------------------------
+
+    // A. Validar que no haya dos cambios o faltas manuales compartiendo el mismo minuto
+    const minutosEventosManuales = new Map()
+    cambiosOrganizadorModal.value.forEach((c, cIdx) => {
+      const minC = Number(c.minuto) || 60
+      if (minutosEventosManuales.has(minC)) {
+        throw new Error(`⚠️ REGLA DE TIEMPOS: El Cambio #${cIdx + 1} está en el Minuto ${minC}', pero ya existe otro evento en ese mismo minuto. Cada cambio o falta debe tener una diferencia de al menos 1 minuto.`)
+      }
+      minutosEventosManuales.set(minC, `Cambio #${cIdx + 1}`)
+    })
+
+    tarjetasOrganizadorModal.value.forEach((t, tIdx) => {
+      const minT = Number(t.minuto) || 30
+      if (minutosEventosManuales.has(minT)) {
+        throw new Error(`⚠️ REGLA DE TIEMPOS: La Tarjeta/Falta #${tIdx + 1} está en el Minuto ${minT}', coincidiendo con "${minutosEventosManuales.get(minT)}". No puede haber dos eventos en el mismo minuto.`)
+      }
+      minutosEventosManuales.set(minT, `Tarjeta/Falta #${tIdx + 1}`)
+    })
+
+    // B. Asignar minutos a los goles garantizando 5 MINUTOS entre goles y 1 minuto libre de otros eventos
+    const minutosOcupadosGlobal = new Set(minutosEventosManuales.keys())
     const totalG = listaGoleadores.length
+
     if (totalG > 0) {
-      const shuffled = [...listaGoleadores].sort(() => 0.5 - Math.random())
-      const step = Math.max(3, Math.floor(75 / (totalG + 1)))
-      let m = 11 + Math.floor(Math.random() * 4)
-      shuffled.forEach(item => {
-        item.minuto = Math.min(90, m)
-        m += Math.max(2, step + Math.floor(Math.random() * 2))
-      })
-      shuffled.sort((a, b) => Number(a.minuto) - Number(b.minuto))
+      let minCursor = 12 + Math.floor(Math.random() * 3)
+
+      for (let i = 0; i < totalG; i++) {
+        const item = listaGoleadores[i]
+        const jDoc = store.jugadores.find(j => String(j.id || j._id) === String(item.jugadorId))
+        const cambio = jDoc && String(jDoc.posicion || '').trim() === 'En Banca'
+          ? cambiosOrganizadorModal.value.find(c => String(c.jugadorEntraId) === String(jDoc.id || jDoc._id))
+          : null
+
+        // Si es suplente, su gol DEBE ser después del minuto del cambio (+ 1 minuto mínimo)
+        if (cambio) {
+          const minCambio = Number(cambio.minuto) || 60
+          minCursor = Math.max(minCursor, minCambio + 1)
+        }
+
+        // Buscar el primer minuto libre que no choque con cambios ni faltas
+        while (minutosOcupadosGlobal.has(minCursor) && minCursor <= 90) {
+          minCursor += 1
+        }
+
+        item.minuto = Math.min(90, minCursor)
+        minutosOcupadosGlobal.add(item.minuto)
+
+        // Próximo gol: OBLIGATORIO al menos 5 minutos después del gol actual
+        minCursor = item.minuto + 5
+      }
+
+      // Ordenar goles cronológicamente
+      listaGoleadores.sort((a, b) => Number(a.minuto) - Number(b.minuto))
     }
 
     const faltasLoc = tarjetasOrganizadorModal.value.filter(t => {
@@ -1197,6 +1788,12 @@ async function guardarPuntuacionPartido() {
       faltasLocal: faltasLoc,
       faltasVisitante: faltasVis,
       goleadores: listaGoleadores,
+      cambios: cambiosOrganizadorModal.value.map(c => ({
+        equipo: c.equipoId,
+        jugadorSaleId: c.jugadorSaleId,
+        jugadorEntraId: c.jugadorEntraId,
+        minuto: Number(c.minuto) || 60
+      })),
       tarjetas: tarjetasCompiladas
     })
     modalPuntuacionAbierto.value = false
@@ -1394,6 +1991,14 @@ function formatearFecha(f) {
   height: 10px;
   border-radius: 50%;
   background: white;
+}
+
+
+.badge-pospuesto {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #f59e0b;
+  font-weight: 800;
 }
 
 </style>

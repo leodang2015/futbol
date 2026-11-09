@@ -1,5 +1,5 @@
 import { createApp } from 'vue'
-import { Quasar, Notify } from 'quasar'
+import { Quasar, Notify, Dialog } from 'quasar'
 import router from './router/router.js'
 
 // Import Quasar css
@@ -40,7 +40,8 @@ app.config.errorHandler = (err, instance, info) => {
 app.use(router)
 app.use(Quasar, {
   plugins: {
-    Notify
+    Notify,
+    Dialog
   }
 })
 

@@ -83,7 +83,10 @@
                 >
                   <template #prepend>
                     <q-icon :name="matPerson" color="grey-6" />
-                  </template>
+                  
+    
+
+</template>
                 </q-input>
               </div>
 
@@ -489,7 +492,7 @@
                   outlined
                   dense
                   bg-color="white"
-                  placeholder="Ej: OMAR-8421"
+                  placeholder="Ej: OMAR-8421 (Ingresa el código proporcionado por Omar)"
                   :rules="[val => !!val || 'El código generado por el organizador Omar es obligatorio']"
                 >
                   <template #prepend>
@@ -636,7 +639,7 @@
                 <div class="row items-center no-wrap q-gutter-xs">
                   <span class="text-caption text-weight-bolder">Código Org:</span>
                   <q-badge color="amber-10" text-color="white" class="font-mono text-weight-bolder font-12 q-px-xs">
-                    {{ store.codigoOrganizadorActivo || 'OMAR-8421' }}
+                    {{ store.codigoOrganizadorActivo || 'Cargando...' }}
                   </q-badge>
                 </div>
                 <q-tooltip class="bg-dark text-white">
@@ -644,14 +647,24 @@
                 </q-tooltip>
               </div>
 
-              <!-- Perfil del Usuario Activo -->
-              <div class="row items-center no-wrap q-ml-xs bg-slate-800 q-px-sm q-py-xs rounded-borders">
+              <!-- Perfil del Usuario Activo (Click para gestionar cuenta / editar / eliminar) -->
+              <div
+                class="row items-center no-wrap q-ml-xs bg-slate-800 hover:bg-slate-700 q-px-sm q-py-xs rounded-borders cursor-pointer border border-slate-700 transition"
+                @click="abrirModalPerfil"
+              >
                 <q-avatar size="24px" color="positive" text-color="white" class="q-mr-xs">
-                  <span class="text-weight-bold font-mono">{{ ((store.nombreDisplay || 'U').charAt ? store.nombreDisplay.charAt(0) : 'U').toUpperCase() }}</span>
+                  <span class="text-weight-bold font-mono">{{ ((store.user?.usuario || 'U').charAt(0)).toUpperCase() }}</span>
                 </q-avatar>
-                <span class="text-caption text-weight-bold ellipsis" style="max-width: 130px" :title="store.nombreDisplay">
-                  {{ store.nombreDisplay }}
-                </span>
+                <div class="column no-wrap leading-tight" style="max-width: 130px">
+                  <span class="text-caption text-weight-bolder text-emerald-300 ellipsis" :title="`@${store.user?.usuario}`">
+                    @{{ store.user?.usuario }}
+                  </span>
+                  <span v-if="store.user?.nombre && store.user?.nombre !== store.user?.usuario" class="font-10 text-grey-4 ellipsis" :title="store.user?.nombre">
+                    {{ store.user?.nombre }}
+                  </span>
+                </div>
+                <q-icon :name="matSettings" size="14px" color="grey-4" class="q-ml-xs" />
+                <q-tooltip class="bg-dark text-white">⚙️ Administrar tu cuenta (editar usuario o darte de baja)</q-tooltip>
               </div>
 
               <!-- Botón de Sincronización -->
@@ -866,6 +879,54 @@
                       />
                     </template>
 
+                    <!-- ACCIONES DE TRASPASO FASE 1: DT de Origen autoriza carta de salida -->
+                    <template v-else-if="n.tipo === 'traspaso_salida' && store.esEntrenador">
+                      <q-btn
+                        dense
+                        unelevated
+                        no-caps
+                        size="xs"
+                        color="positive"
+                        label="✅ Autorizar Salida"
+                        class="text-weight-bold q-px-xs"
+                        @click="autorizarSalidaDesdeNotif(n)"
+                      />
+                      <q-btn
+                        dense
+                        flat
+                        no-caps
+                        size="xs"
+                        color="negative"
+                        label="❌ Denegar Salida"
+                        class="text-weight-bold q-px-xs"
+                        @click="rechazarTraspasoDesdeNotif(n)"
+                      />
+                    </template>
+
+                    <!-- ACCIONES DE TRASPASO FASE 2: DT de Destino autoriza incorporación final -->
+                    <template v-else-if="n.tipo === 'traspaso_llegada' && store.esEntrenador">
+                      <q-btn
+                        dense
+                        unelevated
+                        no-caps
+                        size="xs"
+                        color="positive"
+                        label="✅ Aceptar en mi Club"
+                        class="text-weight-bold q-px-xs"
+                        @click="confirmarLlegadaDesdeNotif(n)"
+                      />
+                      <q-btn
+                        dense
+                        flat
+                        no-caps
+                        size="xs"
+                        color="negative"
+                        label="❌ Denegar Fichaje"
+                        class="text-weight-bold q-px-xs"
+                        @click="rechazarTraspasoDesdeNotif(n)"
+                      />
+                    </template>
+
                     <!-- ACCIONES DEL ORGANIZADOR: Autorizar o Rechazar clubes -->
                     <template v-else-if="n.tipo === 'solicitud_club' && store.esOrganizador">
                       <q-btn
@@ -929,6 +990,177 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+  <!-- DIÁLOGO MODAL: GESTIÓN DE PERFIL (EDITAR USUARIO / ELIMINAR CUENTA) -->
+    <q-dialog v-model="mostrarModalPerfil">
+      <q-card style="width: 440px; max-width: 92vw;" class="rounded-xl overflow-hidden bg-white shadow-24 column no-wrap">
+        <!-- Encabezado -->
+        <q-card-section class="bg-slate-900 text-white row items-center justify-between q-py-sm q-px-md shrink-0">
+          <div class="row items-center q-gutter-xs">
+            <q-icon :name="matManageAccounts" color="positive" size="22px" />
+            <div class="text-subtitle1 text-weight-bolder">Mi Cuenta y Perfil</div>
+          </div>
+          <q-btn flat round dense icon="close" text-color="white" v-close-popup size="sm" />
+        </q-card-section>
+
+        <q-card-section class="q-pa-md q-gutter-y-md scroll">
+          <!-- Resumen de Cuenta Actual -->
+          <div class="bg-slate-50 border rounded-lg p-3 row items-center justify-between">
+            <div>
+              <div class="text-caption text-grey-7 font-bold">USUARIO ACTUAL</div>
+              <div class="text-subtitle1 text-weight-bolder text-dark font-mono">@{{ store.user?.usuario }}</div>
+              <div class="text-caption text-slate-500 font-medium">{{ store.user?.nombre }}</div>
+            </div>
+            <div class="text-right">
+              <q-badge :color="store.esOrganizador ? 'amber-9' : store.esEntrenador ? 'emerald-8' : 'indigo-8'" text-color="white" class="font-bold text-caption q-px-sm q-py-xs">
+                {{ store.rolInfo.badge }}
+              </q-badge>
+            </div>
+          </div>
+
+          <!-- Pestañas internas: Editar vs Eliminar Cuenta -->
+          <q-tabs v-model="tabPerfil" dense no-caps class="text-grey-7 bg-slate-100 rounded-borders p-1" active-color="primary" indicator-color="primary">
+            <q-tab name="editar" icon="edit" label="Editar Perfil" class="text-weight-bold" />
+            <q-tab name="eliminar" icon="delete_forever" label="Eliminar Cuenta" class="text-weight-bold text-negative" />
+          </q-tabs>
+
+          <!-- TAB 1: EDITAR PERFIL -->
+          <div v-if="tabPerfil === 'editar'" class="q-gutter-y-sm">
+            <div>
+              <div class="text-caption text-weight-bold text-slate-700 q-mb-xs">Nombre de Usuario (@username)</div>
+              <q-input
+                v-model="perfilForm.nuevoUsuario"
+                outlined
+                dense
+                bg-color="white"
+                placeholder="Ej: lion99"
+                :disable="store.user?.usuario === 'omar'"
+                hint="Tu nombre único para iniciar sesión"
+              >
+                <template #prepend><span class="text-grey-6 font-bold">@</span></template>
+              </q-input>
+              <div v-if="store.user?.usuario === 'omar'" class="font-10 text-amber-9 font-bold q-mt-xs">
+                🔒 El identificador maestro "@omar" está protegido reglamentariamente.
+              </div>
+            </div>
+
+            <div>
+              <div class="text-caption text-weight-bold text-slate-700 q-mb-xs">Nombre Completo Visible</div>
+              <q-input
+                v-model="perfilForm.nombre"
+                outlined
+                dense
+                bg-color="white"
+                placeholder="Tu nombre y apellido"
+              />
+            </div>
+
+            <!-- Cambio opcional de clave -->
+            <div class="bg-indigo-50/60 p-2 rounded-lg border border-indigo-1 q-mt-xs q-gutter-y-xs">
+              <div class="text-caption text-weight-bold text-indigo-9">Cambiar Contraseña (Opcional)</div>
+              <q-input
+                v-model="perfilForm.passwordActual"
+                type="password"
+                outlined
+                dense
+                bg-color="white"
+                placeholder="Contraseña actual (requerida para cambiarla)"
+              />
+              <q-input
+                v-model="perfilForm.nuevoPassword"
+                type="password"
+                outlined
+                dense
+                bg-color="white"
+                placeholder="Nueva contraseña (mínimo 4 caracteres)"
+              />
+            </div>
+
+            <q-btn
+              unelevated
+              no-caps
+              color="positive"
+              text-color="white"
+              icon="save"
+              label="Guardar Cambios de Perfil"
+              class="full-width text-weight-bolder q-mt-md shadow-2"
+              :loading="guardandoPerfil"
+              @click="guardarCambiosPerfil"
+            />
+          </div>
+
+          <!-- TAB 2: ELIMINAR CUENTA (REGLAMENTARIO) -->
+          <div v-else-if="tabPerfil === 'eliminar'" class="q-gutter-y-sm">
+            <!-- CASO OMAR: NO SE PUEDE ELIMINAR -->
+            <div v-if="store.user?.usuario === 'omar'" class="bg-amber-50 border border-amber-300 rounded-lg p-3 text-center q-gutter-y-xs">
+              <q-icon name="gavel" color="amber-10" size="32px" />
+              <div class="text-subtitle2 text-weight-bold text-amber-10">Cuenta Fundacional Protegida</div>
+              <div class="text-caption text-slate-700 font-medium">
+                El usuario <strong>@omar</strong> es el Organizador Maestro de la Liga. Por reglamento oficial del torneo, su cuenta no puede ser eliminada para garantizar la estabilidad institucional del campeonato.
+              </div>
+            </div>
+
+            <!-- CASO ENTRENADOR: CASCADA TOTAL -->
+            <div v-else-if="store.esEntrenador" class="bg-rose-50 border border-rose-300 rounded-lg p-3 q-gutter-y-xs">
+              <div class="row items-center q-gutter-xs text-negative">
+                <q-icon name="warning" size="20px" />
+                <span class="text-subtitle2 text-weight-bolder">ADVERTENCIA CRÍTICA: Baja de Club y Plantel</span>
+              </div>
+              <div class="text-caption text-slate-800 leading-normal font-medium">
+                Si eliminas tu cuenta de Entrenador:
+                <ul class="q-my-xs q-pl-md font-11">
+                  <li>Se <strong>disolverá tu club oficial</strong> de forma definitiva en MongoDB.</li>
+                  <li>Se <strong>eliminarán todas las cuentas de los futbolistas</strong> vinculados a tu plantilla.</li>
+                  <li>Se removerán todos los partidos pendientes del club en el fixture.</li>
+                </ul>
+                <div class="font-10 text-rose-9 font-bold bg-rose-100 p-1 rounded">
+                  ⚠️ Esta acción es irreversible y deja fuera del campeonato a todo el plantel.
+                </div>
+              </div>
+            </div>
+
+            <!-- CASO JUGADOR: ELIMINACIÓN INDIVIDUAL -->
+            <div v-else-if="store.esJugador" class="bg-slate-100 border border-slate-300 rounded-lg p-3 q-gutter-y-xs">
+              <div class="text-subtitle2 text-weight-bolder text-slate-900">Baja Deportiva Individual</div>
+              <div class="text-caption text-slate-700 font-medium">
+                Al eliminar tu cuenta, tu ficha en la plantilla del club será retirada. <strong>No perjudica a tu club ni a tus compañeros</strong>; el equipo conservará su lugar en el torneo.
+              </div>
+            </div>
+
+            <!-- OTRO ORGANIZADOR -->
+            <div v-else class="bg-slate-100 border border-slate-300 rounded-lg p-3">
+              <div class="text-caption text-slate-700 font-medium">
+                Se dará de baja tu cuenta de organizador secundario del sistema.
+              </div>
+            </div>
+
+            <!-- Formulario de confirmación con password -->
+            <div v-if="store.user?.usuario !== 'omar'" class="q-pt-xs q-gutter-y-xs">
+              <div class="text-caption text-weight-bold text-slate-900">Ingresa tu contraseña para confirmar la eliminación:</div>
+              <q-input
+                v-model="passwordEliminarCuenta"
+                type="password"
+                outlined
+                dense
+                bg-color="white"
+                placeholder="Tu contraseña actual"
+              />
+              <q-btn
+                unelevated
+                no-caps
+                color="negative"
+                text-color="white"
+                icon="delete_forever"
+                label="Confirmar y Eliminar Definitivamente"
+                class="full-width text-weight-bolder q-mt-md shadow-2"
+                :loading="eliminandoCuenta"
+                :disable="!passwordEliminarCuenta"
+                @click="ejecutarEliminarCuenta"
+              />
+            </div>
+          </div>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </q-layout>
 </template>
 
@@ -963,7 +1195,11 @@ import {
   matCheckCircle,
   matNotifications,
   matDoneAll,
-  matClose
+  matClose,
+  matManageAccounts,
+  matSettings,
+  matVpnKey,
+  matEventSeat
 } from '@quasar/extras/material-icons'
 
 const $q = useQuasar()
@@ -1010,7 +1246,7 @@ const registroForm = ref({
   password: '',
   nombre: '',
   rol: 'organizador',
-  codigo: '1',
+  codigo: '',
   equipo: null,
   nombreEquipo: '',
   barriada: '',
@@ -1149,25 +1385,41 @@ registroForm.value.posicion = 'En Banca'
       escudoFigura: registroForm.value.escudoFigura,
       escudoUrl: registroForm.value.escudoUrl
     })
+    // 1. Si es ENTRENADOR: Su club queda en espera de la aprobación del Organizador (Omar)
     if (registroForm.value.rol === 'entrenador') {
-      $q.notify({
-        type: 'positive',
-        icon: 'notifications_active',
-        message: `📋 Solicitud enviada al Administrador: El club "${registroForm.value.nombreEquipo}" fue enviado para autorización oficial del Organizador.`,
-        position: 'top',
-        timeout: 6000
-      })
-      // Si el club requiere aprobación previa del organizador, no entra directo hasta ser autorizado
       store.logout()
       tabAcceso.value = 'login'
-      errorAcceso.value = `¡Registro recibido! Tu club "${registroForm.value.nombreEquipo}" quedó enviado al Organizador. Te notificará una vez autorizado para que puedas iniciar sesión.`
+      $q.notify({
+        type: 'warning',
+        icon: 'hourglass_empty',
+        message: `📋 Solicitud enviada al Administrador: El club "${registroForm.value.nombreEquipo}" quedó en estado PENDIENTE. Debes esperar a que el Organizador lo autorice para poder ingresar.`,
+        position: 'top',
+        timeout: 7000
+      })
+      errorAcceso.value = `⏳ Registro recibido: Tu club "${registroForm.value.nombreEquipo}" está en revisión. El Organizador del Torneo debe autorizar la afiliación antes de que puedas iniciar sesión.`
+      return
+    }
+
+    // 2. Si es JUGADOR: Pasa igual al de equipo, queda en espera de la autorización del Entrenador del club
+    if (registroForm.value.rol === 'jugador') {
+      store.logout()
+      tabAcceso.value = 'login'
+      const nomClub = store.nombreEquipo(registroForm.value.equipo) || 'el club seleccionado'
+      $q.notify({
+        type: 'warning',
+        icon: 'hourglass_empty',
+        message: `👤 Solicitud de incorporación enviada al Entrenador de "${nomClub}". Tu ficha quedó en estado PENDIENTE. Debes esperar su aceptación para ingresar.`,
+        position: 'top',
+        timeout: 7000
+      })
+      errorAcceso.value = `⏳ Solicitud enviada: Tu ficha quedó pendiente de autorización. El Entrenador de "${nomClub}" debe aceptarte en su nómina antes de que puedas iniciar sesión o realizar cualquier acción en el sistema.`
       return
     }
 
     $q.notify({
       type: 'positive',
       icon: 'check_circle',
-      message: `¡Cuenta creada exitosamente! Rol oficial asignado: ${res.usuario.rol.toUpperCase()}`,
+      message: `¡Cuenta creada exitosamente! Rol oficial asignado: ${res?.usuario?.rol?.toUpperCase() || 'ORGANIZADOR'}`,
       position: 'top',
       timeout: 3500
     })
@@ -1219,6 +1471,74 @@ async function rechazarClubDesdeNotif(n) {
       icon: 'error',
       message: err.message || 'Error al rechazar club',
       position: 'top'
+    })
+  }
+}
+
+async function autorizarSalidaDesdeNotif(n) {
+  const jId = n.datos?.jugadorId
+  const clubDestinoId = n.datos?.clubDestinoId
+  if (!jId || !clubDestinoId) return
+  try {
+    const res = await store.autorizarSalidaTraspaso({
+      jugadorId: jId,
+      clubDestinoId,
+      notificacionId: n._id || n.id
+    })
+    $q.notify({
+      type: 'positive',
+      icon: 'check_circle',
+      message: res.msg || 'Carta de salida concedida al futbolista.',
+      position: 'top',
+      timeout: 4500
+    })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: err.message || 'Error al autorizar la salida'
+    })
+  }
+}
+
+async function confirmarLlegadaDesdeNotif(n) {
+  const jId = n.datos?.jugadorId
+  const clubDestinoId = n.datos?.clubDestinoId
+  if (!jId || !clubDestinoId) return
+  try {
+    const res = await store.confirmarLlegadaTraspaso({
+      jugadorId: jId,
+      clubDestinoId,
+      notificacionId: n._id || n.id
+    })
+    $q.notify({
+      type: 'positive',
+      icon: 'verified',
+      message: res.msg || '¡Futbolista transferido e incorporado a tu club exitosamente!',
+      position: 'top',
+      timeout: 5000
+    })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: err.message || 'Error al confirmar llegada del fichaje'
+    })
+  }
+}
+
+async function rechazarTraspasoDesdeNotif(n) {
+  try {
+    await store.marcarNotificacionLeida(n._id || n.id)
+    $q.notify({
+      type: 'info',
+      icon: 'cancel',
+      message: 'Solicitud de traspaso desestimada por el cuerpo técnico.',
+      position: 'top',
+      timeout: 3500
+    })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: err.message || 'Error al rechazar solicitud'
     })
   }
 }
@@ -1293,6 +1613,105 @@ const roleColorClass = computed(() => {
   if (store.esEntrenador) return 'bg-emerald-6 text-white font-bold'
   return 'bg-indigo-6 text-white font-bold'
 })
+
+
+// ----------------------------------------------------------------------------
+// ESTADO Y MÉTODOS PARA GESTIÓN DE PERFIL (EDITAR USUARIO / ELIMINAR CUENTA)
+// ----------------------------------------------------------------------------
+const mostrarModalPerfil = ref(false)
+const tabPerfil = ref('editar')
+const perfilForm = ref({
+  nuevoUsuario: '',
+  nombre: '',
+  passwordActual: '',
+  nuevoPassword: ''
+})
+const guardandoPerfil = ref(false)
+const passwordEliminarCuenta = ref('')
+const eliminandoCuenta = ref(false)
+
+function abrirModalPerfil() {
+  if (!store.user) return
+  tabPerfil.value = 'editar'
+  perfilForm.value = {
+    nuevoUsuario: store.user.usuario || '',
+    nombre: store.user.nombre || '',
+    passwordActual: '',
+    nuevoPassword: ''
+  }
+  passwordEliminarCuenta.value = ''
+  mostrarModalPerfil.value = true
+}
+
+async function guardarCambiosPerfil() {
+  guardandoPerfil.value = true
+  try {
+    const res = await store.actualizarPerfil({
+      nuevoUsuario: perfilForm.value.nuevoUsuario,
+      nombre: perfilForm.value.nombre,
+      passwordActual: perfilForm.value.passwordActual,
+      nuevoPassword: perfilForm.value.nuevoPassword
+    })
+    $q.notify({
+      type: 'positive',
+      icon: 'check_circle',
+      message: res?.msg || 'Perfil actualizado con éxito',
+      position: 'top',
+      timeout: 3500
+    })
+    mostrarModalPerfil.value = false
+    await store.cargarTodo()
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      icon: 'error',
+      message: err.response?.data?.msg || err.message || 'Error al actualizar perfil',
+      position: 'top'
+    })
+  } finally {
+    guardandoPerfil.value = false
+  }
+}
+
+async function ejecutarEliminarCuenta() {
+  if (!passwordEliminarCuenta.value) {
+    $q.notify({ type: 'warning', message: 'Ingresa tu contraseña para confirmar' })
+    return
+  }
+  
+  $q.dialog({
+    title: '⚠️ Confirmación Final Irreversible',
+    message: store.esEntrenador 
+      ? '¿Estás absolutamente seguro? Se eliminará tu cuenta, tu club oficial y todas las cuentas de tus futbolistas vinculados.'
+      : '¿Deseas eliminar definitivamente tu cuenta del sistema?',
+    ok: { label: 'Sí, Eliminar Todo', color: 'negative', unelevated: true },
+    cancel: { label: 'Cancelar', flat: true }
+  }).onOk(async () => {
+    eliminandoCuenta.value = true
+    try {
+      const res = await store.eliminarCuenta(passwordEliminarCuenta.value)
+      mostrarModalPerfil.value = false
+      $q.notify({
+        type: 'info',
+        icon: 'delete_forever',
+        message: res?.msg || 'Cuenta eliminada del sistema',
+        position: 'top',
+        timeout: 6000
+      })
+      tabAcceso.value = 'login'
+      await store.cargarTodo()
+    } catch (err) {
+      $q.notify({
+        type: 'negative',
+        icon: 'error',
+        message: err.response?.data?.msg || err.message || 'Error al eliminar la cuenta',
+        position: 'top'
+      })
+    } finally {
+      eliminandoCuenta.value = false
+    }
+  })
+}
 
 onMounted(() => {
   store.cargarTodo()

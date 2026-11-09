@@ -14,12 +14,12 @@
           <q-list separator class="club-list">
             <q-item
               v-for="e in clubesVisibles"
-              :key="e.id"
+              :key="e.id || e._id"
               clickable
-              :active="e.id === seleccionId"
+              :active="(e.id || e._id) === seleccionId"
               active-class="active-club-item"
               class="q-py-md"
-              @click="seleccionId = e.id"
+              @click="seleccionId = (e.id || e._id)"
             >
               <q-item-section avatar>
                 <div class="club-list-badge-box" :style="{ backgroundColor: e.escudocolor || e.color || '#059669' }">
@@ -57,12 +57,12 @@
                     </q-badge>
                   </div>
                   <q-badge
-                    :color="store.equipoHabilitadoParaJugar(e.id) ? 'positive' : 'grey-7'"
+                    :color="store.equipoHabilitadoParaJugar(e.id || e._id) ? 'positive' : 'grey-7'"
                     text-color="white"
                     size="xs"
                     class="q-ml-xs text-weight-bold"
                   >
-                    {{ store.cantidadJugadoresEquipo(e.id) }}/11 jug.
+                    {{ store.cantidadJugadoresEquipo(e.id || e._id) }}/11 jug.
                   </q-badge>
                 </div>
                 <q-item-label caption class="text-grey-6">
@@ -232,16 +232,30 @@
                   </div>
                 </div>
 
-                <q-btn
-                  unelevated
-                  color="indigo-7"
-                  text-color="white"
-                  no-caps
-                  :icon="matNumbers"
-                  label="Escoger / Cambiar Mi Dorsal"
-                  class="text-weight-bold shadow-1"
-                  @click="abrirDialogoCambioDorsal(miFichaJugador)"
-                />
+                <div class="row items-center q-gutter-xs">
+                  <q-btn
+                    unelevated
+                    color="indigo-7"
+                    text-color="white"
+                    no-caps
+                    :icon="matNumbers"
+                    label="Cambiar Dorsal"
+                    class="text-weight-bold shadow-1"
+                    @click="abrirDialogoCambioDorsal(miFichaJugador)"
+                  />
+                  <q-btn
+                    unelevated
+                    color="amber-9"
+                    text-color="white"
+                    no-caps
+                    :icon="matSwapHoriz"
+                    label="🔄 Cambiar de Equipo"
+                    class="text-weight-bold shadow-2"
+                    @click="abrirDialogoTraspaso"
+                  >
+                    <q-tooltip>Solicita transferirte a otro club con la aprobación previa de tu DT y del DT de destino</q-tooltip>
+                  </q-btn>
+                </div>
               </div>
             </div>
 
@@ -527,6 +541,86 @@
       </q-card>
     </q-dialog>
   </div>
+
+    <!-- DIÁLOGO OFICIAL: SOLICITAR CAMBIO DE EQUIPO (TRASPASO) -->
+    <q-dialog v-model="mostrarModalTraspaso">
+      <q-card style="width: 500px; max-width: 95vw;" class="rounded-borders overflow-hidden bg-white shadow-10">
+        <q-card-section class="bg-amber-9 text-white row items-center justify-between q-py-md">
+          <div class="row items-center q-gutter-sm">
+            <q-avatar size="36px" color="amber-1" text-color="amber-10">
+              <q-icon :name="matSwapHoriz" size="24px" />
+            </q-avatar>
+            <div>
+              <div class="text-subtitle1 text-weight-bolder">Solicitar Cambio de Equipo</div>
+              <div class="text-caption font-11 text-amber-1">
+                Fichaje reglamentario con doble aprobación de entrenadores
+              </div>
+            </div>
+          </div>
+          <q-btn flat round dense icon="close" text-color="white" v-close-popup />
+        </q-card-section>
+
+        <q-card-section class="q-pa-md q-gutter-y-md">
+          <div class="bg-amber-50 border border-amber-3 rounded-borders q-pa-sm text-caption text-slate-800">
+            <strong>📋 Reglamento de Traspasos:</strong>
+            <ol class="q-my-xs q-pl-md font-11">
+              <li>Tu <strong>Entrenador actual ({{ miClubActualNombre }})</strong> recibirá una solicitud para otorgar tu carta de salida.</li>
+              <li>Una vez liberado, el <strong>Entrenador del nuevo club</strong> deberá aceptar tu incorporación al plantel.</li>
+            </ol>
+          </div>
+
+          <div>
+            <div class="text-caption text-weight-bold text-slate-800 q-mb-xs">
+              Club al que deseas transferirte *
+            </div>
+            <q-select
+              v-model="equipoDestinoSeleccionado"
+              :options="opcionesClubesDestino"
+              outlined
+              dense
+              emit-value
+              map-options
+              bg-color="white"
+              placeholder="Selecciona el nuevo club"
+            >
+              <template #prepend>
+                <q-icon :name="matShield" color="amber-9" />
+              </template>
+            </q-select>
+          </div>
+
+          <div>
+            <div class="text-caption text-weight-bold text-slate-800 q-mb-xs">
+              Motivo del traspaso (Opcional)
+            </div>
+            <q-input
+              v-model="motivoTraspaso"
+              outlined
+              dense
+              type="textarea"
+              rows="2"
+              bg-color="white"
+              placeholder="Ej: Búsqueda de minutos, acuerdo deportivo, cercanía..."
+            />
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-px-md q-pb-md">
+          <q-btn flat no-caps label="Cancelar" color="grey-7" v-close-popup />
+          <q-btn
+            unelevated
+            no-caps
+            color="amber-10"
+            text-color="white"
+            label="Enviar Solicitud al Entrenador"
+            :loading="enviandoTraspaso"
+            :disable="!equipoDestinoSeleccionado"
+            class="text-weight-bold q-px-md"
+            @click="enviarSolicitudTraspaso"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 </template>
 
 <script setup>
@@ -554,6 +648,65 @@ const $q = useQuasar()
 const autorizandoClub = ref(false)
 
 const rechazandoClub = ref(false)
+
+const mostrarModalTraspaso = ref(false)
+const equipoDestinoSeleccionado = ref(null)
+const motivoTraspaso = ref('')
+const enviandoTraspaso = ref(false)
+
+const miClubActualNombre = computed(() => {
+  return store.miEquipo?.nombre || 'tu club actual'
+})
+
+const opcionesClubesDestino = computed(() => {
+  const miEqId = String(store.miEquipoId || '').trim()
+  return (store.equipos || [])
+    .filter(e => String(e.id || e._id).trim() !== miEqId && e.estadoAprobacion !== 'Rechazado')
+    .map(e => ({
+      label: e.nombre,
+      value: e.id || e._id
+    }))
+})
+
+function abrirDialogoTraspaso() {
+  equipoDestinoSeleccionado.value = null
+  motivoTraspaso.value = ''
+  mostrarModalTraspaso.value = true
+}
+
+async function enviarSolicitudTraspaso() {
+  if (!equipoDestinoSeleccionado.value) return
+  if (!miFichaJugador.value) {
+    $q.notify({ type: 'negative', message: 'No se encontró tu ficha de jugador activa' })
+    return
+  }
+  enviandoTraspaso.value = true
+  try {
+    const jId = miFichaJugador.value.id || miFichaJugador.value._id
+    const res = await store.solicitarTraspaso({
+      jugadorId: jId,
+      nuevoEquipoId: equipoDestinoSeleccionado.value,
+      motivo: motivoTraspaso.value
+    })
+    mostrarModalTraspaso.value = false
+    $q.notify({
+      type: 'positive',
+      icon: 'send',
+      message: res.msg || 'Solicitud de traspaso enviada con éxito a tu entrenador actual.',
+      position: 'top',
+      timeout: 5000
+    })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      icon: 'error',
+      message: err.message || 'Error al solicitar el traspaso',
+      position: 'top'
+    })
+  } finally {
+    enviandoTraspaso.value = false
+  }
+}
 
 async function autorizarClubActual(eqId) {
   if (!eqId) return

@@ -20,10 +20,12 @@
 
           <!-- Barra de Acción Contextual Única según el Rol Activo (Sin duplicados) -->
           <div class="hero-role-action-bar row items-center q-gutter-sm">
-            <div class="role-pill row items-center q-px-sm q-py-xs rounded-borders" :class="roleStore.rolInfo.bgClass">
-              <span class="text-caption text-weight-bold" :class="roleStore.rolInfo.textColor">
-                {{ roleStore.rolInfo.badge }}
-              </span>
+            <!-- Badge oficial con color distintivo por rol -->
+            <div
+              class="role-pill row items-center q-px-sm q-py-xs rounded-borders text-caption text-weight-bolder shadow-2"
+              :class="roleBadgeClass"
+            >
+              <span>{{ store.rolInfo?.badge || '👑 Organizador' }}</span>
             </div>
 
             <!-- Botones de Acción (Únicos, específicos del rol) -->
@@ -515,6 +517,13 @@ import {
 
 const store = useTorneo()
 const roleStore = store
+
+const roleBadgeClass = computed(() => {
+  if (store.esOrganizador) return 'bg-amber-6 text-slate-900 font-bold border border-amber-400'
+  if (store.esEntrenador) return 'bg-emerald-6 text-white font-bold border border-emerald-400'
+  if (store.esJugador) return 'bg-indigo-6 text-white font-bold border border-indigo-400'
+  return 'bg-slate-700 text-white font-bold border border-slate-600'
+})
 const buscar = ref('')
 const filtroVistaTabla = ref('todos')
 const filtroVistaPartidos = ref('todos')
@@ -638,7 +647,8 @@ function colorEquipo(id) {
   display: inline-block;
 }
 .role-pill {
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  display: inline-flex;
+  align-items: center;
 }
 .metric-card {
   border: 1px solid #e2e8f0;
