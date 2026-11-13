@@ -9,14 +9,13 @@ import torneoRoutes from './routes/torneoRoutes.js'
 import partidoRoutes from './routes/partidoRoutes.js'
 import authRoutes from './routes/authRoutes.js'
 import notificacionRoutes from './routes/notificacionRoutes.js'
-export default app
+
 dotenv.config()
 
-const app = express()
+const app = express() // <-- Primero se declara app aquí
 
 app.use(cors())
 app.use(express.json())
-
 const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI
 
 let isConnected = false
