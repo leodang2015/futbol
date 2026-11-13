@@ -78,4 +78,3 @@ if (process.env.NODE_ENV !== 'production' || process.env.RENDER) {
   });
 }
 
-export default app;
