@@ -12,12 +12,14 @@ import notificacionRoutes from './routes/notificacionRoutes.js'
 
 dotenv.config()
 
-const app = express() // <-- Primero se declara app aquí
+const app = express()
 
+// Middlewares globales
 app.use(cors())
 app.use(express.json())
-const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI
 
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI 
+// Conexión a MongoDB persistente / serverless
 let isConnected = false
 async function connectDB() {
   if (mongoose.connection.readyState >= 1) return
@@ -31,6 +33,7 @@ async function connectDB() {
   }
 }
 
+// Middleware para asegurar conexión antes de procesar cualquier petición
 app.use(async (req, res, next) => {
   if (mongoose.connection.readyState !== 1) {
     await connectDB()
@@ -38,6 +41,7 @@ app.use(async (req, res, next) => {
   next()
 })
 
+// API health and info
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -46,6 +50,7 @@ app.get('/api/health', (req, res) => {
   })
 })
 
+// Montaje de rutas de la API
 app.use('/api/auth', authRoutes)
 app.use('/api/equipos', equipoRoutes)
 app.use('/api/jugadores', jugadorRoutes)
@@ -53,27 +58,31 @@ app.use('/api/torneos', torneoRoutes)
 app.use('/api/partidos', partidoRoutes)
 app.use('/api/notificaciones', notificacionRoutes)
 
-app.use((req, res) => {
+// Control para rutas no encontradas (404)
+app.use((req, res, next) => {
   if (req.originalUrl.startsWith('/api')) {
     return res.status(404).json({ msg: `La ruta ${req.originalUrl} no existe en este servidor` })
   }
-  return res.status(404).json({ msg: 'No encontrado' })
+  next()
 })
 
+// Control global de excepciones
 app.use((err, req, res, next) => {
   console.error('Error no controlado:', err.stack)
   res.status(400).json({ msg: 'Ocurrió un error al procesar la solicitud' })
 })
 
+const PORT = process.env.BACKEND_PORT || 4000
 
+export { app }
 
-
-const PORT = process.env.PORT || 4000;
-
-// Solo hace app.listen si no está siendo importado por un entorno serverless (como Vercel)
-if (process.env.NODE_ENV !== 'production' || process.env.RENDER) {
-  app.listen(PORT, () => {
-    console.log(`Servidor corriendo en el puerto ${PORT}`);
-  });
+// Solo iniciar escucha de puerto si no está en entorno serverless (Vercel)
+if (!process.env.VERCEL) {
+  connectDB().then(() => {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Servidor backend corriendo en http://localhost:${PORT}`)
+    })
+  })
 }
 
+export default app
