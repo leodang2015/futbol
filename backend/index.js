@@ -9,7 +9,7 @@ import torneoRoutes from './routes/torneoRoutes.js'
 import partidoRoutes from './routes/partidoRoutes.js'
 import authRoutes from './routes/authRoutes.js'
 import notificacionRoutes from './routes/notificacionRoutes.js'
-
+export default app
 dotenv.config()
 
 const app = express()
@@ -66,4 +66,16 @@ app.use((err, req, res, next) => {
   res.status(400).json({ msg: 'Ocurrió un error al procesar la solicitud' })
 })
 
-export default app
+
+
+
+const PORT = process.env.PORT || 4000;
+
+// Solo hace app.listen si no está siendo importado por un entorno serverless (como Vercel)
+if (process.env.NODE_ENV !== 'production' || process.env.RENDER) {
+  app.listen(PORT, () => {
+    console.log(`Servidor corriendo en el puerto ${PORT}`);
+  });
+}
+
+export default app;
