@@ -62,3 +62,4 @@ export const validarJWT = async (req, res, next) => {
 };
 
 export default { generarJWT, validarJWT };
+
