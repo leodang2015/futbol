@@ -33,7 +33,7 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: 'dist', // Genera los archivos en frontend/dist
+    outDir: path.resolve(__dirname, '../dist'),
     emptyOutDir: true
   }
 });

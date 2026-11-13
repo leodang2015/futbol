@@ -4,6 +4,7 @@ import FixtureView from '../views/FixtureView.vue'
 import EquiposView from '../views/EquiposView.vue'
 import RankingView from '../views/RankingView.vue'
 import EntrenadorView from '../views/EntrenadorView.vue'
+import InscripcionView from '../views/InscripcionView.vue'
 
 export default createRouter({
   history: createWebHistory(),
@@ -13,6 +14,6 @@ export default createRouter({
     { path: '/equipos', component: EquiposView },
     { path: '/ranking', component: RankingView },
     { path: '/entrenador', component: EntrenadorView },
-    { path: '/inscripcion', redirect: '/equipos' }
+    { path: '/inscripcion', component: InscripcionView }
   ]
 })

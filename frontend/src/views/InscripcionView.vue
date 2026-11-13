@@ -29,13 +29,8 @@
             </div>
 
             <div class="row justify-center q-gutter-md q-mt-lg">
-              <!-- Original:
-              <q-btn color="primary" unelevated no-caps :icon="matPersonAdd" label="Registrar Jugadores a este Club" @click="abrirRegistroJugador(clubInscrito.id || clubInscrito._id)" class="text-weight-bold" />
-              <q-btn outline color="slate-800" no-caps :icon="matSports" label="Ir a Pizarra Táctica (DT)" to="/entrenador" />
-              <q-btn flat color="grey-7" no-caps label="Inscribir Otro Equipo" @click="reiniciarFormulario" />
-              -->
-              <AppActionButton
-                tone="primary"
+              <q-btn
+                color="primary"
                 unelevated
                 no-caps
                 :icon="matPersonAdd"
@@ -43,17 +38,17 @@
                 @click="abrirRegistroJugador(clubInscrito.id || clubInscrito._id)"
                 class="text-weight-bold"
               />
-              <AppActionButton
+              <q-btn
                 outline
-                tone="dark"
+                color="slate-800"
                 no-caps
                 :icon="matSports"
                 label="Ir a Pizarra Táctica (DT)"
                 to="/entrenador"
               />
-              <AppActionButton
+              <q-btn
                 flat
-                tone="neutral"
+                color="grey-7"
                 no-caps
                 label="Inscribir Otro Equipo"
                 @click="reiniciarFormulario"
@@ -165,12 +160,9 @@
             </div>
 
             <div class="row justify-end q-gutter-sm q-mt-md">
-              <!-- Original:
-              <q-btn type="submit" color="primary" unelevated no-caps label="Confirmar Inscripción del Club" :icon="matCheckCircle" :loading="guardando" class="text-weight-bold q-px-lg" />
-              -->
-              <AppActionButton
+              <q-btn
                 type="submit"
-                tone="primary"
+                color="primary"
                 unelevated
                 no-caps
                 label="Confirmar Inscripción del Club"
@@ -221,8 +213,8 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useTorneo, ROLES } from '../store/torneo.js'
-import AppActionButton from '../components/AppActionButton.vue'
+import { useTorneoStore } from '../stores/torneoStore.js'
+import { useRoleStore, ROLES } from '../stores/roleStore.js'
 import JugadorDialog from '../components/JugadorDialog.vue'
 import {
   matShield,
@@ -231,8 +223,8 @@ import {
   matPersonAdd
 } from '@quasar/extras/material-icons'
 
-const store = useTorneo()
-const roleStore = store
+const store = useTorneoStore()
+const roleStore = useRoleStore()
 
 const guardando = ref(false)
 const error = ref('')
