@@ -66,24 +66,23 @@ app.use((req, res, next) => {
   }
   next()
 })
-
 // Control global de excepciones
 app.use((err, req, res, next) => {
   console.error('Error no controlado:', err.stack)
   res.status(400).json({ msg: 'Ocurrió un error al procesar la solicitud' })
 })
 
-const PORT = process.env.BACKEND_PORT || 4000
+// AQUÍ COLOCAS EL BLOQUE PARA RENDER:
+const PORT = process.env.PORT || process.env.BACKEND_PORT || 4000;
 
-export { app }
-
-// Solo iniciar escucha de puerto si no está en entorno serverless (Vercel)
-if (process.env.STANDALONE_BACKEND) {
+// Solo iniciar escucha si no está en entorno serverless (Vercel) o si se fuerza el standalone
+if (process.env.STANDALONE_BACKEND || !process.env.VERCEL) {
   connectDB().then(() => {
     app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Servidor backend corriendo en http://localhost:${PORT}`)
-    })
-  })
+      console.log(`Servidor backend corriendo en el puerto ${PORT}`);
+    });
+  });
 }
 
-export default app
+export default app;
+
