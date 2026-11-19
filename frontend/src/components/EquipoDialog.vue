@@ -8,7 +8,6 @@
         </div>
         <q-btn flat round dense :icon="matClose" v-close-popup text-color="grey-4" />
       </q-card-section>
-
       <q-card-section class="q-gutter-md q-pt-md">
         <div>
           <div class="text-caption text-weight-medium text-grey-8 q-mb-xs">Nombre Oficial del Club *</div>
