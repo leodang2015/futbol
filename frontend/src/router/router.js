@@ -4,7 +4,6 @@ import FixtureView from '../views/FixtureView.vue'
 import EquiposView from '../views/EquiposView.vue'
 import RankingView from '../views/RankingView.vue'
 import EntrenadorView from '../views/EntrenadorView.vue'
-
 export default createRouter({
   history: createWebHistory(),
   routes: [
