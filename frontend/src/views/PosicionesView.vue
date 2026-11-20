@@ -525,7 +525,7 @@ import {
   matAutoAwesome,
   matTableChart
 } from '@quasar/extras/material-icons'
-@@ -683,123 +423,4 @@
+
   align-items: center;
   justify-content: center;
 }
