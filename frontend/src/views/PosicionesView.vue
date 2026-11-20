@@ -802,3 +802,4 @@ function colorEquipo(id) {
   background-color: #f8fafc;
 }
 </style>
+
