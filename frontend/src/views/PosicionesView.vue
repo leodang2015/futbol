@@ -494,15 +494,22 @@
             </q-item>
           </q-list>
         </q-card>
+
+
+
+
+
+
       </div>
     </div>
   </div>
-</template>
-
+@@ -502,20 +244,18 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useTorneo } from '../store/torneo.js'
 import AppActionButton from '../components/AppActionButton.vue'
+
+
 import {
   matSearch,
   matSports,
@@ -519,167 +526,7 @@ import {
   matAutoAwesome,
   matTableChart
 } from '@quasar/extras/material-icons'
-
-const store = useTorneo()
-const roleStore = store
-
-const roleBadgeClass = computed(() => {
-  if (store.esOrganizador) return 'bg-amber-6 text-slate-900 font-bold border border-amber-400'
-  if (store.esEntrenador) return 'bg-emerald-6 text-white font-bold border border-emerald-400'
-  if (store.esJugador) return 'bg-indigo-6 text-white font-bold border border-indigo-400'
-  return 'bg-slate-700 text-white font-bold border border-slate-600'
-})
-const buscar = ref('')
-const filtroVistaTabla = ref('todos')
-const filtroVistaPartidos = ref('todos')
-
-const finalizado = (p) => ['jugado', 'finalizado'].includes(String(p?.estado || '').toLowerCase())
-
-const metricas = computed(() => [
-  { label: 'Clubes Inscriptos', value: store.stats.equipos, sub: 'Equipos en competencia', icon: matShield, bgClass: 'bg-emerald-50', iconClass: 'text-emerald-700' },
-  { label: 'Partidos Jugados', value: store.stats.partidos, sub: 'Encuentros disputados', icon: matSportsSoccer, bgClass: 'bg-indigo-50', iconClass: 'text-indigo-700' },
-  { label: 'Goles Totales', value: store.stats.goles, sub: 'Goles anotados en el torneo', icon: matSpeed, bgClass: 'bg-amber-50', iconClass: 'text-amber-800' },
-  { label: 'Promedio de Gol', value: store.stats.promedio, sub: 'Por encuentro oficial', icon: matMilitaryTech, bgClass: 'bg-teal-50', iconClass: 'text-teal-700' }
-])
-
-const tablaConPosiciones = computed(() => {
-  return store.tabla.map((e, i) => ({
-    ...e,
-    pos: i + 1,
-    color: e.color || e.escudocolor || '#059669',
-    esMiClub: (store.esJugador || store.esEntrenador) && String(e.id || e._id || '').trim() === String(store.miEquipoId || '').trim()
-  }))
-})
-
-const miClubEnTabla = computed(() => {
-  const miEqId = String(store.miEquipoId || '').trim()
-  if (!miEqId) return null
-  return tablaConPosiciones.value.find(e => String(e.id || e._id || '').trim() === miEqId) || null
-})
-
-const filas = computed(() => {
-  const todas = tablaConPosiciones.value
-
-  // El Entrenador y el Organizador pueden ver la tabla completa con todos los equipos
-  // El jugador mantiene su filtro personal si no está usando el buscador
-  if (store.esJugador && !buscar.value) {
-    const miEqId = String(store.miEquipoId || '').trim()
-    if (miEqId) {
-      return todas.filter(e => String(e.id || e._id || '').trim() === miEqId)
-    }
-  }
-
-  return todas.filter(e =>
-    !buscar.value ||
-    e.nombre?.toLowerCase().includes(buscar.value.toLowerCase()) ||
-    e.barriada?.toLowerCase().includes(buscar.value.toLowerCase())
-  )
-})
-
-const partidosResumen = computed(() => {
-  let list = [...store.partidos]
-  if (store.esJugador || store.esEntrenador) {
-    const miEqId = String(store.miEquipoId || '').trim()
-    if (miEqId) {
-      list = list.filter(p => String(p.localId || '').trim() === miEqId || String(p.visitanteId || '').trim() === miEqId)
-    }
-  }
-  return list.slice(-8).reverse()
-})
-
-const goleadoresResumen = computed(() => {
-  let list = store.goleadores
-  if (store.esJugador || store.esEntrenador) {
-    const miId = String(store.miEquipoId || '').trim()
-    list = list.filter(g => String((g.equipoId || g.equipo || '')).trim() === miId)
-  }
-  return [...list].slice(0, 5)
-})
-
-const asistidoresResumen = computed(() => {
-  let list = store.asistidores
-  if (store.esJugador || store.esEntrenador) {
-    const miId = String(store.miEquipoId || '').trim()
-    list = list.filter(a => String((a.equipoId || a.equipo || '')).trim() === miId)
-  }
-  return [...list].slice(0, 5)
-})
-
-function nombreEquipo(id) {
-  const eq = store.equipoPorId(id)
-  return eq ? eq.nombre : 'Club'
-}
-
-function colorEquipo(id) {
-  const eq = store.equipoPorId(id)
-  return eq?.color || eq?.escudocolor || '#059669'
-}
-</script>
-
-<style scoped>
-.tournament-hero-card {
-  background: linear-gradient(135deg, #064e3b 0%, #022c22 60%, #0f172a 100%);
-  border: 1px solid #047857;
-  box-shadow: 0 10px 25px -5px rgba(2, 44, 34, 0.4);
-}
-.hero-heading {
-  font-size: clamp(1.6rem, 3.5vw, 2.3rem);
-  line-height: 1.15;
-}
-.hero-subtext {
-  font-size: 0.95rem;
-  max-width: 620px;
-}
-.atlas-badge {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 6px 14px;
-  border-radius: 9999px;
-}
-.atlas-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: #34d399;
-  box-shadow: 0 0 10px #34d399;
-}
-.live-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: #34d399;
-  display: inline-block;
-}
-.role-pill {
-  display: inline-flex;
-  align-items: center;
-}
-.metric-card {
-  border: 1px solid #e2e8f0;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-.metric-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.06);
-}
-.metric-icon-box {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.empty-onboarding-card {
-  border: 1px dashed #cbd5e1;
-}
-.empty-icon-wrap {
-  width: 68px;
-  height: 68px;
-  border-radius: 50%;
-  background-color: #ecfdf5;
-  display: flex;
+@@ -683,123 +423,4 @@
   align-items: center;
   justify-content: center;
 }
@@ -802,4 +649,3 @@ function colorEquipo(id) {
   background-color: #f8fafc;
 }
 </style>
-
