@@ -503,7 +503,6 @@
       </div>
     </div>
   </div>
-@@ -502,20 +244,18 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useTorneo } from '../store/torneo.js'
