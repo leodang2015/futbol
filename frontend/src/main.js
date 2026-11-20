@@ -46,3 +46,4 @@ app.use(Quasar, {
 })
 
 app.mount('#app')
+
