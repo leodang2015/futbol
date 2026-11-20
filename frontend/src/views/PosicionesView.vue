@@ -424,3 +424,4 @@ function colorEquipo(id) {
   justify-content: center;
 }
 </style>
+
