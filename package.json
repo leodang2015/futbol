@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node backend/index.js",
-    "dev": "node --watch backend/index.js",
-    "build": "echo 'Backend ready'"
+    "dev": "node --watch backend/index.js"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
