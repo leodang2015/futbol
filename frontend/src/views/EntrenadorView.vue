@@ -1978,5 +1978,4 @@ onMounted(() => {
   object-fit: cover !important;
   display: block;
 }
-
 </style>
